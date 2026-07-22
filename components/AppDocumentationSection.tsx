@@ -67,46 +67,43 @@ Slide 10: Product Roadmap & Future Scope (GitHub Actions CI/CD, OpenAPI 3.0, Web
   };
 
   return (
-    <div className="w-full rounded-2xl border border-slate-800 bg-slate-900/80 p-6 backdrop-blur-md shadow-xl flex flex-col space-y-6">
+    <div className="w-full rounded-2xl border border-slate-800 bg-slate-900/80 p-6 backdrop-blur-md shadow-xl flex flex-col space-y-6 overflow-hidden">
       
-      {/* Section Header with Responsive Flex Container */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between pb-4 border-b border-slate-800 gap-4">
-        <div>
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <Layers className="h-5 w-5 text-indigo-400 shrink-0" />
-            System Architecture, AI/ML Deep Dive & Cloud Guide
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Technical design, AI/Agentic AI architecture, AWS deployment spec, visual prompts, and stakeholder presentation deck.
-          </p>
-        </div>
+      {/* 1. Header Title & Subtitle Span Full 100% Width Above Tabs */}
+      <div className="w-full border-b border-slate-800 pb-4">
+        <h2 className="text-lg font-bold text-white flex items-center gap-2">
+          <Layers className="h-5 w-5 text-indigo-400 shrink-0" />
+          System Architecture, AI/ML Deep Dive & Cloud Deployment Guide
+        </h2>
+        <p className="text-xs text-slate-400 mt-1">
+          Deep dive technical design, AI/Agentic AI architecture, AWS enterprise cloud deployment spec, visual prompts, and stakeholder presentation deck.
+        </p>
+      </div>
 
-        {/* Tab Switcher - Horizontal Scroll Bar */}
-        <div className="flex items-center space-x-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800 text-xs overflow-x-auto custom-scrollbar shrink-0 max-w-full">
-          {[
-            { id: 'aws_architecture', label: 'Architecture & AWS Cloud', icon: Cloud },
-            { id: 'ai_ml_deepdive', label: '🧠 AI, Agentic AI & ML Deep Dive', icon: Brain },
-            { id: 'ai_prompts_deck', label: '🎨 Visual Prompts & PPT Deck', icon: Presentation },
-            { id: 'techstack', label: 'Tech Stack & Decision Matrix', icon: Code2 },
-            { id: 'futurescope', label: 'Future Scope & Roadmap', icon: Rocket },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-indigo-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5 shrink-0" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+      {/* 2. Full-Width Sub-Navigation Tab Bar Below Header */}
+      <div className="w-full flex flex-wrap items-center gap-2 p-1.5 rounded-xl bg-slate-950 border border-slate-800">
+        {[
+          { id: 'aws_architecture', label: '☁️ Architecture & AWS Cloud', icon: Cloud },
+          { id: 'ai_ml_deepdive', label: '🧠 AI, Agentic AI & ML Deep Dive', icon: Brain },
+          { id: 'ai_prompts_deck', label: '🎨 Visual Prompts & PPT Deck', icon: Presentation },
+          { id: 'techstack', label: '</> Tech Stack & Decision Matrix', icon: Code2 },
+          { id: 'futurescope', label: '🚀 Future Scope & Roadmap', icon: Rocket },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center space-x-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+                activeTab === tab.id
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+              }`}
+            >
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* TAB 1: SYSTEM ARCHITECTURE & AWS CLOUD DEPLOYMENT */}
@@ -426,13 +423,12 @@ Resources:
         </div>
       )}
 
-      {/* TAB 4: TECH STACK & COMPARATIVE DECISION MATRIX (RESTORED COMPLETE DETAILS) */}
+      {/* TAB 4: TECH STACK & COMPARATIVE DECISION MATRIX */}
       {activeTab === 'techstack' && (
         <div className="space-y-6 text-xs text-slate-300">
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
-            {/* Core Tech Item 1 */}
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-sm text-white flex items-center gap-2">
@@ -451,7 +447,6 @@ Resources:
               </div>
             </div>
 
-            {/* Core Tech Item 2 */}
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-sm text-white flex items-center gap-2">
@@ -470,7 +465,6 @@ Resources:
               </div>
             </div>
 
-            {/* Core Tech Item 3 */}
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-sm text-white flex items-center gap-2">
@@ -489,7 +483,6 @@ Resources:
               </div>
             </div>
 
-            {/* Core Tech Item 4 */}
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-sm text-white flex items-center gap-2">
@@ -510,7 +503,6 @@ Resources:
 
           </div>
 
-          {/* Comparative Tech Decision Matrix Table */}
           <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-3">
             <h3 className="font-bold text-sm text-white">Comparative Architecture Decision Matrix</h3>
             <div className="overflow-x-auto">
