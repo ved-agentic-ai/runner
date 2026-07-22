@@ -6,7 +6,8 @@ import {
   Key, 
   FileCode, 
   FolderPlus, 
-  Zap
+  Zap,
+  Sparkles
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { EnvironmentManagerModal } from './EnvironmentManagerModal';
@@ -15,6 +16,7 @@ import { CustomTestRuleGeneratorModal } from './CustomTestRuleGeneratorModal';
 import { QuotaTelemetryWidget } from './QuotaTelemetryWidget';
 import { PresentationDeckModal } from './PresentationDeckModal';
 import { AdminControlPanelModal } from './AdminControlPanelModal';
+import { PricingCheckoutModal } from './PricingCheckoutModal';
 import { useAdminStore } from '@/lib/admin-store';
 
 export const Header: React.FC = () => {
@@ -26,7 +28,14 @@ export const Header: React.FC = () => {
     generateAiTestsForSelected
   } = useRunnerStore();
 
-  const { showHeaderControls } = useAdminStore();
+  const { 
+    showHeaderControls, 
+    showSaaSUpgrades,
+    showQuotaTelemetry,
+    showPresetButton,
+    showAiKeyButton,
+    workspaceMode
+  } = useAdminStore();
 
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -94,8 +103,9 @@ export const Header: React.FC = () => {
   );
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl flex-col xl:flex-row xl:items-center justify-between gap-3 px-4 py-3 sm:px-6">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/95 backdrop-blur-md">
+      {/* ROW 1: BRAND TITLE & PRIMARY SYSTEM CONTROLS */}
+      <div className="mx-auto flex max-w-[1600px] flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
         
         {/* Brand & Active Collection Title */}
         <div className="flex items-center space-x-3 shrink-0">
@@ -107,14 +117,19 @@ export const Header: React.FC = () => {
 
           <div className="min-w-0">
             <div className="flex items-center space-x-2">
-              <h1 className="text-base font-bold tracking-tight text-white whitespace-nowrap">
+              <h1 className="text-base font-extrabold tracking-tight text-white whitespace-nowrap">
                 API Collection <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Runner</span>
               </h1>
-              <span className="inline-flex items-center rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-400 ring-1 ring-inset ring-indigo-500/20 whitespace-nowrap">
-                AI Test Engine
+              <span className={`inline-flex items-center space-x-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border whitespace-nowrap ${
+                workspaceMode === 'light' 
+                  ? 'bg-purple-950/60 text-purple-300 border-purple-800/60' 
+                  : 'bg-indigo-950/60 text-indigo-300 border-indigo-800/60'
+              }`}>
+                <Sparkles className="h-3 w-3 shrink-0" />
+                <span>{workspaceMode === 'light' ? 'Light Team Mode' : 'Full Enterprise'}</span>
               </span>
             </div>
-            <p className="text-xs text-slate-400 truncate max-w-xs sm:max-w-md">
+            <p className="text-[11px] text-slate-400 truncate max-w-xs sm:max-w-md">
               {collectionName ? (
                 <span className="flex items-center gap-1 text-slate-300 truncate">
                   <FileCode className="h-3 w-3 shrink-0 text-indigo-400" /> <span className="truncate">{collectionName}</span>
@@ -126,54 +141,74 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Configuration Action Controls */}
+        {/* PRIMARY CONTROLS (Row 1 Right) */}
         {showHeaderControls && (
-          <div className="flex flex-wrap items-center gap-2 overflow-x-auto custom-scrollbar max-w-full">
-            
+          <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2 shrink-0">
             {/* Owner & Admin Control Panel */}
             <AdminControlPanelModal />
 
-            {/* Quota & Token Monitor Widget */}
-            <QuotaTelemetryWidget />
+            {/* Quota & Token Monitor Widget (Configurable) */}
+            {showQuotaTelemetry && <QuotaTelemetryWidget />}
 
             {/* Postman-Style Environment Manager Button */}
             <EnvironmentManagerModal />
 
+            {/* SaaS Upgrade & Subscription Button (Hidden in Light Mode or if toggled off) */}
+            {workspaceMode === 'full' && showSaaSUpgrades && <PricingCheckoutModal />}
+
             {/* Stakeholder Presentation Deck Modal */}
             <PresentationDeckModal />
-
-            {/* Natural Language Custom Test Generator Button */}
-            <CustomTestRuleGeneratorModal />
-
-            {/* View All AI Test Rules Button */}
-            <AiTestSuiteViewerModal />
-
-            {/* Load Sample Preset Button */}
-            <button
-              onClick={loadDemoCollection}
-              className="inline-flex items-center space-x-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all shadow-sm whitespace-nowrap"
-              title="Load JSONPlaceholder & ReqRes Demo Collection"
-            >
-              <FolderPlus className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-              <span>Load Demo API</span>
-            </button>
-
-            {/* AI Key Button */}
-            <button
-              onClick={() => setShowKeyModal(true)}
-              className={`inline-flex items-center space-x-1.5 rounded-xl px-3 py-1.5 text-xs font-medium border transition-all shadow-sm whitespace-nowrap ${
-                geminiApiKey 
-                  ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60 hover:bg-emerald-900/50' 
-                  : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
-              }`}
-            >
-              <Key className={`h-3.5 w-3.5 shrink-0 ${geminiApiKey ? 'text-emerald-400' : 'text-amber-400'}`} />
-              <span>{geminiApiKey ? 'AI Key Configured' : 'Configure AI API Key'}</span>
-            </button>
-
           </div>
         )}
       </div>
+
+      {/* ROW 2: AI ENGINE & WORKSPACE PRESET TOOLBAR */}
+      {showHeaderControls && (
+        <div className="border-t border-slate-900 bg-slate-950/60 px-4 py-1.5 sm:px-6">
+          <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-2">
+            
+            {/* Left Side AI Engine Actions */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Natural Language Custom Test Generator Button */}
+              {workspaceMode === 'full' && <CustomTestRuleGeneratorModal />}
+
+              {/* View All AI Test Rules Button */}
+              {workspaceMode === 'full' && <AiTestSuiteViewerModal />}
+            </div>
+
+            {/* Right Side Workspace Shortcuts */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Load Sample Preset Button (Configurable) */}
+              {showPresetButton && (
+                <button
+                  onClick={loadDemoCollection}
+                  className="inline-flex items-center space-x-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all shadow-sm whitespace-nowrap"
+                  title="Load JSONPlaceholder & ReqRes Demo Collection"
+                >
+                  <FolderPlus className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                  <span>Load Demo API Collection</span>
+                </button>
+              )}
+
+              {/* AI Key Button (Configurable) */}
+              {showAiKeyButton && (
+                <button
+                  onClick={() => setShowKeyModal(true)}
+                  className={`inline-flex items-center space-x-1.5 rounded-xl px-3 py-1.5 text-xs font-medium border transition-all shadow-sm whitespace-nowrap ${
+                    geminiApiKey 
+                      ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60 hover:bg-emerald-900/50' 
+                      : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
+                  }`}
+                >
+                  <Key className={`h-3.5 w-3.5 shrink-0 ${geminiApiKey ? 'text-emerald-400' : 'text-amber-400'}`} />
+                  <span>{geminiApiKey ? 'AI API Key Configured' : 'Configure AI API Key'}</span>
+                </button>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {showKeyModal && mounted && createPortal(keyModalContent, document.body)}
     </header>

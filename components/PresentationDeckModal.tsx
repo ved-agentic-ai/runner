@@ -8,15 +8,21 @@ import {
   ChevronLeft, 
   ChevronRight, 
   CheckCircle2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Crown
 } from 'lucide-react';
 import pptxgen from 'pptxgenjs';
+import { useSubscriptionStore } from '@/lib/subscription-store';
+import { PricingCheckoutModal } from './PricingCheckoutModal';
 
 export const PresentationDeckModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(1);
   const [isExporting, setIsExporting] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+
+  const { plan } = useSubscriptionStore();
 
   useEffect(() => {
     setMounted(true);
@@ -127,6 +133,10 @@ export const PresentationDeckModal: React.FC = () => {
 
   // Download pre-generated PowerPoint deck with embedded screenshots
   const handleDownloadFullWalkthroughPptx = () => {
+    if (plan === 'free') {
+      setShowPricingModal(true);
+      return;
+    }
     const a = document.createElement('a');
     a.href = '/API_Collection_Runner_Complete_Walkthrough.pptx';
     a.download = 'API_Collection_Runner_Complete_Walkthrough.pptx';
@@ -137,6 +147,11 @@ export const PresentationDeckModal: React.FC = () => {
 
   // Native Microsoft PowerPoint (.pptx) Generator
   const handleDownloadNativePptx = async () => {
+    if (plan === 'free') {
+      setShowPricingModal(true);
+      return;
+    }
+
     try {
       setIsExporting(true);
       const pres = new pptxgen();
@@ -244,6 +259,7 @@ export const PresentationDeckModal: React.FC = () => {
             >
               <ImageIcon className="h-3.5 w-3.5" />
               <span>Download Screenshot Walkthrough PPT (.pptx)</span>
+              {plan === 'free' && <Crown className="h-3 w-3 text-amber-400 ml-0.5" />}
             </button>
 
             <button
@@ -253,6 +269,7 @@ export const PresentationDeckModal: React.FC = () => {
             >
               <Download className={`h-3.5 w-3.5 ${isExporting ? 'animate-spin' : ''}`} />
               <span>{isExporting ? 'Exporting PPTX...' : 'Download Executive PPT (.pptx)'}</span>
+              {plan === 'free' && <Crown className="h-3 w-3 text-amber-300 ml-0.5" />}
             </button>
 
             <button
@@ -329,6 +346,11 @@ export const PresentationDeckModal: React.FC = () => {
 
   return (
     <>
+      <PricingCheckoutModal
+        isOpen={showPricingModal}
+        onClose={() => setShowPricingModal(false)}
+      />
+
       <button
         onClick={() => setIsOpen(true)}
         className="inline-flex items-center space-x-1.5 rounded-xl bg-gradient-to-r from-indigo-950 to-purple-950 border border-indigo-700/60 px-3 py-1.5 text-xs font-semibold text-indigo-200 hover:from-indigo-900 hover:to-purple-900 transition-all shadow-md whitespace-nowrap"

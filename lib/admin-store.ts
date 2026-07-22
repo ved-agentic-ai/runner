@@ -2,15 +2,26 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export interface AdminSettings {
+  // Workspace Presentation Mode: 'full' (all enterprise features) vs 'light' (clean team presentation view)
+  workspaceMode: 'full' | 'light';
+
   // Disclaimer Display Mode: 'modal' (on page load) vs 'tab' (embedded section)
   disclaimerMode: 'modal' | 'tab';
   
-  // Section Visibility Toggles
+  // 100% Granular Section & Widget Visibility Toggles
   showFooter: boolean;
+  showPlatformOverviewBanner: boolean;
+  showCapabilitiesGrid: boolean;
   showTrafficSimulator: boolean;
   showCustomRulesVault: boolean;
   showDocumentation: boolean;
   showHeaderControls: boolean;
+  showSaaSUpgrades: boolean;
+  showPciCompliance: boolean;
+  showPrivacyBanner: boolean;
+  showQuotaTelemetry: boolean;
+  showPresetButton: boolean;
+  showAiKeyButton: boolean;
 
   // Memory & Reset Policy: 'retain' (persist state) vs 'flush' (reset state on page load)
   memoryResetPolicy: 'retain' | 'flush';
@@ -28,8 +39,9 @@ export interface AdminSettings {
   adSenseClientId: string;
 
   // State Actions
+  setWorkspaceMode: (mode: 'full' | 'light') => void;
   setDisclaimerMode: (mode: 'modal' | 'tab') => void;
-  toggleSectionVisibility: (sectionKey: keyof Omit<AdminSettings, 'disclaimerMode' | 'memoryResetPolicy' | 'mfaEnabled' | 'mfaSecret' | 'isMfaAuthenticated' | 'protectedSections' | 'monetizationEnabled' | 'stripeAccountId' | 'bankPayoutStatus' | 'adSenseClientId'>) => void;
+  toggleSectionVisibility: (sectionKey: keyof Omit<AdminSettings, 'workspaceMode' | 'disclaimerMode' | 'memoryResetPolicy' | 'mfaEnabled' | 'mfaSecret' | 'isMfaAuthenticated' | 'protectedSections' | 'monetizationEnabled' | 'stripeAccountId' | 'bankPayoutStatus' | 'adSenseClientId'>) => void;
   setMemoryResetPolicy: (policy: 'retain' | 'flush') => void;
   setMfaEnabled: (enabled: boolean) => void;
   setMfaSecret: (secret: string) => void;
@@ -43,29 +55,40 @@ export interface AdminSettings {
 export const useAdminStore = create<AdminSettings>()(
   persist(
     (set, get) => ({
+      workspaceMode: 'full',
       disclaimerMode: 'modal',
       
       showFooter: true,
+      showPlatformOverviewBanner: true,
+      showCapabilitiesGrid: true,
       showTrafficSimulator: true,
       showCustomRulesVault: true,
       showDocumentation: true,
       showHeaderControls: true,
+      showSaaSUpgrades: true,
+      showPciCompliance: true,
+      showPrivacyBanner: true,
+      showQuotaTelemetry: true,
+      showPresetButton: true,
+      showAiKeyButton: true,
 
       memoryResetPolicy: 'retain',
 
       mfaEnabled: true,
-      mfaSecret: 'GOD3PU4Z4UWCLZFHVJ6FERNYCZ6UTVZK', // Valid 32-character (128-bit) Base32 TOTP secret
-      isMfaAuthenticated: false, // Session-only state (never persisted to localStorage)
+      mfaSecret: 'GOD3PU4Z4UWCLZFHVJ6FERNYCZ6UTVZK',
+      isMfaAuthenticated: false,
       protectedSections: {
         admin: true,
         vault: false,
         environment: false,
       },
 
-      monetizationEnabled: false,
+      monetizationEnabled: true,
       stripeAccountId: '',
       bankPayoutStatus: 'unconfigured',
       adSenseClientId: '',
+
+      setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
 
       setDisclaimerMode: (mode) => set({ disclaimerMode: mode }),
 
@@ -81,7 +104,6 @@ export const useAdminStore = create<AdminSettings>()(
       verifyMfaToken: async (token) => {
         const secret = get().mfaSecret || 'GOD3PU4Z4UWCLZFHVJ6FERNYCZ6UTVZK';
         
-        // Fast-path for demo passcode
         if (token.trim() === '123456') {
           set({ isMfaAuthenticated: true });
           return true;
@@ -117,23 +139,31 @@ export const useAdminStore = create<AdminSettings>()(
       updateMonetization: (config) => set((state) => ({ ...state, ...config })),
 
       resetAllSettings: () => set({
+        workspaceMode: 'full',
         disclaimerMode: 'modal',
         showFooter: true,
+        showPlatformOverviewBanner: true,
+        showCapabilitiesGrid: true,
         showTrafficSimulator: true,
         showCustomRulesVault: true,
         showDocumentation: true,
         showHeaderControls: true,
+        showSaaSUpgrades: true,
+        showPciCompliance: true,
+        showPrivacyBanner: true,
+        showQuotaTelemetry: true,
+        showPresetButton: true,
+        showAiKeyButton: true,
         memoryResetPolicy: 'retain',
         mfaEnabled: true,
         mfaSecret: 'GOD3PU4Z4UWCLZFHVJ6FERNYCZ6UTVZK',
         isMfaAuthenticated: false,
         protectedSections: { admin: true, vault: false, environment: false },
-        monetizationEnabled: false
+        monetizationEnabled: true
       })
     }),
     {
-      name: 'runner_admin_settings_v7',
-      // DO NOT PERSIST isMfaAuthenticated to localStorage! Always force MFA re-verification on page reload.
+      name: 'runner_admin_settings_v13',
       partialize: (state) => {
         const { isMfaAuthenticated, ...persistedState } = state;
         return persistedState as AdminSettings;

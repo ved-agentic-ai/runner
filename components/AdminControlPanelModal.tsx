@@ -5,74 +5,81 @@ import { createPortal } from 'react-dom';
 import { 
   ShieldCheck, 
   Lock, 
-  Layout, 
+  Smartphone, 
+  AlertTriangle, 
+  QrCode, 
+  Copy, 
+  Check, 
   RefreshCw, 
+  LogOut, 
   DollarSign, 
-  AlertTriangle,
-  Smartphone,
-  CreditCard,
-  Building2,
+  CreditCard, 
+  Building2, 
+  Layout, 
+  Sliders, 
+  Sparkles,
+  Loader2,
+  Crown,
   ToggleLeft,
   ToggleRight,
-  QrCode,
-  CheckCircle2,
-  Copy,
-  Check,
-  LogOut,
-  Loader2
+  Award,
+  Layers
 } from 'lucide-react';
 import { useAdminStore } from '@/lib/admin-store';
-import { useRunnerStore } from '@/lib/store';
-import { generateMfaSetup } from '@/lib/totp-utils';
+import { generateMfaSetup, generateBase32Secret } from '@/lib/totp-utils';
 
 export const AdminControlPanelModal: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'security' | 'layout' | 'memory' | 'monetization'>('security');
-  const [otpInput, setOtpInput] = useState('');
-  const [mfaError, setMfaError] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-
-  // Live QR Code Setup State
-  const [showQrModal, setShowQrModal] = useState(false);
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const [secretKey, setSecretKey] = useState('');
-  const [copiedSecret, setCopiedSecret] = useState(false);
-
   const {
+    workspaceMode,
+    setWorkspaceMode,
     disclaimerMode,
     setDisclaimerMode,
+    showFooter,
+    showPlatformOverviewBanner,
+    showCapabilitiesGrid,
+    showTrafficSimulator,
+    showCustomRulesVault,
+    showDocumentation,
+    showHeaderControls,
+    showSaaSUpgrades,
+    showPciCompliance,
+    showPrivacyBanner,
+    showQuotaTelemetry,
+    showPresetButton,
+    showAiKeyButton,
     toggleSectionVisibility,
     memoryResetPolicy,
     setMemoryResetPolicy,
     mfaEnabled,
-    setMfaEnabled,
     mfaSecret,
-    setMfaSecret,
     isMfaAuthenticated,
     verifyMfaToken,
     lockAdminPanel,
     protectedSections,
-    toggleSectionProtection
+    toggleSectionProtection,
+    monetizationEnabled,
+    updateMonetization,
+    resetAllSettings
   } = useAdminStore();
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<'security' | 'layout' | 'memory' | 'monetization'>('security');
+  
+  // OTP Verification Form State
+  const [otpInput, setOtpInput] = useState('');
+  const [mfaError, setMfaError] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  // QR Code pairing sub-modal state
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [secretKey, setSecretKey] = useState<string>('');
+  const [copiedSecret, setCopiedSecret] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  const handleGenerateNewMfa = async (useExistingSecret = false) => {
-    try {
-      const secretToUse = useExistingSecret && mfaSecret ? mfaSecret : undefined;
-      const setupData = await generateMfaSetup(secretToUse, 'vedtripathi@gmail.com');
-      
-      setQrCodeUrl(setupData.qrCodeDataUrl);
-      setSecretKey(setupData.secret);
-      setMfaSecret(setupData.secret); // Update store secret immediately
-      setShowQrModal(true);
-    } catch (err) {
-      console.error('Failed to generate MFA QR code:', err);
-    }
-  };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,56 +97,60 @@ export const AdminControlPanelModal: React.FC = () => {
     }
   };
 
-  const handleLockAndClose = () => {
-    lockAdminPanel();
-    setIsOpen(false);
-    setOtpInput('');
+  const handleGenerateNewSecret = async () => {
+    const newSecret = generateBase32Secret();
+    setSecretKey(newSecret);
+    
+    // Save to Zustand admin store
+    useAdminStore.getState().setMfaSecret(newSecret);
+
+    const setupData = await generateMfaSetup(newSecret);
+    setQrCodeUrl(setupData.qrCodeDataUrl);
+    setShowQrModal(true);
   };
 
-  const handleFlushNow = () => {
-    useRunnerStore.setState({
-      executionResults: {},
-      selectedNodeIds: [],
-      envVariables: {},
-      runSummary: {
-        total: 0,
-        passed: 0,
-        failed: 0,
-        pending: 0,
-        running: 0,
-        avgLatencyMs: 0,
-        minLatencyMs: 0,
-        maxLatencyMs: 0,
-        status: 'idle'
-      }
-    });
-    alert('App state and memory flushed successfully! All local cached endpoints and environment variables have been reset.');
+  const handleShowCurrentQr = async () => {
+    const secret = mfaSecret || 'GOD3PU4Z4UWCLZFHVJ6FERNYCZ6UTVZK';
+    setSecretKey(secret);
+    const setupData = await generateMfaSetup(secret);
+    setQrCodeUrl(setupData.qrCodeDataUrl);
+    setShowQrModal(true);
   };
 
   const copySecretToClipboard = () => {
     navigator.clipboard.writeText(secretKey);
     setCopiedSecret(true);
-    setTimeout(() => setCopiedSecret(false), 2000);
+    setTimeout(() => setCopiedSecret(false), 1500);
+  };
+
+  const handleFlushNow = () => {
+    if (confirm('Are you sure you want to flush all in-memory workspace data and reset store state?')) {
+      useAdminStore.getState().resetAllSettings();
+      window.location.reload();
+    }
+  };
+
+  const handleLockAndClose = () => {
+    lockAdminPanel();
+    setIsOpen(false);
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-4xl rounded-3xl border border-slate-800 bg-[#0f172a] p-6 shadow-2xl flex flex-col space-y-5 max-h-[90vh] overflow-y-auto custom-scrollbar my-auto">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-4xl rounded-3xl border border-amber-500/30 bg-[#0f172a] p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar my-auto text-left relative">
         
-        {/* Header */}
+        {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center space-x-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-red-600 p-0.5 shadow-lg shadow-amber-500/20">
-              <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-slate-950">
-                <ShieldCheck className="h-6 w-6 text-amber-400" />
-              </div>
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              <ShieldCheck className="h-6 w-6" />
             </div>
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                🔐 Owner & Admin Control Center
+                Owner & Admin Protection Panel
               </h2>
               <p className="text-xs text-slate-400">
-                Exclusive site owner configuration panel for MFA security, dynamic layout toggles, memory reset rules, and monetization payouts.
+                Configure application layout, section security, data retention policy, and web monetization.
               </p>
             </div>
           </div>
@@ -226,9 +237,9 @@ export const AdminControlPanelModal: React.FC = () => {
             <div className="flex items-center space-x-1 rounded-2xl bg-slate-950 p-1.5 border border-slate-800 overflow-x-auto custom-scrollbar">
               {[
                 { id: 'security', label: '🔐 1. Security & MFA Protection', icon: Lock },
-                { id: 'layout', label: '⚙️ 2. Dynamic Layout & Toggles', icon: Layout },
+                { id: 'layout', label: '⚙️ 2. Granular Widget Toggles', icon: Layout },
                 { id: 'memory', label: '🧹 3. Memory & Flush Policy', icon: RefreshCw },
-                { id: 'monetization', label: '💵 4. Monetization & Bank Payout', icon: DollarSign },
+                { id: 'monetization', label: '💵 4. Monetization & SaaS Tiers', icon: DollarSign },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -248,154 +259,220 @@ export const AdminControlPanelModal: React.FC = () => {
             {activeTab === 'security' && (
               <div className="space-y-5 text-xs text-slate-300">
                 <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                    <div>
-                      <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                        <Lock className="h-4 w-4 text-amber-400" /> MFA Protection Toggle
-                      </h3>
-                      <p className="text-slate-400 text-xs mt-0.5">
-                        Require Mobile TOTP Authenticator code before granting access to Admin & Protected Sections.
-                      </p>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleGenerateNewMfa(true)}
-                        className="inline-flex items-center space-x-1.5 rounded-xl border border-indigo-800 bg-indigo-950/60 px-3 py-1.5 text-xs font-bold text-indigo-300 hover:bg-indigo-900 transition-all"
-                      >
-                        <QrCode className="h-3.5 w-3.5" />
-                        <span>Show Paired Device QR Code</span>
-                      </button>
-
-                      <button
-                        onClick={() => setMfaEnabled(!mfaEnabled)}
-                        className={`inline-flex items-center space-x-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                          mfaEnabled ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-slate-800 text-slate-400'
-                        }`}
-                      >
-                        {mfaEnabled ? <ToggleRight className="h-5 w-5 text-emerald-400" /> : <ToggleLeft className="h-5 w-5 text-slate-500" />}
-                        <span>{mfaEnabled ? 'MFA Protection ENABLED' : 'MFA Protection DISABLED'}</span>
-                      </button>
-                    </div>
+                  <div className="border-b border-slate-800 pb-3">
+                    <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-amber-400" /> Multi-Factor Authentication (MFA / TOTP)
+                    </h3>
+                    <p className="text-slate-400 text-xs mt-0.5">
+                      Pair your mobile phone with Microsoft Authenticator, Google Authenticator, or Authy.
+                    </p>
                   </div>
 
-                  <div className="space-y-3 pt-2">
-                    <h4 className="font-bold text-xs text-slate-200">Select Sections Requiring MFA Protection:</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {[
-                        { key: 'admin', title: 'Admin Control Center', desc: 'Locks this Admin panel behind MFA.' },
-                        { key: 'vault', title: 'Custom AI Rules Vault', desc: 'Requires MFA before editing custom rules.' },
-                        { key: 'environment', title: 'Environment Variables Manager', desc: 'Requires MFA before viewing secret keys.' },
-                      ].map((item) => (
-                        <label
-                          key={item.key}
-                          className="flex items-start space-x-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3 hover:bg-slate-900 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={!!protectedSections[item.key]}
-                            onChange={() => toggleSectionProtection(item.key)}
-                            className="mt-0.5 rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-amber-500"
-                          />
-                          <div>
-                            <span className="font-bold text-slate-200 text-xs block">{item.title}</span>
-                            <span className="text-[11px] text-slate-400">{item.desc}</span>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={handleShowCurrentQr}
+                      className="inline-flex items-center space-x-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-indigo-600/30 hover:bg-indigo-500 transition-all"
+                    >
+                      <QrCode className="h-4 w-4" />
+                      <span>Show Paired Device QR Code</span>
+                    </button>
 
-            {/* TAB 2: DYNAMIC LAYOUT & SECTION TOGGLES */}
-            {activeTab === 'layout' && (
-              <div className="space-y-5 text-xs text-slate-300">
-                <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                    <div>
-                      <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                        <Layout className="h-4 w-4 text-indigo-400" /> Legal Disclaimer Display Location
-                      </h3>
-                      <p className="text-slate-400 text-xs mt-0.5">
-                        Choose whether the Legal Disclaimer appears as an interactive popup dialog on page load or as a standalone tab section.
-                      </p>
-                    </div>
-
-                    <div className="flex items-center space-x-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
-                      <button
-                        onClick={() => setDisclaimerMode('modal')}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                          disclaimerMode === 'modal' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        Dialog on Page Load
-                      </button>
-                      <button
-                        onClick={() => setDisclaimerMode('tab')}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                          disclaimerMode === 'tab' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        Embedded Tab Section
-                      </button>
-                    </div>
+                    <button
+                      onClick={handleGenerateNewSecret}
+                      className="inline-flex items-center space-x-2 rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition-all"
+                    >
+                      <RefreshCw className="h-4 w-4 text-purple-400" />
+                      <span>Generate New MFA Secret Key</span>
+                    </button>
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 space-y-4">
-                  <h3 className="font-bold text-sm text-white border-b border-slate-800 pb-2">
-                    Dynamic Section Visibility Toggles (Zero Layout Misalignment)
-                  </h3>
+                  <div className="border-b border-slate-800 pb-3">
+                    <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-emerald-400" /> Granular Protected Application Sections
+                    </h3>
+                    <p className="text-slate-400 text-xs mt-0.5">
+                      Select which application features require MFA passcode authentication before users can open them.
+                    </p>
+                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-3">
                     {[
-                      { key: 'showFooter', label: 'Developer Footer & Social Links', desc: 'Displays Ved Tripathi branding and GitHub link at bottom.' },
-                      { key: 'showTrafficSimulator', label: 'Live Traffic & Routing Simulator', desc: 'Shows real-time HTTP routing animation stream.' },
-                      { key: 'showCustomRulesVault', label: 'Custom AI Test Rules Vault Tab', desc: 'Displays Tab 3 in top workspace bar.' },
-                      { key: 'showDocumentation', label: 'AWS Cloud Architecture & AI Deep Dive Tab', desc: 'Displays Tab 4 in top workspace bar.' },
+                      { key: 'admin', label: 'Admin Control Panel', desc: 'Protects layout, memory policy, and monetization settings.' },
+                      { key: 'environment', label: 'Environment Variables Manager', desc: 'Requires MFA passcode to view or edit API secret keys.' },
+                      { key: 'vault', label: 'Custom AI Rules Vault', desc: 'Requires MFA passcode to view or create custom assertion rules.' },
                     ].map((item) => (
-                      <div
-                        key={item.key}
-                        className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 p-3.5"
-                      >
+                      <label key={item.key} className="flex items-center justify-between rounded-xl border border-slate-800/80 bg-slate-900/60 p-3 hover:bg-slate-900 cursor-pointer">
                         <div>
-                          <span className="font-bold text-slate-200 text-xs block">{item.label}</span>
-                          <span className="text-[11px] text-slate-400">{item.desc}</span>
+                          <span className="font-semibold text-slate-200 block text-xs">{item.label}</span>
+                          <span className="text-slate-400 text-[11px]">{item.desc}</span>
                         </div>
-                        <button
-                          onClick={() => toggleSectionVisibility(item.key as any)}
-                          className={`rounded-lg px-3 py-1 text-xs font-bold transition-all shrink-0 ${
-                            (useAdminStore.getState() as any)[item.key]
-                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                              : 'bg-red-950 text-red-400 border border-red-800'
-                          }`}
-                        >
-                          {(useAdminStore.getState() as any)[item.key] ? 'VISIBLE' : 'HIDDEN'}
-                        </button>
-                      </div>
+                        <input
+                          type="checkbox"
+                          checked={!!protectedSections[item.key]}
+                          onChange={() => toggleSectionProtection(item.key)}
+                          className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      </label>
                     ))}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* TAB 2: GRANULAR WIDGET & SECTION VISIBILITY TOGGLES */}
+            {activeTab === 'layout' && (
+              <div className="space-y-5 text-xs text-slate-300">
+                
+                {/* Workspace Presentation Mode Selector */}
+                <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 space-y-4">
+                  <div className="border-b border-slate-800 pb-3">
+                    <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-indigo-400" /> App Presentation Mode (Full Enterprise vs Light Team View)
+                    </h3>
+                    <p className="text-slate-400 text-xs mt-0.5">
+                      Select between Full Scale Enterprise Mode (all deep-dive features) or Light Team Mode (clean presentation view for team members).
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div
+                      onClick={() => setWorkspaceMode('full')}
+                      className={`rounded-2xl border p-4 cursor-pointer transition-all ${
+                        workspaceMode === 'full'
+                          ? 'border-indigo-500 bg-indigo-950/30'
+                          : 'border-slate-800 bg-slate-900/50 hover:border-slate-700'
+                      }`}
+                    >
+                      <span className="font-bold text-sm text-indigo-300 block mb-1">
+                        🌟 Option A: Full Scale Enterprise App
+                      </span>
+                      <p className="text-slate-400 text-xs leading-relaxed">
+                        Unlocks all 4 workspace tabs, live traffic simulator, custom AI rules vault, AWS system architecture, and monetization suites.
+                      </p>
+                    </div>
+
+                    <div
+                      onClick={() => setWorkspaceMode('light')}
+                      className={`rounded-2xl border p-4 cursor-pointer transition-all ${
+                        workspaceMode === 'light'
+                          ? 'border-purple-500 bg-purple-950/30'
+                          : 'border-slate-800 bg-slate-900/50 hover:border-slate-700'
+                      }`}
+                    >
+                      <span className="font-bold text-sm text-purple-300 block mb-1">
+                        ⚡ Option B: Light Team Demo Mode
+                      </span>
+                      <p className="text-slate-400 text-xs leading-relaxed">
+                        Hides internal enterprise architecture, AWS deep dives, and vault to display a clean, high-speed API runner for team showcases.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Legal Disclaimer Display Mode */}
+                <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 space-y-4">
+                  <div className="border-b border-slate-800 pb-3">
+                    <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                      <Layout className="h-4 w-4 text-indigo-400" /> Legal Disclaimer Display Mode
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div
+                      onClick={() => setDisclaimerMode('modal')}
+                      className={`rounded-2xl border p-4 cursor-pointer transition-all ${
+                        disclaimerMode === 'modal'
+                          ? 'border-indigo-500 bg-indigo-950/30'
+                          : 'border-slate-800 bg-slate-900/50 hover:border-slate-700'
+                      }`}
+                    >
+                      <span className="font-bold text-sm text-indigo-300 block mb-1">
+                        Option 1: Page-Load Dialog Modal
+                      </span>
+                      <p className="text-slate-400 text-xs leading-relaxed">
+                        Presents an un-dismissable high-priority disclaimer popup backdrop immediately on page load.
+                      </p>
+                    </div>
+
+                    <div
+                      onClick={() => setDisclaimerMode('tab')}
+                      className={`rounded-2xl border p-4 cursor-pointer transition-all ${
+                        disclaimerMode === 'tab'
+                          ? 'border-indigo-500 bg-indigo-950/30'
+                          : 'border-slate-800 bg-slate-900/50 hover:border-slate-700'
+                      }`}
+                    >
+                      <span className="font-bold text-sm text-indigo-300 block mb-1">
+                        Option 2: Standalone Tab Bar Section
+                      </span>
+                      <p className="text-slate-400 text-xs leading-relaxed">
+                        Removes startup popup dialog and embeds disclaimer as Tab #5 in top workspace bar.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 100% Complete Widget Controls Grid */}
+                <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 space-y-4">
+                  <div className="border-b border-slate-800 pb-3">
+                    <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                      <Sliders className="h-4 w-4 text-purple-400" /> Complete Page Widget & Section Visibility Toggles
+                    </h3>
+                    <p className="text-slate-400 text-xs mt-0.5">
+                      Independently show or hide any button, widget, banner, or section on the page.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {[
+                      { key: 'showSaaSUpgrades', label: '👑 "Upgrade to Pro" SaaS Pricing Button' },
+                      { key: 'showCapabilitiesGrid', label: '⚡ 4-Column Core Capabilities Grid' },
+                      { key: 'showPlatformOverviewBanner', label: '✨ Creative Platform Architecture Banner' },
+                      { key: 'showPrivacyBanner', label: '🔒 "100% Local Privacy & Secrets" Banner' },
+                      { key: 'showPciCompliance', label: '🛡️ "PCI-DSS Level 1 Security" Banner' },
+                      { key: 'showQuotaTelemetry', label: '📊 App Demo Key / Token Usage Monitor' },
+                      { key: 'showPresetButton', label: '📁 "Load Demo API Presets" Button' },
+                      { key: 'showAiKeyButton', label: '🔑 "Configure AI API Key" Button' },
+                      { key: 'showTrafficSimulator', label: '📈 Live Traffic Simulator Widget' },
+                      { key: 'showCustomRulesVault', label: '🪄 Custom AI Rules Vault (Tab 3)' },
+                      { key: 'showDocumentation', label: '☁️ AWS System Architecture (Tab 4)' },
+                      { key: 'showFooter', label: '📝 Footer Developer Credits & Copyright Panel' },
+                    ].map((item) => {
+                      const isVisible = !!(useAdminStore.getState() as any)[item.key];
+                      return (
+                        <div key={item.key} className="flex items-center justify-between rounded-xl border border-slate-800/80 bg-slate-900/60 p-3 hover:bg-slate-900">
+                          <span className="font-semibold text-slate-200 text-xs">{item.label}</span>
+                          <button
+                            onClick={() => toggleSectionVisibility(item.key as any)}
+                            className={`p-1 text-xs font-bold transition-all ${isVisible ? 'text-emerald-400' : 'text-slate-500'}`}
+                          >
+                            {isVisible ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6" />}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
               </div>
             )}
 
-            {/* TAB 3: MEMORY & RESET POLICY */}
+            {/* TAB 3: MEMORY & FLUSH POLICY */}
             {activeTab === 'memory' && (
               <div className="space-y-5 text-xs text-slate-300">
                 <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 space-y-4">
                   <div className="border-b border-slate-800 pb-3">
                     <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                      <RefreshCw className="h-4 w-4 text-purple-400" /> Application Memory Reset Policy
+                      <RefreshCw className="h-4 w-4 text-emerald-400" /> Data Retention & Memory Policy
                     </h3>
                     <p className="text-slate-400 text-xs mt-0.5">
-                      Configure whether local application memory (environment variables, custom rules, execution logs) is retained across sessions or automatically flushed on page refresh.
+                      Configure how uploaded Postman collections and environment variables behave across page refreshes.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div
                       onClick={() => setMemoryResetPolicy('retain')}
                       className={`rounded-2xl border p-4 cursor-pointer transition-all ${
@@ -442,45 +519,42 @@ export const AdminControlPanelModal: React.FC = () => {
               </div>
             )}
 
-            {/* TAB 4: MONETIZATION & BANK PAYOUT SETUP */}
+            {/* TAB 4: MONETIZATION, BILLING, SAAS TIERS & PCI COMPLIANCE */}
             {activeTab === 'monetization' && (
               <div className="space-y-5 text-xs text-slate-300">
                 <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 space-y-4">
                   <div className="border-b border-slate-800 pb-3">
                     <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-emerald-400" /> Web Monetization & Direct Bank Payout Setup
+                      <Award className="h-4 w-4 text-emerald-400" /> Merchant Gateways & PCI SAQ A Compliance
                     </h3>
-                    <p className="text-slate-400 text-xs mt-0.5">
-                      Configure payment processing and direct bank account payout integration for your live web application.
-                    </p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-xs text-emerald-400 flex items-center gap-1.5">
-                          <CreditCard className="h-4 w-4" /> 1. Stripe Connect
+                          <CreditCard className="h-4 w-4" /> 1. Stripe Gateway
                         </span>
                         <span className="rounded bg-emerald-950 text-emerald-400 text-[10px] px-2 py-0.5 border border-emerald-800">
-                          Direct Bank Payout
+                          Level 1 PCI
                         </span>
                       </div>
                       <p className="text-slate-400 text-[11px]">
-                        Accept credit card subscriptions (SaaS tier) and receive direct automatic daily payouts into your bank account.
+                        Stripe handles 100% of card processing via SAQ A tokens. Zero cardholder data touches your server.
                       </p>
                     </div>
 
                     <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-xs text-blue-400 flex items-center gap-1.5">
-                          <Building2 className="h-4 w-4" /> 2. PayPal Business
+                          <Building2 className="h-4 w-4" /> 2. PayPal Express
                         </span>
                         <span className="rounded bg-blue-950 text-blue-400 text-[10px] px-2 py-0.5 border border-blue-800">
-                          Global Express
+                          Certified
                         </span>
                       </div>
                       <p className="text-slate-400 text-[11px]">
-                        Allow international users to pay via PayPal or debit cards with direct bank transfer integration.
+                        PayPal processes international express payments directly on PayPal's secure encrypted checkout vault.
                       </p>
                     </div>
 
@@ -490,11 +564,11 @@ export const AdminControlPanelModal: React.FC = () => {
                           <DollarSign className="h-4 w-4" /> 3. Google AdSense
                         </span>
                         <span className="rounded bg-amber-950 text-amber-400 text-[10px] px-2 py-0.5 border border-amber-800">
-                          Ad Revenue
+                          EFT Payout
                         </span>
                       </div>
                       <p className="text-slate-400 text-[11px]">
-                        Monetize site traffic via display banners with monthly EFT payouts directly to your linked bank account.
+                        Monetize site traffic via display banners with monthly EFT payouts directly to your bank account.
                       </p>
                     </div>
                   </div>
