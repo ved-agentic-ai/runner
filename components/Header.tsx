@@ -16,6 +16,7 @@ import { EnvironmentManagerModal } from './EnvironmentManagerModal';
 import { AiTestSuiteViewerModal } from './AiTestSuiteViewerModal';
 import { CustomTestRuleGeneratorModal } from './CustomTestRuleGeneratorModal';
 import { QuotaTelemetryWidget } from './QuotaTelemetryWidget';
+import { PresentationDeckModal } from './PresentationDeckModal';
 
 export const Header: React.FC = () => {
   const { 
@@ -24,7 +25,6 @@ export const Header: React.FC = () => {
     geminiApiKey, 
     setGeminiApiKey, 
     generateAiTestsForSelected,
-    isGeneratingAiTests,
     runSelectedEndpoints,
     runSummary,
     clearResults
@@ -47,7 +47,7 @@ export const Header: React.FC = () => {
   const isRunning = runSummary.status === 'running';
 
   const keyModalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md animate-in fade-in duration-200">
       <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl my-auto">
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center space-x-2 text-indigo-400 font-semibold text-base">
@@ -98,11 +98,11 @@ export const Header: React.FC = () => {
   );
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 sm:px-6">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md">
+      <div className="mx-auto flex max-w-7xl flex-col xl:flex-row xl:items-center justify-between gap-3 px-4 py-3 sm:px-6">
         
         {/* Brand & Active Collection Title */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 shrink-0">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-0.5 shadow-lg shadow-indigo-500/20">
             <div className="flex h-full w-full items-center justify-center rounded-[10px] bg-slate-950">
               <Zap className="h-5 w-5 text-indigo-400 animate-pulse" />
@@ -111,7 +111,7 @@ export const Header: React.FC = () => {
 
           <div className="min-w-0">
             <div className="flex items-center space-x-2">
-              <h1 className="text-lg font-bold tracking-tight text-white whitespace-nowrap">
+              <h1 className="text-base font-bold tracking-tight text-white whitespace-nowrap">
                 API Collection <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Runner</span>
               </h1>
               <span className="inline-flex items-center rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-400 ring-1 ring-inset ring-indigo-500/20 whitespace-nowrap">
@@ -130,14 +130,17 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+        {/* Action Controls - Clean Horizontal Bar */}
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto custom-scrollbar max-w-full">
           
           {/* Quota & Token Monitor Widget */}
           <QuotaTelemetryWidget />
 
           {/* Postman-Style Environment Manager Button */}
           <EnvironmentManagerModal />
+
+          {/* Stakeholder Presentation Deck Modal */}
+          <PresentationDeckModal />
 
           {/* Natural Language Custom Test Generator Button */}
           <CustomTestRuleGeneratorModal />

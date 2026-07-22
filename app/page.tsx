@@ -10,6 +10,8 @@ import { LiveTrafficSimulator } from '@/components/LiveTrafficSimulator';
 import { AppDocumentationSection } from '@/components/AppDocumentationSection';
 import { CustomUseCasesVault } from '@/components/CustomUseCasesVault';
 import { EndpointDetailSheet } from '@/components/EndpointDetailSheet';
+import { LegalDisclaimerModal } from '@/components/LegalDisclaimerModal';
+import { Footer } from '@/components/Footer';
 import { useRunnerStore } from '@/lib/store';
 import { Play, Cloud, UploadCloud, Sparkles } from 'lucide-react';
 
@@ -27,6 +29,9 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0b0f19] text-slate-100 selection:bg-indigo-500 selection:text-white">
+      {/* Legal Disclaimer Modal on Every Page Load */}
+      <LegalDisclaimerModal />
+
       {/* Navigation Header */}
       <Header />
 
@@ -36,8 +41,8 @@ export default function Home() {
         {/* Local Secrets & Privacy Guarantee Banner */}
         <PrivacyBanner />
 
-        {/* Main View Mode Selector Bar - Clean Horizontal Scrollable Container */}
-        <div className="flex items-center justify-between bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800 backdrop-blur-md gap-3">
+        {/* Main View Mode Selector Bar */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800 backdrop-blur-md gap-3 overflow-hidden">
           <div className="flex items-center space-x-1 text-xs overflow-x-auto custom-scrollbar max-w-full shrink-0">
             {[
               { id: 'upload', label: '📤 1. Upload & Collection Presets', icon: UploadCloud },
@@ -68,7 +73,7 @@ export default function Home() {
           </span>
         </div>
 
-        {/* MAIN TAB 1: UPLOAD & COLLECTION PRESETS (DEFAULT 1ST TAB) */}
+        {/* MAIN TAB 1: UPLOAD & COLLECTION PRESETS */}
         {activeMainTab === 'upload' && (
           <div className="max-w-4xl mx-auto py-4 space-y-6">
             <UploadZone />
@@ -118,6 +123,9 @@ export default function Home() {
 
       {/* Slide-out Drawer for Detailed HTTP Logs & Assertions */}
       <EndpointDetailSheet />
+
+      {/* Developer Credits Footer */}
+      <Footer />
     </div>
   );
 }

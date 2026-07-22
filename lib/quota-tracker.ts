@@ -7,7 +7,6 @@ export interface QuotaState {
   lastCallTimestamp?: string;
 }
 
-// Global in-memory quota state
 let currentQuota: QuotaState = {
   mode: 'app_demo_key',
   requestsUsed: 0,
@@ -30,16 +29,14 @@ export function getQuotaState(userApiKey?: string): QuotaState {
 }
 
 export function canMakeAiRequest(userApiKey?: string): { allowed: boolean; reason?: string; keyToUse?: string } {
-  // If user provided their own key, unlimited
   if (userApiKey && userApiKey.trim().length > 0) {
     return { allowed: true, keyToUse: userApiKey.trim() };
   }
 
-  // App Demo key mode capped at 3 requests
   if (currentQuota.requestsUsed >= currentQuota.maxDemoRequests) {
     return {
       allowed: false,
-      reason: `Demo Key Limit Reached (${currentQuota.requestsUsed}/${currentQuota.maxDemoRequests} requests). Configure your own Gemini API key for unlimited AI generations.`
+      reason: `Demo Key Limit Reached (${currentQuota.requestsUsed}/${currentQuota.maxDemoRequests} requests max). Configure your own Gemini API key for unlimited AI generations.`
     };
   }
 
@@ -51,7 +48,7 @@ export function trackAiApiCall(tokensEstimate: number, userApiKey?: string) {
   currentQuota.totalTokensEstimated += Math.max(tokensEstimate, 150);
   currentQuota.lastCallTimestamp = new Date().toLocaleTimeString();
 
-  if (currentQuota.mode === 'app_demo_key' && currentQuota.requestsUsed >= currentQuota.maxDemoRequests) {
+  if (!userApiKey && currentQuota.requestsUsed >= currentQuota.maxDemoRequests) {
     currentQuota.rateLimitStatus = 'quota_exceeded';
   } else {
     currentQuota.rateLimitStatus = 'ok';
