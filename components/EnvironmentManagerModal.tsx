@@ -10,9 +10,12 @@ import {
   EyeOff, 
   Save, 
   CheckCircle2, 
-  Lock
+  Lock,
+  ShieldAlert
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
+import { useAdminStore } from '@/lib/admin-store';
+import { MfaPromptModal } from './MfaPromptModal';
 
 interface EnvVarEntry {
   id: string;
@@ -24,7 +27,10 @@ interface EnvVarEntry {
 
 export const EnvironmentManagerModal: React.FC = () => {
   const { envVariables } = useRunnerStore();
+  const { mfaEnabled, isMfaAuthenticated, protectedSections } = useAdminStore();
+
   const [isOpen, setIsOpen] = useState(false);
+  const [showMfaModal, setShowMfaModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [entries, setEntries] = useState<EnvVarEntry[]>([]);
   const [showValues, setShowValues] = useState<Record<string, boolean>>({});
@@ -56,6 +62,19 @@ export const EnvironmentManagerModal: React.FC = () => {
       setEntries(initialEntries);
     }
   }, [isOpen, envVariables]);
+
+  const handleOpenClick = () => {
+    if (mfaEnabled && protectedSections.environment && !isMfaAuthenticated) {
+      setShowMfaModal(true);
+      return;
+    }
+    setIsOpen(true);
+  };
+
+  const handleMfaSuccess = () => {
+    setShowMfaModal(false);
+    setIsOpen(true);
+  };
 
   const handleAddRow = () => {
     const newEntry: EnvVarEntry = {
@@ -142,7 +161,7 @@ export const EnvironmentManagerModal: React.FC = () => {
           </span>
         </div>
 
-        {/* Environment Table Container - FIXED SCROLLABILITY */}
+        {/* Environment Table Container */}
         <div className="rounded-xl border border-slate-800 bg-slate-950 max-h-[360px] overflow-y-auto custom-scrollbar">
           <table className="w-full text-left text-xs">
             <thead className="sticky top-0 z-10 border-b border-slate-800 bg-slate-900 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
@@ -274,14 +293,25 @@ export const EnvironmentManagerModal: React.FC = () => {
 
   return (
     <>
+      {/* Inline MFA Prompt Modal */}
+      <MfaPromptModal
+        isOpen={showMfaModal}
+        sectionTitle="Environment Variables Manager"
+        onClose={() => setShowMfaModal(false)}
+        onSuccess={handleMfaSuccess}
+      />
+
       {/* Trigger Button */}
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={handleOpenClick}
         className="inline-flex items-center space-x-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all shadow-sm whitespace-nowrap"
         title="Configure Environment Variables (Postman Style)"
       >
         <Sliders className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
         <span>Environment Variables</span>
+        {mfaEnabled && protectedSections.environment && !isMfaAuthenticated && (
+          <ShieldAlert className="h-3 w-3 text-amber-400 ml-0.5" />
+        )}
       </button>
 
       {isOpen && mounted && createPortal(modalContent, document.body)}

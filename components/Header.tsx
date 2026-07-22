@@ -14,6 +14,8 @@ import { AiTestSuiteViewerModal } from './AiTestSuiteViewerModal';
 import { CustomTestRuleGeneratorModal } from './CustomTestRuleGeneratorModal';
 import { QuotaTelemetryWidget } from './QuotaTelemetryWidget';
 import { PresentationDeckModal } from './PresentationDeckModal';
+import { AdminControlPanelModal } from './AdminControlPanelModal';
+import { useAdminStore } from '@/lib/admin-store';
 
 export const Header: React.FC = () => {
   const { 
@@ -23,6 +25,8 @@ export const Header: React.FC = () => {
     setGeminiApiKey, 
     generateAiTestsForSelected
   } = useRunnerStore();
+
+  const { showHeaderControls } = useAdminStore();
 
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -122,48 +126,53 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Configuration Action Controls - Clean Horizontal Bar */}
-        <div className="flex flex-wrap items-center gap-2 overflow-x-auto custom-scrollbar max-w-full">
-          
-          {/* Quota & Token Monitor Widget */}
-          <QuotaTelemetryWidget />
+        {/* Configuration Action Controls */}
+        {showHeaderControls && (
+          <div className="flex flex-wrap items-center gap-2 overflow-x-auto custom-scrollbar max-w-full">
+            
+            {/* Owner & Admin Control Panel */}
+            <AdminControlPanelModal />
 
-          {/* Postman-Style Environment Manager Button */}
-          <EnvironmentManagerModal />
+            {/* Quota & Token Monitor Widget */}
+            <QuotaTelemetryWidget />
 
-          {/* Stakeholder Presentation Deck Modal */}
-          <PresentationDeckModal />
+            {/* Postman-Style Environment Manager Button */}
+            <EnvironmentManagerModal />
 
-          {/* Natural Language Custom Test Generator Button */}
-          <CustomTestRuleGeneratorModal />
+            {/* Stakeholder Presentation Deck Modal */}
+            <PresentationDeckModal />
 
-          {/* View All AI Test Rules Button */}
-          <AiTestSuiteViewerModal />
+            {/* Natural Language Custom Test Generator Button */}
+            <CustomTestRuleGeneratorModal />
 
-          {/* Load Sample Preset Button */}
-          <button
-            onClick={loadDemoCollection}
-            className="inline-flex items-center space-x-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all shadow-sm whitespace-nowrap"
-            title="Load JSONPlaceholder & ReqRes Demo Collection"
-          >
-            <FolderPlus className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-            <span>Load Demo API</span>
-          </button>
+            {/* View All AI Test Rules Button */}
+            <AiTestSuiteViewerModal />
 
-          {/* AI Key Button */}
-          <button
-            onClick={() => setShowKeyModal(true)}
-            className={`inline-flex items-center space-x-1.5 rounded-xl px-3 py-1.5 text-xs font-medium border transition-all shadow-sm whitespace-nowrap ${
-              geminiApiKey 
-                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60 hover:bg-emerald-900/50' 
-                : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
-            }`}
-          >
-            <Key className={`h-3.5 w-3.5 shrink-0 ${geminiApiKey ? 'text-emerald-400' : 'text-amber-400'}`} />
-            <span>{geminiApiKey ? 'AI Key Configured' : 'Configure AI API Key'}</span>
-          </button>
+            {/* Load Sample Preset Button */}
+            <button
+              onClick={loadDemoCollection}
+              className="inline-flex items-center space-x-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all shadow-sm whitespace-nowrap"
+              title="Load JSONPlaceholder & ReqRes Demo Collection"
+            >
+              <FolderPlus className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+              <span>Load Demo API</span>
+            </button>
 
-        </div>
+            {/* AI Key Button */}
+            <button
+              onClick={() => setShowKeyModal(true)}
+              className={`inline-flex items-center space-x-1.5 rounded-xl px-3 py-1.5 text-xs font-medium border transition-all shadow-sm whitespace-nowrap ${
+                geminiApiKey 
+                  ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60 hover:bg-emerald-900/50' 
+                  : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
+              }`}
+            >
+              <Key className={`h-3.5 w-3.5 shrink-0 ${geminiApiKey ? 'text-emerald-400' : 'text-amber-400'}`} />
+              <span>{geminiApiKey ? 'AI Key Configured' : 'Configure AI API Key'}</span>
+            </button>
+
+          </div>
+        )}
       </div>
 
       {showKeyModal && mounted && createPortal(keyModalContent, document.body)}
