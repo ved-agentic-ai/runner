@@ -1,6 +1,26 @@
 # 🚀 AI-Powered API Collection Runner & Dashboard
 
-> **Intelligent, Automated Postman Collection Runner** powered by Next.js 14, Tailwind CSS, Framer Motion, and Google Gemini API with 100% Local Secret Isolation Guarantee & Live Traffic Telemetry.
+> **Intelligent, Automated Postman Collection Runner** powered by Next.js 14, Tailwind CSS, Framer Motion, and Google Gemini API with 100% Local Secret Isolation Guarantee & Live Traffic Telemetry. Built by **Ved Tripathi**.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fved-agentic-ai%2Frunner)
+
+---
+
+## 🔒 100% Zero-Secret Git & Vercel Security Guarantee
+
+- **Zero Hardcoded Keys**: No API keys, credentials, or secrets are hardcoded or committed to GitHub.
+- **Client-Side Key Configuration**: Users enter their Gemini API key directly via the UI modal (`Configure AI API Key`) on the page.
+- **Local Secret Masking**: Environment variable secrets are masked locally (`{{REDACTED_SECRET_LOCAL_ONLY}}`) before any AI test script prompt generation.
+
+---
+
+## ⚡ 1-Click Vercel Deployment
+
+1. Click the **Deploy to Vercel** button above or import repository `https://github.com/ved-agentic-ai/runner.git` in [Vercel Dashboard](https://vercel.com/new).
+2. Framework Preset: **Next.js**
+3. Build Command: `npm run build`
+4. Output Directory: `.next`
+5. Click **Deploy**! No environment variables need to be set on Vercel.
 
 ---
 
@@ -8,27 +28,14 @@
 
 - **📁 File Upload & Postman Schema Parser**: Drag-and-drop Postman Collection JSON (v2.0 & v2.1) and Environment JSON. Preserves exact multi-level folder hierarchy (`Folders -> Subfolders -> Endpoints`).
 - **🔐 Postman-Style Environment Variable Manager**: Interactive modal to view, edit, add, and mask sensitive secret keys (`apiKey`, `authToken`, `password`) locally.
-- **🛡️ 100% Local Secret Privacy Guarantee**: Environment variables and secret tokens remain 100% strictly local in client memory. Structural metadata is sanitized and masked (`{{REDACTED_SECRET_LOCAL_ONLY}}`) before test script generation.
+- **🛡️ Legal Disclaimer & Creator Statement**: Standard developer portfolio statement on page load.
 - **🤖 Automated AI Test Script Generation**: Uses Google Gemini API (`gemini-2.5-flash`) or built-in offline smart heuristic engine to generate validation rules (HTTP status codes, latency SLAs `<2000ms`, JSON schemas, content-type headers, and token extraction).
-- **🌲 Hierarchical Tree View Selector**: Interactive multi-level checkbox selection with cascading select/deselect logic and indeterminate folder state handling.
+- **🌲 Hierarchical Tree View Selector**: Interactive multi-level checkbox selection with 1-click **Collapse All** and **Expand All** controls.
 - **⚡ CORS-Bypass Proxy Engine & Real-Time Dashboard**: Next.js server route `/api/proxy-request` executes endpoints server-side to bypass browser CORS restrictions while recording real-time SLA metrics.
 - **📡 Live Request Traffic & Routing Simulator**: Real-time traffic stream visualizer highlighting **Route A (Sanitized LLM Payload Path)** vs **Route B (Local Host Target API Proxy Path)**.
-- **🔍 Tabbed HTTP Log Inspector Drawer**: Slide-out drawer with tabbed view for formatted JSON response body payloads, AI assertion pass/fail results, request headers, and cURL export generation.
-
----
-
-## 🔒 Secret Isolation & Zero-Trust Architecture
-
-```mermaid
-graph TD
-    Upload[Postman Collection & Environment Upload] --> LocalStore[Client-Side Local Memory Store]
-    LocalStore --> Sanitizer[Local Secret Sanitizer Engine]
-    Sanitizer -->|Sanitized Metadata ONLY - No Secrets| LLM[Google Gemini AI Test Generator]
-    LLM --> TestSuite[Structured Assertion Test Rules]
-    LocalStore -->|Secrets Injected Locally at Runtime| Proxy[Next.js Local Proxy /api/proxy-request]
-    TestSuite --> Proxy
-    Proxy --> TargetAPI[Remote Target API Servers]
-```
+- **🪄 Custom AI Test Rules Vault**: Natural language custom rule generator with Global, Folder, or Endpoint scope targeting and full inline CRUD editing control.
+- **📊 Native Microsoft PowerPoint (.pptx) Downloader**: 1-click native PowerPoint deck export for executive stakeholder presentations.
+- **👤 Lead Developer**: **Ved Tripathi** ([vedmtripathi@gmail.com](mailto:vedmtripathi@gmail.com)).
 
 ---
 
@@ -71,14 +78,5 @@ http://localhost:3000
 
 ---
 
-## 🛣️ Future Scope & Product Roadmap
-
-- [ ] **Q3 2026**: GitHub Actions & GitLab CI/CD Pipeline Headless Runner Integration.
-- [ ] **Q4 2026**: OpenAPI 3.0, Swagger & GraphQL Introspection Importer.
-- [ ] **Q4 2026**: Automated Webhook Alerts (Slack, Discord, MS Teams, PagerDuty).
-- [ ] **Q1 2027**: AI-Driven k6 & Locust Load Stress Testing.
-
----
-
 ## 📜 License
-MIT License - Built with ❤️ for API Quality Engineers.
+MIT License - Built with ❤️ by **Ved Tripathi** ([vedmtripathi@gmail.com](mailto:vedmtripathi@gmail.com)).
