@@ -12,7 +12,9 @@ import {
   Folder, 
   FileCode, 
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Filter,
+  Wand2
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { TestCaseRule, EndpointTestSuite } from '@/lib/types';
@@ -20,6 +22,7 @@ import { TestCaseRule, EndpointTestSuite } from '@/lib/types';
 export const CustomUseCasesVault: React.FC = () => {
   const { generatedTestSuites, flatEndpointMap, collectionName } = useRunnerStore();
   const [search, setSearch] = useState('');
+  const [showCustomOnly, setShowCustomOnly] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   
   // Rule Edit Form State
@@ -34,9 +37,27 @@ export const CustomUseCasesVault: React.FC = () => {
   const [newExpected, setNewExpected] = useState<string>('200');
 
   const suitesList = Object.values(generatedTestSuites);
-  const filteredSuites = suitesList.filter(s => 
-    s.endpointName.toLowerCase().includes(search.toLowerCase()) || 
-    s.url.toLowerCase().includes(search.toLowerCase())
+  
+  // Count total custom generated rules across all endpoints
+  let customRuleCount = 0;
+  suitesList.forEach(s => {
+    s.testCases.forEach(tc => {
+      if (tc.id.startsWith('custom-')) customRuleCount++;
+    });
+  });
+
+  const filteredSuites = suitesList.map(s => {
+    const matchingCases = showCustomOnly 
+      ? s.testCases.filter(tc => tc.id.startsWith('custom-'))
+      : s.testCases;
+
+    return {
+      ...s,
+      testCases: matchingCases
+    };
+  }).filter(s => 
+    s.testCases.length > 0 && 
+    (s.endpointName.toLowerCase().includes(search.toLowerCase()) || s.url.toLowerCase().includes(search.toLowerCase()))
   );
 
   const startEditRule = (rule: TestCaseRule) => {
@@ -101,23 +122,39 @@ export const CustomUseCasesVault: React.FC = () => {
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-purple-400" />
-            Custom & AI Generated Test Use Cases Vault
+            Custom & AI Generated Test Use Cases Vault ({customRuleCount} Custom Rules Generated)
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Full management vault for editing, adding, or deleting test rules for any endpoint or folder in <strong className="text-slate-200">{collectionName || 'Default Suite'}</strong>.
+            Full management vault for viewing, editing, adding, or deleting test rules for any endpoint in <strong className="text-slate-200">{collectionName || 'Default Suite'}</strong>.
           </p>
         </div>
 
-        {/* Search */}
-        <div className="relative min-w-[240px]">
-          <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search test cases by endpoint..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-slate-800 bg-slate-950 pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-purple-500 focus:outline-none"
-          />
+        {/* Filters */}
+        <div className="flex items-center space-x-2">
+          {/* Custom Rules Filter Toggle */}
+          <button
+            onClick={() => setShowCustomOnly(!showCustomOnly)}
+            className={`inline-flex items-center space-x-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all ${
+              showCustomOnly 
+                ? 'bg-purple-950 text-purple-300 border-purple-700 shadow-md shadow-purple-900/30'
+                : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
+            }`}
+          >
+            <Wand2 className="h-3.5 w-3.5 text-purple-400" />
+            <span>{showCustomOnly ? `Custom Rules Only (${customRuleCount})` : `All Test Rules`}</span>
+          </button>
+
+          {/* Search Input */}
+          <div className="relative min-w-[200px]">
+            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search test cases..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border border-slate-800 bg-slate-950 pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-purple-500 focus:outline-none"
+            />
+          </div>
         </div>
       </div>
 
@@ -125,7 +162,7 @@ export const CustomUseCasesVault: React.FC = () => {
       <div className="space-y-4">
         {filteredSuites.length === 0 ? (
           <div className="py-12 text-center text-xs text-slate-500">
-            No test suites match your search filter.
+            {showCustomOnly ? 'No custom rules generated yet. Click "+ Custom AI Test Generator" above to generate custom test rules.' : 'No test suites match your search filter.'}
           </div>
         ) : (
           filteredSuites.map((suite) => (
@@ -206,6 +243,7 @@ export const CustomUseCasesVault: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {suite.testCases.map((tc, idx) => {
                   const isEditing = editingRuleId === tc.id;
+                  const isCustomRule = tc.id.startsWith('custom-');
 
                   if (isEditing) {
                     return (
@@ -253,16 +291,30 @@ export const CustomUseCasesVault: React.FC = () => {
                   }
 
                   return (
-                    <div key={tc.id || idx} className="group relative rounded-lg border border-slate-800/80 bg-slate-900/60 p-2.5 text-xs space-y-1 hover:border-slate-700 transition-colors">
+                    <div key={tc.id || idx} className={`group relative rounded-lg border p-2.5 text-xs space-y-1 transition-colors ${
+                      isCustomRule 
+                        ? 'border-purple-800/80 bg-purple-950/20 hover:border-purple-600' 
+                        : 'border-slate-800/80 bg-slate-900/60 hover:border-slate-700'
+                    }`}>
                       <div className="flex items-center justify-between font-medium text-slate-200 pr-12">
-                        <span className="truncate">#{idx + 1} {tc.description}</span>
+                        <span className="truncate flex items-center gap-1.5">
+                          #{idx + 1} {tc.description}
+                        </span>
                       </div>
 
-                      {tc.expectedValue !== undefined && (
-                        <div className="text-[10px] text-slate-400 font-mono">
-                          Expected: <code className="text-purple-400">{String(tc.expectedValue)}</code>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between">
+                        {tc.expectedValue !== undefined && (
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            Expected: <code className="text-purple-400">{String(tc.expectedValue)}</code>
+                          </span>
+                        )}
+
+                        {isCustomRule && (
+                          <span className="rounded bg-purple-950 text-purple-300 border border-purple-700 px-1.5 py-0.2 text-[9px] font-bold">
+                            🪄 Custom Rule
+                          </span>
+                        )}
+                      </div>
 
                       {/* Rule Action Buttons */}
                       <div className="absolute right-2 top-2 flex items-center space-x-1 opacity-80 group-hover:opacity-100 transition-opacity">

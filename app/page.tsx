@@ -15,7 +15,9 @@ import { Play, Cloud, UploadCloud, Sparkles } from 'lucide-react';
 
 export default function Home() {
   const { loadDemoCollection, collectionName } = useRunnerStore();
-  const [activeMainTab, setActiveMainTab] = useState<'runner' | 'vault' | 'architecture' | 'upload'>('runner');
+  
+  // Set UPLOAD as the default 1st active workspace tab!
+  const [activeMainTab, setActiveMainTab] = useState<'upload' | 'runner' | 'vault' | 'architecture'>('upload');
 
   useEffect(() => {
     if (!collectionName) {
@@ -34,14 +36,14 @@ export default function Home() {
         {/* Local Secrets & Privacy Guarantee Banner */}
         <PrivacyBanner />
 
-        {/* Main View Mode Selector Bar */}
+        {/* Main View Mode Selector Bar - UPLOAD IS TAB 1 */}
         <div className="flex items-center justify-between bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800 backdrop-blur-md">
           <div className="flex flex-wrap items-center gap-1 text-xs">
             {[
-              { id: 'runner', label: '🚀 Runner & Live Telemetry', icon: Play },
-              { id: 'vault', label: '🪄 Custom AI Rules Vault (Edit Rules)', icon: Sparkles },
-              { id: 'upload', label: '📤 Upload & Presets', icon: UploadCloud },
-              { id: 'architecture', label: '☁️ AWS Cloud & System Architecture', icon: Cloud },
+              { id: 'upload', label: '📤 1. Upload & Collection Presets', icon: UploadCloud },
+              { id: 'runner', label: '🚀 2. Runner & Live Telemetry', icon: Play },
+              { id: 'vault', label: '🪄 3. Custom AI Rules Vault (Edit Rules)', icon: Sparkles },
+              { id: 'architecture', label: '☁️ 4. AWS Cloud, Napkin AI & Deck Guide', icon: Cloud },
             ].map((tab) => {
               const Icon = tab.icon;
               return (
@@ -66,7 +68,23 @@ export default function Home() {
           </span>
         </div>
 
-        {/* MAIN TAB 1: RUNNER & LIVE TELEMETRY WORKSPACE */}
+        {/* MAIN TAB 1: UPLOAD & COLLECTION PRESETS (DEFAULT 1ST TAB) */}
+        {activeMainTab === 'upload' && (
+          <div className="max-w-4xl mx-auto py-4 space-y-6">
+            <UploadZone />
+            <div className="flex justify-center">
+              <button
+                onClick={() => setActiveMainTab('runner')}
+                className="inline-flex items-center space-x-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-500/25 hover:from-indigo-400 hover:to-purple-500 transition-all"
+              >
+                <span>Proceed to 🚀 Runner Workspace</span>
+                <Play className="h-4 w-4 fill-current" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* MAIN TAB 2: RUNNER & LIVE TELEMETRY WORKSPACE */}
         {activeMainTab === 'runner' && (
           <div className="space-y-5">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
@@ -86,19 +104,12 @@ export default function Home() {
           </div>
         )}
 
-        {/* MAIN TAB 2: CUSTOM AI RULES VAULT (FULL EDITING & CRUD MANAGEMENT) */}
+        {/* MAIN TAB 3: CUSTOM AI RULES VAULT */}
         {activeMainTab === 'vault' && (
           <CustomUseCasesVault />
         )}
 
-        {/* MAIN TAB 3: UPLOAD & PRESETS */}
-        {activeMainTab === 'upload' && (
-          <div className="max-w-4xl mx-auto py-4">
-            <UploadZone />
-          </div>
-        )}
-
-        {/* MAIN TAB 4: SYSTEM ARCHITECTURE & AWS CLOUD GUIDE */}
+        {/* MAIN TAB 4: SYSTEM ARCHITECTURE, NAPKIN/GAMMA PROMPTS & PPT DECK */}
         {activeMainTab === 'architecture' && (
           <AppDocumentationSection />
         )}

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { TestCaseRule, TreeNode } from '@/lib/types';
-import { getQuotaState } from '@/lib/quota-tracker';
+import { getQuotaState, trackAiApiCall } from '@/lib/quota-tracker';
 import { RuleGeneratorSimulationModal } from './RuleGeneratorSimulationModal';
 
 export const CustomTestRuleGeneratorModal: React.FC = () => {
@@ -56,6 +56,9 @@ export const CustomTestRuleGeneratorModal: React.FC = () => {
     if (!promptInput.trim()) return;
     setIsGenerating(true);
     setSuccessMsg(null);
+
+    // Track tokens & request count in quota manager
+    trackAiApiCall(promptInput.length + 250, geminiApiKey);
 
     const newRules: TestCaseRule[] = [];
     const lower = promptInput.toLowerCase();
@@ -138,7 +141,7 @@ export const CustomTestRuleGeneratorModal: React.FC = () => {
       });
     }
 
-    // Fallback rule if no specific keyword matched
+    // Fallback rule
     if (newRules.length === 0) {
       newRules.push({
         id: `custom-generic-${Date.now()}`,
