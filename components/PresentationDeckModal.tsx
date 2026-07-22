@@ -9,13 +9,16 @@ import {
   ChevronRight, 
   Play, 
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  FileSpreadsheet
 } from 'lucide-react';
+import pptxgen from 'pptxgenjs';
 
 export const PresentationDeckModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -124,52 +127,86 @@ export const PresentationDeckModal: React.FC = () => {
     }
   ];
 
-  const handleDownloadPptHtml = () => {
-    const htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>API Collection Runner - Stakeholder Presentation</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b0f19; color: #f8fafc; margin: 0; padding: 40px; }
-    .slide { max-width: 900px; margin: 0 auto 40px auto; background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 32px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
-    h1 { color: #818cf8; margin-top: 0; font-size: 24px; border-bottom: 1px solid #1e293b; padding-bottom: 12px; }
-    h2 { color: #cbd5e1; font-size: 16px; margin-top: 4px; font-weight: normal; }
-    ul { margin-top: 20px; padding-left: 20px; }
-    li { margin-bottom: 12px; font-size: 15px; line-height: 1.6; color: #94a3b8; }
-    strong { color: #f1f5f9; }
-    .footer { text-align: center; font-size: 12px; color: #64748b; margin-top: 60px; }
-  </style>
-</head>
-<body>
-  <div style="text-align:center; margin-bottom:40px;">
-    <h2 style="color:#818cf8;">🚀 AI-Powered API Collection Runner & Test Engine</h2>
-    <p style="color:#64748b;">Executive Stakeholder Presentation Deck | Developed by Ved Prakash Tripathi</p>
-  </div>
-  ${slides.map(s => `
-    <div class="slide">
-      <h1>${s.title}</h1>
-      <h2>${s.subtitle}</h2>
-      <ul>
-        ${s.points.map(p => `<li>${p}</li>`).join('')}
-      </ul>
-    </div>
-  `).join('')}
-  <div class="footer">
-    Presented by Ved Prakash Tripathi (vedmtripathi@gmail.com) | GitHub: https://github.com/ved-agentic-ai/runner
-  </div>
-</body>
-</html>`;
+  // Native Microsoft PowerPoint (.pptx) Generator
+  const handleDownloadNativePptx = async () => {
+    try {
+      setIsExporting(true);
+      const pres = new pptxgen();
 
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'API_Collection_Runner_Stakeholder_Presentation.html';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      pres.layout = 'LAYOUT_16x9';
+      pres.title = 'AI-Powered API Collection Runner & Test Engine';
+      pres.subject = 'Executive Stakeholder Presentation';
+      pres.author = 'Ved Tripathi';
+
+      // Define Slide Theme Colors
+      const bgColor = '0B0F19';
+      const titleColor = '818CF8';
+      const subtitleColor = 'CBD5E1';
+      const textColor = '94A3B8';
+
+      slides.forEach((s) => {
+        const slide = pres.addSlide();
+        
+        // Background
+        slide.background = { color: bgColor };
+
+        // Header Title
+        slide.addText(s.title, {
+          x: 0.8,
+          y: 0.6,
+          w: 8.4,
+          h: 0.6,
+          fontSize: 22,
+          bold: true,
+          color: titleColor,
+          fontFace: 'Arial'
+        });
+
+        // Subtitle
+        slide.addText(s.subtitle, {
+          x: 0.8,
+          y: 1.2,
+          w: 8.4,
+          h: 0.4,
+          fontSize: 14,
+          italic: true,
+          color: subtitleColor,
+          fontFace: 'Arial'
+        });
+
+        // Bullet points
+        const textItems = s.points.map((pt) => ({
+          text: pt,
+          options: { fontSize: 13, color: textColor, bullet: true, breakLine: true }
+        }));
+
+        slide.addText(textItems, {
+          x: 0.8,
+          y: 1.8,
+          w: 8.4,
+          h: 4.5,
+          fontFace: 'Arial',
+          lineSpacing: 24
+        });
+
+        // Footer Brand Note
+        slide.addText('API Collection Runner | Prepared by Ved Tripathi (vedmtripathi@gmail.com)', {
+          x: 0.8,
+          y: 6.8,
+          w: 8.4,
+          h: 0.3,
+          fontSize: 9,
+          color: '64748B',
+          fontFace: 'Arial'
+        });
+      });
+
+      await pres.writeFile({ fileName: 'API_Collection_Runner_Presentation.pptx' });
+      setIsExporting(false);
+    } catch (err) {
+      console.error('PPTX Export error:', err);
+      setIsExporting(false);
+    }
   };
 
   const modalContent = (
@@ -187,19 +224,21 @@ export const PresentationDeckModal: React.FC = () => {
                 Executive Presentation Deck ({slides.length} Interactive Slides)
               </h2>
               <p className="text-xs text-slate-400">
-                Executable stakeholder presentation deck created by Ved Prakash Tripathi.
+                Executable stakeholder presentation deck created by Ved Tripathi.
               </p>
             </div>
           </div>
 
           <div className="flex items-center space-x-2">
             <button
-              onClick={handleDownloadPptHtml}
-              className="inline-flex items-center space-x-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/30"
+              onClick={handleDownloadNativePptx}
+              disabled={isExporting}
+              className="inline-flex items-center space-x-1.5 rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 px-4 py-1.5 text-xs font-bold text-white shadow-lg shadow-amber-600/30 hover:from-amber-500 hover:to-red-500 active:scale-95 transition-all disabled:opacity-50"
             >
-              <Download className="h-3.5 w-3.5" />
-              <span>Download PPT Presentation</span>
+              <Download className={`h-3.5 w-3.5 ${isExporting ? 'animate-spin' : ''}`} />
+              <span>{isExporting ? 'Exporting PPTX...' : 'Download Microsoft PPT (.pptx)'}</span>
             </button>
+
             <button
               onClick={() => setIsOpen(false)}
               className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"

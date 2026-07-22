@@ -13,7 +13,7 @@ export const Footer: React.FC = () => {
           <span className="flex items-center space-x-1.5 font-bold text-white text-sm">
             <User className="h-4 w-4 text-indigo-400" />
             <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Ved Prakash Tripathi
+              Ved Tripathi
             </span>
           </span>
           <span className="hidden sm:inline text-slate-600">|</span>
@@ -46,7 +46,7 @@ export const Footer: React.FC = () => {
 
         {/* Copyright & Disclaimer Note */}
         <div className="flex items-center space-x-2 text-[11px] text-slate-500">
-          <span>© 2026 Ved Prakash Tripathi. All Rights Reserved.</span>
+          <span>© 2026 Ved Tripathi. All Rights Reserved.</span>
         </div>
 
       </div>
