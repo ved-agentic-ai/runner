@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { EnvironmentManagerModal } from './EnvironmentManagerModal';
+import { AiTestSuiteViewerModal } from './AiTestSuiteViewerModal';
 
 export const Header: React.FC = () => {
   const { 
@@ -133,6 +134,9 @@ export const Header: React.FC = () => {
           {/* Postman-Style Environment Manager Button */}
           <EnvironmentManagerModal />
 
+          {/* View All AI Test Rules Button */}
+          <AiTestSuiteViewerModal />
+
           {/* Load Sample Preset Button */}
           <button
             onClick={loadDemoCollection}
@@ -155,18 +159,6 @@ export const Header: React.FC = () => {
             <Key className={`h-3.5 w-3.5 shrink-0 ${geminiApiKey ? 'text-emerald-400' : 'text-amber-400'}`} />
             <span>{geminiApiKey ? 'AI Key Configured' : 'Configure AI API Key'}</span>
           </button>
-
-          {/* Regenerate AI Tests */}
-          {collectionName && (
-            <button
-              onClick={() => generateAiTestsForSelected()}
-              disabled={isGeneratingAiTests || isRunning}
-              className="inline-flex items-center space-x-1.5 rounded-xl bg-purple-950/50 px-3 py-1.5 text-xs font-medium text-purple-300 border border-purple-800/50 hover:bg-purple-900/60 disabled:opacity-50 transition-all whitespace-nowrap"
-            >
-              <Sparkles className={`h-3.5 w-3.5 text-purple-400 shrink-0 ${isGeneratingAiTests ? 'animate-spin' : ''}`} />
-              <span>{isGeneratingAiTests ? 'Generating...' : 'AI Test Generator'}</span>
-            </button>
-          )}
 
           {/* Clear Results */}
           {runSummary.total > 0 && (

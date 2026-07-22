@@ -13,7 +13,9 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Send
+  Send,
+  ChevronsUp,
+  ChevronsDown
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { TreeNode, HttpMethod } from '@/lib/types';
@@ -33,20 +35,45 @@ export const TreeView: React.FC = () => {
     setSelectedEndpointIdForDetail
   } = useRunnerStore();
 
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
-    'node-1-folder': true,
-    'node-2-folder': true,
-    'node-3-folder': true,
-  });
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+
+  // 1-Click Collapse All
+  const collapseAllFolders = () => {
+    const nextState: Record<string, boolean> = {};
+    function setAllFalse(nodes: TreeNode[]) {
+      nodes.forEach((n) => {
+        if (n.type === 'folder') {
+          nextState[n.id] = false;
+          if (n.children) setAllFalse(n.children);
+        }
+      });
+    }
+    setAllFalse(rootNodes);
+    setExpandedFolders(nextState);
+  };
+
+  // 1-Click Expand All
+  const expandAllFolders = () => {
+    const nextState: Record<string, boolean> = {};
+    function setAllTrue(nodes: TreeNode[]) {
+      nodes.forEach((n) => {
+        if (n.type === 'folder') {
+          nextState[n.id] = true;
+          if (n.children) setAllTrue(n.children);
+        }
+      });
+    }
+    setAllTrue(rootNodes);
+    setExpandedFolders(nextState);
+  };
 
   const toggleExpand = (folderId: string) => {
     setExpandedFolders((prev) => ({
       ...prev,
-      [folderId]: !prev[folderId],
+      [folderId]: !(prev[folderId] ?? true), // Default open if un-tracked
     }));
   };
 
-  // Helper to check folder check state (Checked, Indeterminate, Unchecked)
   const getNodeCheckState = (node: TreeNode): 'checked' | 'unchecked' | 'indeterminate' => {
     if (node.type === 'endpoint') {
       return selectedNodeIds.includes(node.id) ? 'checked' : 'unchecked';
@@ -70,7 +97,6 @@ export const TreeView: React.FC = () => {
     return 'unchecked';
   };
 
-  // Method Badge color helper
   const getMethodBadgeClass = (method?: HttpMethod) => {
     switch (method) {
       case 'GET': return 'bg-emerald-950/80 text-emerald-400 border-emerald-800/60';
@@ -82,15 +108,13 @@ export const TreeView: React.FC = () => {
     }
   };
 
-  // Recursive Tree Node Renderer
   const renderNode = (node: TreeNode, depth: number = 0) => {
     const isFolder = node.type === 'folder';
-    const isExpanded = expandedFolders[node.id] ?? true; // Default expanded
+    const isExpanded = expandedFolders[node.id] ?? true;
     const checkState = getNodeCheckState(node);
     const result = executionResults[node.id];
     const testSuite = generatedTestSuites[node.id];
 
-    // Filter check
     if (searchQuery.trim().length > 0) {
       const query = searchQuery.toLowerCase();
       const matches = node.name.toLowerCase().includes(query) || (node.url && node.url.toLowerCase().includes(query));
@@ -106,7 +130,6 @@ export const TreeView: React.FC = () => {
           }`}
         >
           <div className="flex items-center space-x-2 min-w-0 flex-1">
-            {/* Expand Arrow for Folders */}
             {isFolder ? (
               <button 
                 onClick={() => toggleExpand(node.id)}
@@ -122,7 +145,6 @@ export const TreeView: React.FC = () => {
               <span className="w-3.5" />
             )}
 
-            {/* Checkbox */}
             <button
               onClick={() => toggleNodeSelection(node.id)}
               className="text-slate-400 hover:text-indigo-400 transition-colors"
@@ -138,7 +160,6 @@ export const TreeView: React.FC = () => {
               )}
             </button>
 
-            {/* Icon */}
             {isFolder ? (
               isExpanded ? (
                 <FolderOpen className="h-4 w-4 text-amber-400 shrink-0" />
@@ -151,7 +172,6 @@ export const TreeView: React.FC = () => {
               </span>
             )}
 
-            {/* Node Name */}
             <span 
               onClick={() => {
                 if (isFolder) toggleExpand(node.id);
@@ -164,13 +184,11 @@ export const TreeView: React.FC = () => {
               {node.name}
             </span>
 
-            {/* AI Test Badge */}
             {!isFolder && (
               <AiTestBadge testSuite={testSuite} nodeName={node.name} />
             )}
           </div>
 
-          {/* Status Badge (Execution Result) */}
           {result && (
             <div className="flex items-center space-x-1.5 shrink-0 ml-2">
               {result.status === 'running' && (
@@ -192,7 +210,6 @@ export const TreeView: React.FC = () => {
           )}
         </div>
 
-        {/* Render Folder Children */}
         {isFolder && isExpanded && node.children && (
           <div className="space-y-0.5">
             {node.children.map((child) => renderNode(child, depth + 1))}
@@ -204,24 +221,49 @@ export const TreeView: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full rounded-2xl border border-slate-800 bg-slate-900/80 p-4 backdrop-blur-md shadow-xl">
-      {/* Search Header */}
+      {/* Search & Collapse Bar Header */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 gap-2">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
           Collection Hierarchy
         </h3>
-        <div className="flex items-center space-x-1 text-[11px]">
+
+        <div className="flex items-center space-x-2 text-[11px]">
+          {/* 1-Click Collapse All */}
+          <button
+            onClick={collapseAllFolders}
+            className="inline-flex items-center space-x-1 text-slate-400 hover:text-amber-400 font-medium transition-colors"
+            title="Collapse All Folders"
+          >
+            <ChevronsUp className="h-3.5 w-3.5" />
+            <span>Collapse</span>
+          </button>
+          
+          <span className="text-slate-600">|</span>
+
+          {/* 1-Click Expand All */}
+          <button
+            onClick={expandAllFolders}
+            className="inline-flex items-center space-x-1 text-slate-400 hover:text-indigo-400 font-medium transition-colors"
+            title="Expand All Folders"
+          >
+            <ChevronsDown className="h-3.5 w-3.5" />
+            <span>Expand</span>
+          </button>
+
+          <span className="text-slate-600">|</span>
+
           <button
             onClick={selectAllNodes}
             className="text-indigo-400 hover:underline font-medium"
           >
-            Select All
+            All
           </button>
-          <span className="text-slate-600">|</span>
+          <span className="text-slate-600">/</span>
           <button
             onClick={deselectAllNodes}
             className="text-slate-400 hover:underline"
           >
-            Deselect
+            None
           </button>
         </div>
       </div>
@@ -239,7 +281,7 @@ export const TreeView: React.FC = () => {
       </div>
 
       {/* Tree Content */}
-      <div className="mt-3 flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar min-h-[320px]">
+      <div className="mt-3 flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar min-h-[300px]">
         {rootNodes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center text-xs text-slate-500">
             <Send className="h-8 w-8 text-slate-600 mb-2 opacity-50" />
