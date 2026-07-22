@@ -21,11 +21,14 @@ import {
   ArrowRight,
   Presentation,
   Copy,
-  Check
+  Check,
+  Bot,
+  Brain,
+  Sparkles
 } from 'lucide-react';
 
 export const AppDocumentationSection: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'aws_architecture' | 'ai_prompts_deck' | 'techstack' | 'futurescope'>('aws_architecture');
+  const [activeTab, setActiveTab] = useState<'aws_architecture' | 'ai_ml_deepdive' | 'ai_prompts_deck' | 'techstack' | 'futurescope'>('aws_architecture');
   const [isCloudFormationOpen, setIsCloudFormationOpen] = useState(false);
   const [copiedNapkin, setCopiedNapkin] = useState(false);
   const [copiedGamma, setCopiedGamma] = useState(false);
@@ -66,24 +69,25 @@ Slide 10: Product Roadmap & Future Scope (GitHub Actions CI/CD, OpenAPI 3.0, Web
   return (
     <div className="w-full rounded-2xl border border-slate-800 bg-slate-900/80 p-6 backdrop-blur-md shadow-xl flex flex-col space-y-6">
       
-      {/* Section Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-3">
+      {/* Section Header with Responsive Flex Container */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between pb-4 border-b border-slate-800 gap-4">
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <Layers className="h-5 w-5 text-indigo-400" />
-            System Architecture, Napkin/Gamma AI Prompts & Stakeholder Presentation Deck
+            <Layers className="h-5 w-5 text-indigo-400 shrink-0" />
+            System Architecture, AI/ML Deep Dive & Cloud Guide
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Deep dive technical design, AWS cloud deployment spec, visual diagram prompts, and executive stakeholder slide deck.
+            Technical design, AI/Agentic AI architecture, AWS deployment spec, visual prompts, and stakeholder presentation deck.
           </p>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex flex-wrap items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs shrink-0">
+        {/* Tab Switcher - Horizontal Scroll Bar */}
+        <div className="flex items-center space-x-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800 text-xs overflow-x-auto custom-scrollbar shrink-0 max-w-full">
           {[
             { id: 'aws_architecture', label: 'Architecture & AWS Cloud', icon: Cloud },
-            { id: 'ai_prompts_deck', label: '🎨 Napkin/Gamma Prompts & PPT Deck', icon: Presentation },
-            { id: 'techstack', label: 'Tech Stack & Alternatives', icon: Code2 },
+            { id: 'ai_ml_deepdive', label: '🧠 AI, Agentic AI & ML Deep Dive', icon: Brain },
+            { id: 'ai_prompts_deck', label: '🎨 Visual Prompts & PPT Deck', icon: Presentation },
+            { id: 'techstack', label: 'Tech Stack & Decision Matrix', icon: Code2 },
             { id: 'futurescope', label: 'Future Scope & Roadmap', icon: Rocket },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -91,13 +95,13 @@ Slide 10: Product Roadmap & Future Scope (GitHub Actions CI/CD, OpenAPI 3.0, Web
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                className={`flex items-center space-x-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all ${
                   activeTab === tab.id
                     ? 'bg-indigo-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-3.5 w-3.5 shrink-0" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -214,11 +218,103 @@ Resources:
         </div>
       )}
 
-      {/* TAB 2: NAPKIN AI & GAMMA AI PROMPTS + STAKEHOLDER PPT DECK */}
+      {/* TAB 2: AI, AGENTIC AI & MACHINE LEARNING DEEP DIVE */}
+      {activeTab === 'ai_ml_deepdive' && (
+        <div className="space-y-6 text-xs text-slate-300">
+          
+          <div className="rounded-xl border border-indigo-800/80 bg-slate-950 p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                <Brain className="h-5 w-5 text-indigo-400" /> Three Pillars of Artificial Intelligence in This Application
+              </h3>
+              <span className="rounded bg-indigo-950 text-indigo-300 border border-indigo-800 px-2 py-0.5 text-[10px] font-bold">
+                GenAI + Agentic Loop + ML Heuristics
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              
+              {/* Pillar 1: Generative AI */}
+              <div className="rounded-xl border border-purple-900/60 bg-purple-950/20 p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-purple-300 flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4 text-purple-400" /> 1. Generative AI (LLMs)
+                  </span>
+                  <span className="text-[10px] font-mono text-purple-400">Gemini 2.5</span>
+                </div>
+                <p className="text-slate-400 text-[11px] leading-relaxed">
+                  Analyzes endpoint schemas (HTTP method, headers, URL paths, body payload structures) to generate 3–5 automated test rules in structured JSON mode (Status codes, SLAs, Header presence, JSON schema rules).
+                </p>
+                <div className="pt-2 border-t border-purple-900/40 text-[10px] text-purple-200">
+                  <strong>Key Innovation:</strong> Pre-sanitizes secrets before LLM prompt dispatch.
+                </div>
+              </div>
+
+              {/* Pillar 2: Agentic AI */}
+              <div className="rounded-xl border border-indigo-900/60 bg-indigo-950/20 p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-indigo-300 flex items-center gap-1.5">
+                    <Bot className="h-4 w-4 text-indigo-400" /> 2. Agentic AI Execution Loop
+                  </span>
+                  <span className="text-[10px] font-mono text-indigo-400">Autonomous Agent</span>
+                </div>
+                <p className="text-slate-400 text-[11px] leading-relaxed">
+                  An autonomous execution agent that sequentially runs endpoint queues, inspects responses, automatically extracts dynamic auth tokens (e.g. <code className="text-indigo-300">accessToken</code> &rarr; <code className="text-indigo-300">&#123;&#123;authToken&#125;&#125;</code>), and cascades variable substitutions across dependent subtrees.
+                </p>
+                <div className="pt-2 border-t border-indigo-900/40 text-[10px] text-indigo-200">
+                  <strong>Key Innovation:</strong> Self-healing execution queue with dynamic token extraction.
+                </div>
+              </div>
+
+              {/* Pillar 3: Machine Learning & Heuristics */}
+              <div className="rounded-xl border border-emerald-900/60 bg-emerald-950/20 p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-emerald-300 flex items-center gap-1.5">
+                    <Cpu className="h-4 w-4 text-emerald-400" /> 3. ML & Smart Heuristics
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400">Pattern Engine</span>
+                </div>
+                <p className="text-slate-400 text-[11px] leading-relaxed">
+                  Natural language pattern matching engine that parses plain English criteria (e.g. <em>"Check rate limit 429 and latency under 300ms"</em>) into precise <code className="text-emerald-300">TestCaseRule</code> objects, alongside legacy Mainframe <code className="text-emerald-300">text/plain</code> schema validation.
+                </p>
+                <div className="pt-2 border-t border-emerald-900/40 text-[10px] text-emerald-200">
+                  <strong>Key Innovation:</strong> Mainframe string parsing + 100% offline fallback reliability.
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* AI Workflow Process Diagram */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-3">
+            <h4 className="font-bold text-xs text-slate-200">Autonomous Agentic Execution Flow:</h4>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-center text-xs">
+              <div className="rounded-lg border border-slate-800 bg-slate-900 p-2.5 space-y-1">
+                <div className="font-bold text-indigo-400">Step 1: Sanitize</div>
+                <div className="text-[10px] text-slate-400">Mask keys to &#123;&#123;REDACTED&#125;&#125;</div>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900 p-2.5 space-y-1">
+                <div className="font-bold text-purple-400">Step 2: Generate</div>
+                <div className="text-[10px] text-slate-400">LLM creates JSON test contract</div>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900 p-2.5 space-y-1">
+                <div className="font-bold text-emerald-400">Step 3: Execute</div>
+                <div className="text-[10px] text-slate-400">Server proxy executes HTTP requests</div>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900 p-2.5 space-y-1">
+                <div className="font-bold text-amber-400">Step 4: Extract & Cascade</div>
+                <div className="text-[10px] text-slate-400">Extracts tokens for next requests</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* TAB 3: NAPKIN AI & GAMMA AI PROMPTS + STAKEHOLDER PPT DECK */}
       {activeTab === 'ai_prompts_deck' && (
         <div className="space-y-6 text-xs text-slate-300">
           
-          {/* AI Prompts Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
             {/* Napkin.ai Prompt Card */}
@@ -291,7 +387,7 @@ Resources:
 
               <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 space-y-1">
                 <span className="font-bold text-amber-400 text-xs">Slide 4: Zero-Trust Security Model</span>
-                <p className="text-slate-400 text-[11px]">Local client memory secret sanitizer (REDACTED_SECRET_LOCAL_ONLY) guarantees secret keys never hit external LLM APIs over the wire.</p>
+                <p className="text-slate-400 text-[11px]">Local client memory secret sanitizer guarantees secret keys never hit external LLM APIs over the wire.</p>
               </div>
 
               <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 space-y-1">
@@ -330,32 +426,131 @@ Resources:
         </div>
       )}
 
-      {/* TAB 3: TECH STACK & ALTERNATIVES */}
+      {/* TAB 4: TECH STACK & COMPARATIVE DECISION MATRIX (RESTORED COMPLETE DETAILS) */}
       {activeTab === 'techstack' && (
         <div className="space-y-6 text-xs text-slate-300">
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* Core Tech Item 1 */}
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
-              <span className="font-bold text-sm text-white flex items-center gap-2">
-                <Zap className="h-4 w-4 text-indigo-400" /> Next.js 14 (App Router)
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm text-white flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-indigo-400" /> Next.js 14 (App Router)
+                </span>
+                <span className="rounded bg-indigo-950 text-indigo-400 border border-indigo-800 px-2 py-0.5 text-[10px] font-bold">
+                  Chosen Framework
+                </span>
+              </div>
               <p className="text-slate-400 leading-relaxed">
-                Unifies React Server Components with serverless API proxy routes (`/api/proxy-request`) to completely bypass browser CORS limitations.
+                Unifies React Server Components with serverless API proxy routes (<code className="text-indigo-300">/api/proxy-request</code>) to completely bypass browser CORS limitations while rendering high-speed UI.
               </p>
+              <div className="pt-2 border-t border-slate-900 space-y-1 text-[11px]">
+                <p><strong className="text-indigo-300">Why Chosen:</strong> Built-in serverless proxying, SSR/SSG optimization, zero separate backend deployment required.</p>
+                <p><strong className="text-slate-400">Considered Alternatives:</strong> React SPA + Express.js backend (Requires 2 separate repos), Vite (Lacks built-in serverless proxy routes).</p>
+              </div>
             </div>
 
+            {/* Core Tech Item 2 */}
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
-              <span className="font-bold text-sm text-white flex items-center gap-2">
-                <Layers className="h-4 w-4 text-purple-400" /> Tailwind CSS & Framer Motion
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm text-white flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-purple-400" /> Tailwind CSS & Framer Motion
+                </span>
+                <span className="rounded bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 text-[10px] font-bold">
+                  Design System
+                </span>
+              </div>
               <p className="text-slate-400 leading-relaxed">
-                Delivers modern glassmorphism aesthetic with micro-interactions and smooth modal overlays.
+                Delivers modern glassmorphism aesthetic (<code className="text-purple-300">#0b0f19</code> dark palette) with micro-interactions, responsive flex/grid layouts, and smooth modal overlays.
               </p>
+              <div className="pt-2 border-t border-slate-900 space-y-1 text-[11px]">
+                <p><strong className="text-purple-300">Why Chosen:</strong> Utility-first styling speed, zero runtime CSS-in-JS overhead, hardware-accelerated animations.</p>
+                <p><strong className="text-slate-400">Considered Alternatives:</strong> Bootstrap (Outdated UI), Styled-Components (High runtime JS cost).</p>
+              </div>
+            </div>
+
+            {/* Core Tech Item 3 */}
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm text-white flex items-center gap-2">
+                  <Database className="h-4 w-4 text-emerald-400" /> Zustand Global State Engine
+                </span>
+                <span className="rounded bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 text-[10px] font-bold">
+                  State Engine
+                </span>
+              </div>
+              <p className="text-slate-400 leading-relaxed">
+                Manages collection hierarchy tree states, cascading checkbox selections, environment key-value maps, live execution queues, and telemetry stats.
+              </p>
+              <div className="pt-2 border-t border-slate-900 space-y-1 text-[11px]">
+                <p><strong className="text-emerald-300">Why Chosen:</strong> Minimal 1KB footprint, unopinionated hook API, zero provider re-render penalties.</p>
+                <p><strong className="text-slate-400">Considered Alternatives:</strong> Redux Toolkit (Boilerplate overhead), React Context API (Triggers global re-renders).</p>
+              </div>
+            </div>
+
+            {/* Core Tech Item 4 */}
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm text-white flex items-center gap-2">
+                  <Cpu className="h-4 w-4 text-amber-400" /> Google Gemini API + Smart Fallback
+                </span>
+                <span className="rounded bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 text-[10px] font-bold">
+                  AI Generator
+                </span>
+              </div>
+              <p className="text-slate-400 leading-relaxed">
+                Analyzes endpoint schemas to generate automated assertion rules. Paired with a smart local heuristic engine for 100% offline fallback.
+              </p>
+              <div className="pt-2 border-t border-slate-900 space-y-1 text-[11px]">
+                <p><strong className="text-amber-300">Why Chosen:</strong> Sub-second latency, structured JSON mode output, free tier accessibility.</p>
+                <p><strong className="text-slate-400">Considered Alternatives:</strong> OpenAI GPT-4 (Higher cost per token), Manual JavaScript script writing (Time intensive).</p>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Comparative Tech Decision Matrix Table */}
+          <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-3">
+            <h3 className="font-bold text-sm text-white">Comparative Architecture Decision Matrix</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="border-b border-slate-800 text-slate-400 text-[11px] uppercase font-bold">
+                  <tr>
+                    <th className="py-2 px-3">Architecture Layer</th>
+                    <th className="py-2 px-3">Selected Technology</th>
+                    <th className="py-2 px-3">Rejected Alternative</th>
+                    <th className="py-2 px-3">Key Technical Justification</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-mono">
+                  <tr>
+                    <td className="py-2 px-3 text-slate-300">CORS Bypass Proxy</td>
+                    <td className="py-2 px-3 text-indigo-400">Next.js API Route Server Proxy</td>
+                    <td className="py-2 px-3 text-slate-500">Browser Client Fetch / CORS AnyWhere</td>
+                    <td className="py-2 px-3 text-slate-400 font-sans">Browser fetch fails on CORS restrictions; server proxy handles custom headers securely.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 px-3 text-slate-300">API Test Runner Engine</td>
+                    <td className="py-2 px-3 text-emerald-400">Custom High-Speed Async Engine</td>
+                    <td className="py-2 px-3 text-slate-500">Postman Newman CLI / Cypress</td>
+                    <td className="py-2 px-3 text-slate-400 font-sans">Newman CLI requires Node child_process spawning; custom engine runs seamlessly in web/edge runtime.</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 px-3 text-slate-300">Secret Isolation</td>
+                    <td className="py-2 px-3 text-purple-400">Local Sanitizer + Placeholder Substitution</td>
+                    <td className="py-2 px-3 text-slate-500">Raw Secret Prompting to LLM</td>
+                    <td className="py-2 px-3 text-slate-400 font-sans">Guarantees secret keys and tokens never leave client memory or hit LLM API over the wire.</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
+
         </div>
       )}
 
-      {/* TAB 4: FUTURE SCOPE & ROADMAP */}
+      {/* TAB 5: FUTURE SCOPE & ROADMAP */}
       {activeTab === 'futurescope' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
           <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
