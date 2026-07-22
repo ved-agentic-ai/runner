@@ -8,13 +8,14 @@ import { TreeView } from '@/components/TreeView';
 import { RunnerDashboard } from '@/components/RunnerDashboard';
 import { LiveTrafficSimulator } from '@/components/LiveTrafficSimulator';
 import { AppDocumentationSection } from '@/components/AppDocumentationSection';
+import { CustomUseCasesVault } from '@/components/CustomUseCasesVault';
 import { EndpointDetailSheet } from '@/components/EndpointDetailSheet';
 import { useRunnerStore } from '@/lib/store';
-import { Play, Cloud, UploadCloud } from 'lucide-react';
+import { Play, Cloud, UploadCloud, Sparkles } from 'lucide-react';
 
 export default function Home() {
   const { loadDemoCollection, collectionName } = useRunnerStore();
-  const [activeMainTab, setActiveMainTab] = useState<'runner' | 'architecture' | 'upload'>('runner');
+  const [activeMainTab, setActiveMainTab] = useState<'runner' | 'vault' | 'architecture' | 'upload'>('runner');
 
   useEffect(() => {
     if (!collectionName) {
@@ -35,9 +36,10 @@ export default function Home() {
 
         {/* Main View Mode Selector Bar */}
         <div className="flex items-center justify-between bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800 backdrop-blur-md">
-          <div className="flex items-center space-x-1 text-xs">
+          <div className="flex flex-wrap items-center gap-1 text-xs">
             {[
               { id: 'runner', label: '🚀 Runner & Live Telemetry', icon: Play },
+              { id: 'vault', label: '🪄 Custom AI Rules Vault (Edit Rules)', icon: Sparkles },
               { id: 'upload', label: '📤 Upload & Presets', icon: UploadCloud },
               { id: 'architecture', label: '☁️ AWS Cloud & System Architecture', icon: Cloud },
             ].map((tab) => {
@@ -67,7 +69,6 @@ export default function Home() {
         {/* MAIN TAB 1: RUNNER & LIVE TELEMETRY WORKSPACE */}
         {activeMainTab === 'runner' && (
           <div className="space-y-5">
-            {/* Split Grid: Tree Selector & Live Dashboard */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
               
               {/* Left Column: Hierarchical Tree View Selector (4 cols) */}
@@ -78,7 +79,6 @@ export default function Home() {
               {/* Right Column: Execution Engine & Telemetry Dashboard (8 cols) */}
               <div className="lg:col-span-8 space-y-5">
                 <RunnerDashboard />
-                {/* Live Traffic Simulator immediately visible right here! */}
                 <LiveTrafficSimulator />
               </div>
 
@@ -86,14 +86,19 @@ export default function Home() {
           </div>
         )}
 
-        {/* MAIN TAB 2: UPLOAD & PRESETS */}
+        {/* MAIN TAB 2: CUSTOM AI RULES VAULT (FULL EDITING & CRUD MANAGEMENT) */}
+        {activeMainTab === 'vault' && (
+          <CustomUseCasesVault />
+        )}
+
+        {/* MAIN TAB 3: UPLOAD & PRESETS */}
         {activeMainTab === 'upload' && (
           <div className="max-w-4xl mx-auto py-4">
             <UploadZone />
           </div>
         )}
 
-        {/* MAIN TAB 3: SYSTEM ARCHITECTURE & AWS CLOUD GUIDE */}
+        {/* MAIN TAB 4: SYSTEM ARCHITECTURE & AWS CLOUD GUIDE */}
         {activeMainTab === 'architecture' && (
           <AppDocumentationSection />
         )}

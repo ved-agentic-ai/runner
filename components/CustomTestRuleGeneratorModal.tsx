@@ -8,11 +8,14 @@ import {
   Globe, 
   Folder, 
   CheckCircle2,
-  Wand2
+  Wand2,
+  HelpCircle,
+  Play
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { TestCaseRule, TreeNode } from '@/lib/types';
 import { getQuotaState } from '@/lib/quota-tracker';
+import { RuleGeneratorSimulationModal } from './RuleGeneratorSimulationModal';
 
 export const CustomTestRuleGeneratorModal: React.FC = () => {
   const { 
@@ -57,21 +60,52 @@ export const CustomTestRuleGeneratorModal: React.FC = () => {
     const newRules: TestCaseRule[] = [];
     const lower = promptInput.toLowerCase();
 
-    // 1. Status Code rule
-    if (lower.includes('status') || lower.includes('200') || lower.includes('201') || lower.includes('success')) {
-      const match = lower.match(/\b(200|201|204|400|401|404|500)\b/);
-      const code = match ? Number(match[1]) : 200;
+    // 1. Rate Limit 429 Check
+    if (lower.includes('rate limit') || lower.includes('429') || lower.includes('too many requests') || lower.includes('throttled')) {
       newRules.push({
-        id: `custom-status-${Date.now()}`,
+        id: `custom-ratelimit-${Date.now()}`,
         type: 'status_code',
-        description: `Custom: Validate HTTP status is ${code}`,
+        description: 'Rate Limit Check: Validate response HTTP 429 Too Many Requests',
+        expectedValue: 429
+      });
+    }
+
+    // 2. Gateway Timeout 504 Check
+    if (lower.includes('gateway timeout') || lower.includes('504') || lower.includes('server timeout')) {
+      newRules.push({
+        id: `custom-timeout-${Date.now()}`,
+        type: 'status_code',
+        description: 'Timeout Check: Validate response HTTP 504 Gateway Timeout',
+        expectedValue: 504
+      });
+    }
+
+    // 3. Unauthorized 401 / 403 Check
+    if (lower.includes('unauthorized') || lower.includes('401') || lower.includes('forbidden') || lower.includes('403')) {
+      const code = lower.includes('403') || lower.includes('forbidden') ? 403 : 401;
+      newRules.push({
+        id: `custom-auth-${Date.now()}`,
+        type: 'status_code',
+        description: `Auth Check: Validate HTTP ${code} ${code === 401 ? 'Unauthorized' : 'Forbidden'}`,
         expectedValue: code
       });
     }
 
-    // 2. Latency SLA rule
-    if (lower.includes('latency') || lower.includes('sla') || lower.includes('ms') || lower.includes('speed')) {
-      const match = lower.match(/\b(\d+)\s*ms\b/);
+    // 4. General Status Code matching (200, 201, 500, etc.)
+    if (!lower.includes('rate limit') && !lower.includes('gateway timeout') && (lower.includes('status') || lower.includes('200') || lower.includes('201') || lower.includes('500'))) {
+      const match = lower.match(/\b(200|201|204|400|401|404|429|500|502|503|504)\b/);
+      const code = match ? Number(match[1]) : 200;
+      newRules.push({
+        id: `custom-status-${Date.now()}`,
+        type: 'status_code',
+        description: `Status Check: Validate response HTTP ${code}`,
+        expectedValue: code
+      });
+    }
+
+    // 5. Latency SLA rule
+    if (lower.includes('latency') || lower.includes('sla') || lower.includes('ms') || lower.includes('speed') || lower.includes('under') || lower.includes('time')) {
+      const match = lower.match(/\b(\d+)\s*ms\b/) || lower.match(/\b(\d+)\b/);
       const ms = match ? Number(match[1]) : 1000;
       newRules.push({
         id: `custom-sla-${Date.now()}`,
@@ -81,7 +115,7 @@ export const CustomTestRuleGeneratorModal: React.FC = () => {
       });
     }
 
-    // 3. Header check rule
+    // 6. Header check rule
     if (lower.includes('header') || lower.includes('content-type') || lower.includes('x-') || lower.includes('authorization')) {
       const headerName = lower.includes('content-type') ? 'content-type' : 'authorization';
       newRules.push({
@@ -92,7 +126,7 @@ export const CustomTestRuleGeneratorModal: React.FC = () => {
       });
     }
 
-    // 4. Body substring contains rule
+    // 7. Body substring contains rule
     if (lower.includes('contains') || lower.includes('string') || lower.includes('body') || lower.includes('text')) {
       const match = promptInput.match(/["']([^"']+)["']/);
       const searchStr = match ? match[1] : 'OK';
@@ -104,7 +138,7 @@ export const CustomTestRuleGeneratorModal: React.FC = () => {
       });
     }
 
-    // Fallback baseline rule
+    // Fallback rule if no specific keyword matched
     if (newRules.length === 0) {
       newRules.push({
         id: `custom-generic-${Date.now()}`,
@@ -176,7 +210,7 @@ export const CustomTestRuleGeneratorModal: React.FC = () => {
                 Natural Language Custom Test Generator
               </h2>
               <p className="text-xs text-slate-400">
-                Describe test criteria in plain English (e.g. Verify status code is 200 and latency is under 500ms).
+                Describe test rules in plain English (e.g. "Check rate limit 429 and latency under 500ms").
               </p>
             </div>
           </div>
@@ -188,6 +222,31 @@ export const CustomTestRuleGeneratorModal: React.FC = () => {
           </button>
         </div>
 
+        {/* Quick Presets Buttons */}
+        <div className="space-y-1.5">
+          <span className="text-[11px] font-semibold text-slate-400">Quick Test Rule Presets:</span>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setPromptInput('Check rate limit HTTP 429 and latency under 500ms')}
+              className="rounded-lg bg-amber-950/60 border border-amber-800/60 px-2.5 py-1 text-[11px] font-medium text-amber-300 hover:bg-amber-900 transition-colors"
+            >
+              ⚡ Rate Limit 429
+            </button>
+            <button
+              onClick={() => setPromptInput('Check gateway timeout HTTP 504 and SLA under 2000ms')}
+              className="rounded-lg bg-red-950/60 border border-red-800/60 px-2.5 py-1 text-[11px] font-medium text-red-300 hover:bg-red-900 transition-colors"
+            >
+              ⏱️ Gateway Timeout 504
+            </button>
+            <button
+              onClick={() => setPromptInput('Check unauthorized HTTP 401 and Authorization header')}
+              className="rounded-lg bg-purple-950/60 border border-purple-800/60 px-2.5 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-900 transition-colors"
+            >
+              🔒 Auth 401 / 403
+            </button>
+          </div>
+        </div>
+
         {/* Natural Language Prompt Input */}
         <div className="space-y-1.5">
           <label className="block text-xs font-semibold text-slate-300">
@@ -197,7 +256,7 @@ export const CustomTestRuleGeneratorModal: React.FC = () => {
             rows={3}
             value={promptInput}
             onChange={(e) => setPromptInput(e.target.value)}
-            placeholder="e.g. Verify response status code is 200, latency is under 800ms, and body contains SUCCESS string."
+            placeholder="e.g. Check rate limit 429, gateway timeout 504, or latency under 500ms..."
             className="w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-slate-100 placeholder-slate-600 focus:border-purple-500 focus:outline-none custom-scrollbar"
           />
         </div>
@@ -282,9 +341,7 @@ export const CustomTestRuleGeneratorModal: React.FC = () => {
 
         {/* Modal Controls */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-          <span className="text-[11px] text-slate-500 font-mono">
-            {quota.mode === 'user_key' ? 'User Key Mode (Unlimited)' : `Demo Key Mode (${quota.requestsUsed}/${quota.maxDemoRequests} Used)`}
-          </span>
+          <RuleGeneratorSimulationModal />
 
           <div className="flex items-center space-x-2">
             <button
