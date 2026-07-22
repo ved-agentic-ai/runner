@@ -6,16 +6,14 @@ import {
   XCircle, 
   Clock, 
   Activity, 
-  Zap, 
   Layers, 
   BarChart3, 
-  Filter,
   Eye,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Play
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
-import { EndpointExecutionResult } from '@/lib/types';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 
 export const RunnerDashboard: React.FC = () => {
@@ -27,11 +25,14 @@ export const RunnerDashboard: React.FC = () => {
     setFilterStatus,
     setSelectedEndpointIdForDetail,
     runSelectedEndpoints,
-    clearResults
+    clearResults,
+    collectionName
   } = useRunnerStore();
 
   const resultsList = Object.values(executionResults);
   const totalCount = runSummary.total || flatEndpointMap.size;
+  const isRunning = runSummary.status === 'running';
+
   const progressPercent = totalCount > 0 
     ? Math.round(((runSummary.passed + runSummary.failed) / totalCount) * 100) 
     : 0;
@@ -58,6 +59,47 @@ export const RunnerDashboard: React.FC = () => {
   return (
     <div className="flex flex-col space-y-5 h-full">
       
+      {/* Top Telemetry Header Control Bar */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 backdrop-blur-md shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center space-x-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+            <Activity className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              Execution Telemetry & Live Controls
+            </h2>
+            <p className="text-xs text-slate-400">
+              Run selected API endpoints, inspect live SLA telemetry, and refresh execution results.
+            </p>
+          </div>
+        </div>
+
+        {/* Action Controls: Refresh & Run Selected */}
+        <div className="flex items-center space-x-2 shrink-0">
+          {runSummary.total > 0 && (
+            <button
+              onClick={clearResults}
+              disabled={isRunning}
+              className="inline-flex items-center space-x-1.5 rounded-xl bg-slate-950 px-3.5 py-2 text-xs font-semibold text-slate-300 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all disabled:opacity-50 shadow-sm"
+              title="Reset Run Results"
+            >
+              <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
+              <span>Refresh Results</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => runSelectedEndpoints()}
+            disabled={isRunning || totalCount === 0}
+            className="inline-flex items-center space-x-2 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-500/25 hover:from-indigo-400 hover:to-pink-500 active:scale-[0.98] disabled:opacity-50 transition-all whitespace-nowrap"
+          >
+            <Play className={`h-4 w-4 fill-current shrink-0 ${isRunning ? 'animate-spin' : ''}`} />
+            <span>{isRunning ? 'Running API Execution...' : 'Run Selected Endpoints'}</span>
+          </button>
+        </div>
+      </div>
+
       {/* Top Stat Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         
@@ -214,7 +256,7 @@ export const RunnerDashboard: React.FC = () => {
               {filteredResults.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-500 font-sans">
-                    No endpoint runs to display yet. Click "Run Selected" in the top bar to execute.
+                    No endpoint runs to display yet. Click "Run Selected Endpoints" above to execute.
                   </td>
                 </tr>
               ) : (

@@ -3,13 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  Sparkles, 
-  Play, 
   Key, 
   FileCode, 
   FolderPlus, 
-  Zap,
-  RotateCcw
+  Zap
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { EnvironmentManagerModal } from './EnvironmentManagerModal';
@@ -24,10 +21,7 @@ export const Header: React.FC = () => {
     loadDemoCollection, 
     geminiApiKey, 
     setGeminiApiKey, 
-    generateAiTestsForSelected,
-    runSelectedEndpoints,
-    runSummary,
-    clearResults
+    generateAiTestsForSelected
   } = useRunnerStore();
 
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -43,8 +37,6 @@ export const Header: React.FC = () => {
     setShowKeyModal(false);
     generateAiTestsForSelected();
   };
-
-  const isRunning = runSummary.status === 'running';
 
   const keyModalContent = (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md animate-in fade-in duration-200">
@@ -130,7 +122,7 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Action Controls - Clean Horizontal Bar */}
+        {/* Configuration Action Controls - Clean Horizontal Bar */}
         <div className="flex flex-wrap items-center gap-2 overflow-x-auto custom-scrollbar max-w-full">
           
           {/* Quota & Token Monitor Widget */}
@@ -171,29 +163,6 @@ export const Header: React.FC = () => {
             <span>{geminiApiKey ? 'AI Key Configured' : 'Configure AI API Key'}</span>
           </button>
 
-          {/* Clear Results */}
-          {runSummary.total > 0 && (
-            <button
-              onClick={clearResults}
-              disabled={isRunning}
-              className="inline-flex items-center space-x-1 rounded-xl bg-slate-900 p-2 text-xs font-medium text-slate-400 border border-slate-800 hover:text-slate-200 transition-all disabled:opacity-50 shrink-0"
-              title="Reset Run Results"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-            </button>
-          )}
-
-          {/* Run Selected Button */}
-          {collectionName && (
-            <button
-              onClick={() => runSelectedEndpoints()}
-              disabled={isRunning || runSummary.total === 0}
-              className="inline-flex items-center space-x-2 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 px-4 py-1.5 text-xs font-semibold text-white shadow-lg shadow-indigo-500/25 hover:from-indigo-400 hover:to-pink-500 active:scale-[0.98] disabled:opacity-50 transition-all whitespace-nowrap"
-            >
-              <Play className={`h-3.5 w-3.5 fill-current shrink-0 ${isRunning ? 'animate-spin' : ''}`} />
-              <span>{isRunning ? 'Running...' : 'Run Selected'}</span>
-            </button>
-          )}
         </div>
       </div>
 
