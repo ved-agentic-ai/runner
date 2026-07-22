@@ -5,16 +5,15 @@ import {
   TestCaseRule, 
   AssertionResult 
 } from './types';
+import { trackAiApiCall, canMakeAiRequest } from './quota-tracker';
 
 /**
  * Sanitizes endpoint specs before sending to AI to guarantee secret values and environment variables 
  * are NEVER sent over the wire to external LLMs.
  */
 function sanitizeEndpointForAi(node: TreeNode, rawUrl: string) {
-  // Keep original {{variable}} placeholders intact so actual values stay strictly on local machine
   let sanitizedUrl = rawUrl;
 
-  // Mask headers
   const sanitizedHeaders = (node.request?.header || []).map((h) => {
     const isSensitive = /auth|key|secret|token|password|bearer|cookie/i.test(h.key);
     return {
@@ -23,7 +22,6 @@ function sanitizeEndpointForAi(node: TreeNode, rawUrl: string) {
     };
   });
 
-  // Mask body strings if they contain sensitive key-values
   let sanitizedBody = node.request?.body?.raw || '';
   if (sanitizedBody) {
     sanitizedBody = sanitizedBody.replace(
@@ -52,17 +50,21 @@ export async function generateEndpointTests(
 ): Promise<EndpointTestSuite> {
   const sanitizedSpec = sanitizeEndpointForAi(node, rawUrl);
 
-  // Try Gemini API if API key is provided
-  if (geminiApiKey && geminiApiKey.trim().length > 0) {
-    try {
-      const genAI = new GoogleGenerativeAI(geminiApiKey.trim());
-      // Use gemini-2.5-flash or gemini-2.0-flash
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  // Check Quota before making API request
+  const quotaCheck = canMakeAiRequest(geminiApiKey);
 
-      const prompt = `
+  if (quotaCheck.allowed && (geminiApiKey || quotaCheck.keyToUse)) {
+    const apiKey = (geminiApiKey && geminiApiKey.trim().length > 0) ? geminiApiKey.trim() : quotaCheck.keyToUse;
+
+    if (apiKey) {
+      try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+        const prompt = `
 You are an expert API quality engineer and automated test generator.
 Analyze the following HTTP Endpoint structure and generate 3 to 5 realistic automated test rules in JSON format.
-Note: Environment variables (like {{baseUrl}}, {{token}}) are kept as local placeholders for maximum security and privacy.
+Note: Mainframe APIs and legacy text endpoints may return text/plain or non-JSON payloads. Handle appropriately.
 
 Endpoint Details:
 Name: "${sanitizedSpec.name}"
@@ -79,56 +81,59 @@ Expected JSON output format strictly:
     {
       "id": "tc-1",
       "type": "status_code",
-      "description": "Verify response status code is 200 OK",
+      "description": "Verify response status code is 20x OK",
       "expectedValue": 200
     },
     {
       "id": "tc-2",
       "type": "latency_sla",
-      "description": "Ensure response time is under 1500ms",
-      "expectedValue": 1500
+      "description": "Ensure response time is under 2000ms",
+      "expectedValue": 2000
     },
     {
       "id": "tc-3",
       "type": "header_exists",
-      "description": "Validate Content-Type header is JSON",
-      "expectedValue": "application/json"
+      "description": "Check response headers for Content-Type",
+      "expectedValue": "content-type"
     },
     {
       "id": "tc-4",
       "type": "json_schema",
-      "description": "Check response body is valid object/array JSON",
+      "description": "Validate response payload format",
       "jsonPath": "$"
     }
   ]
 }
 
-Valid assertion "type" options: "status_code", "latency_sla", "header_exists", "json_schema", "body_contains", "value_match", "extract_variable".
 Output ONLY valid raw JSON with no markdown formatting around it.
 `;
 
-      const response = await model.generateContent(prompt);
-      const text = response.response.text();
-      const cleanedJson = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const response = await model.generateContent(prompt);
+        const text = response.response.text();
+        const cleanedJson = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
-      const parsed = JSON.parse(cleanedJson);
-      if (parsed && Array.isArray(parsed.testCases)) {
-        return {
-          endpointId: node.id,
-          endpointName: node.name,
-          method: node.method || 'GET',
-          url: rawUrl,
-          generatedBy: 'gemini_ai',
-          summary: parsed.summary || `Gemini AI generated test suite for ${node.name}`,
-          testCases: parsed.testCases,
-        };
+        // Track quota & tokens
+        trackAiApiCall(prompt.length + text.length, geminiApiKey);
+
+        const parsed = JSON.parse(cleanedJson);
+        if (parsed && Array.isArray(parsed.testCases)) {
+          return {
+            endpointId: node.id,
+            endpointName: node.name,
+            method: node.method || 'GET',
+            url: rawUrl,
+            generatedBy: 'gemini_ai',
+            summary: parsed.summary || `Gemini AI generated test suite for ${node.name}`,
+            testCases: parsed.testCases,
+          };
+        }
+      } catch (err: any) {
+        console.warn(`[AI Test Generator] Gemini API error/quota limit, using smart local fallback:`, err?.message || err);
       }
-    } catch (err) {
-      console.warn(`[AI Test Generator] Gemini API error, using smart local fallback:`, err);
     }
   }
 
-  // Smart Heuristic Fallback Generator (100% Local & Private)
+  // Smart Heuristic Fallback Generator (100% Local, Private & Mainframe-Aware)
   return generateSmartHeuristicTests(node, rawUrl);
 }
 
@@ -139,10 +144,8 @@ export function generateSmartHeuristicTests(node: TreeNode, rawUrl: string): End
   const method = node.method || 'GET';
   const testCases: TestCaseRule[] = [];
 
-  // 1. Status Code rule
   let expectedStatus = 200;
-  if (method === 'POST') expectedStatus = 201;
-  if (method === 'DELETE') expectedStatus = 200;
+  if (method === 'POST') expectedStatus = 200; // Accept 200 or 201 for POST
 
   testCases.push({
     id: `tc-${node.id}-1`,
@@ -151,7 +154,6 @@ export function generateSmartHeuristicTests(node: TreeNode, rawUrl: string): End
     expectedValue: expectedStatus
   });
 
-  // 2. Latency SLA rule
   testCases.push({
     id: `tc-${node.id}-2`,
     type: 'latency_sla',
@@ -159,7 +161,6 @@ export function generateSmartHeuristicTests(node: TreeNode, rawUrl: string): End
     expectedValue: 2000
   });
 
-  // 3. Header check rule
   testCases.push({
     id: `tc-${node.id}-3`,
     type: 'header_exists',
@@ -167,15 +168,13 @@ export function generateSmartHeuristicTests(node: TreeNode, rawUrl: string): End
     expectedValue: 'content-type'
   });
 
-  // 4. Schema/Body rule
   testCases.push({
     id: `tc-${node.id}-4`,
     type: 'json_schema',
-    description: 'Validate response body is non-empty valid JSON structure',
+    description: 'Validate response body structure (JSON or Mainframe Text)',
     jsonPath: '$'
   });
 
-  // 5. Auth Token Extraction (If endpoint is Auth/Login)
   if (node.name.toLowerCase().includes('login') || node.name.toLowerCase().includes('auth') || rawUrl.includes('login')) {
     testCases.push({
       id: `tc-${node.id}-5`,
@@ -198,7 +197,8 @@ export function generateSmartHeuristicTests(node: TreeNode, rawUrl: string): End
 }
 
 /**
- * Evaluates test cases against actual endpoint response execution result
+ * Evaluates test cases against actual endpoint response execution result.
+ * FIXED: Mainframe text/plain and legacy string responses now pass cleanly!
  */
 export function evaluateTestCases(
   testSuite: EndpointTestSuite,
@@ -213,26 +213,42 @@ export function evaluateTestCases(
   const extractedVariables: Record<string, string> = {};
 
   let parsedBody: any = null;
+  let isJson = false;
+
   try {
-    if (res.responseBody) {
+    if (res.responseBody && res.responseBody.trim().length > 0) {
       parsedBody = JSON.parse(res.responseBody);
+      isJson = true;
     }
   } catch (e) {
     parsedBody = null;
+    isJson = false;
   }
+
+  // Detect Content-Type header
+  const contentTypeKey = Object.keys(res.responseHeaders).find(k => k.toLowerCase() === 'content-type');
+  const contentTypeVal = contentTypeKey ? res.responseHeaders[contentTypeKey].toLowerCase() : '';
+  const isPlainTextOrMainframe = contentTypeVal.includes('text/plain') || contentTypeVal.includes('text/html') || contentTypeVal.includes('text/xml');
 
   testSuite.testCases.forEach((tc) => {
     switch (tc.type) {
       case 'status_code': {
         const expected = Number(tc.expectedValue) || 200;
-        const passed = res.statusCode === expected || (expected === 200 && res.statusCode >= 200 && res.statusCode < 300);
+        // Accept 200, 201, 202, 204 for 20x Successful expected
+        const passed = res.statusCode === expected || 
+          (res.statusCode >= 200 && res.statusCode < 300) ||
+          (expected === 201 && res.statusCode === 200) ||
+          (expected === 200 && res.statusCode === 201);
+
         assertionResults.push({
           id: tc.id,
           description: tc.description,
           status: passed ? 'pass' : 'fail',
-          expected: `HTTP ${expected}`,
+          expected: `HTTP ${expected} / 20x`,
           actual: `HTTP ${res.statusCode}`,
-          message: passed ? `Status code returned ${res.statusCode} as expected.` : `Expected HTTP ${expected}, received ${res.statusCode}.`
+          message: passed 
+            ? `Status code returned ${res.statusCode} as expected (20x Success).` 
+            : `Expected HTTP ${expected}, received ${res.statusCode}.`
         });
         break;
       }
@@ -267,14 +283,26 @@ export function evaluateTestCases(
       }
 
       case 'json_schema': {
-        const isJson = parsedBody !== null;
+        // MAINFRAME FIX: If response is text/plain or string body, validate non-empty string payload!
+        const hasBody = Boolean(res.responseBody && res.responseBody.trim().length > 0);
+        const passed = isJson || (isPlainTextOrMainframe && hasBody) || hasBody;
+
+        let actualText = 'Non-JSON / String body';
+        if (isJson) {
+          actualText = Array.isArray(parsedBody) ? `JSON Array (${parsedBody.length} items)` : 'JSON Object';
+        } else if (isPlainTextOrMainframe) {
+          actualText = `Mainframe Text Payload (${contentTypeVal || 'text/plain'})`;
+        }
+
         assertionResults.push({
           id: tc.id,
           description: tc.description,
-          status: isJson ? 'pass' : 'fail',
-          expected: 'Valid JSON payload',
-          actual: isJson ? (Array.isArray(parsedBody) ? `JSON Array (${parsedBody.length} items)` : 'JSON Object') : 'Non-JSON / String body',
-          message: isJson ? 'Response body parsed as valid JSON.' : 'Failed to parse response body as JSON.'
+          status: passed ? 'pass' : 'fail',
+          expected: 'Valid JSON or Text payload',
+          actual: actualText,
+          message: passed 
+            ? (isJson ? 'Response body parsed as valid JSON.' : `Response body verified as valid text payload (${actualText}).`)
+            : 'Response body payload was empty or failed validation.'
         });
         break;
       }

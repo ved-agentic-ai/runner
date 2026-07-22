@@ -14,6 +14,8 @@ import {
 import { useRunnerStore } from '@/lib/store';
 import { EnvironmentManagerModal } from './EnvironmentManagerModal';
 import { AiTestSuiteViewerModal } from './AiTestSuiteViewerModal';
+import { CustomTestRuleGeneratorModal } from './CustomTestRuleGeneratorModal';
+import { QuotaTelemetryWidget } from './QuotaTelemetryWidget';
 
 export const Header: React.FC = () => {
   const { 
@@ -61,7 +63,7 @@ export const Header: React.FC = () => {
         </div>
 
         <p className="mt-3 text-xs text-slate-400 leading-relaxed">
-          Optional: Enter your API key to enable dynamic AI test assertion generation. Secret values in your environment files are automatically masked and kept 100% strictly local.
+          Optional: Enter your API key to enable unlimited dynamic AI test assertion generation. If omitted, the app provided key is used (capped at 3 requests max before switching to local fallback).
         </p>
 
         <div className="mt-4">
@@ -70,7 +72,7 @@ export const Header: React.FC = () => {
           </label>
           <input
             type="password"
-            placeholder="Enter API Key..."
+            placeholder="Enter your Gemini API Key..."
             value={keyInput}
             onChange={(e) => setKeyInput(e.target.value)}
             className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2 text-sm text-slate-100 placeholder-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -131,8 +133,14 @@ export const Header: React.FC = () => {
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           
+          {/* Quota & Token Monitor Widget */}
+          <QuotaTelemetryWidget />
+
           {/* Postman-Style Environment Manager Button */}
           <EnvironmentManagerModal />
+
+          {/* Natural Language Custom Test Generator Button */}
+          <CustomTestRuleGeneratorModal />
 
           {/* View All AI Test Rules Button */}
           <AiTestSuiteViewerModal />
