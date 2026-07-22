@@ -7,10 +7,8 @@ import {
   Download, 
   ChevronLeft, 
   ChevronRight, 
-  Play, 
-  Sparkles,
   CheckCircle2,
-  FileSpreadsheet
+  Image as ImageIcon
 } from 'lucide-react';
 import pptxgen from 'pptxgenjs';
 
@@ -127,6 +125,16 @@ export const PresentationDeckModal: React.FC = () => {
     }
   ];
 
+  // Download pre-generated PowerPoint deck with embedded screenshots
+  const handleDownloadFullWalkthroughPptx = () => {
+    const a = document.createElement('a');
+    a.href = '/API_Collection_Runner_Complete_Walkthrough.pptx';
+    a.download = 'API_Collection_Runner_Complete_Walkthrough.pptx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   // Native Microsoft PowerPoint (.pptx) Generator
   const handleDownloadNativePptx = async () => {
     try {
@@ -231,12 +239,20 @@ export const PresentationDeckModal: React.FC = () => {
 
           <div className="flex items-center space-x-2">
             <button
+              onClick={handleDownloadFullWalkthroughPptx}
+              className="inline-flex items-center space-x-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-lg shadow-emerald-600/30 hover:from-emerald-500 hover:to-teal-500 active:scale-95 transition-all"
+            >
+              <ImageIcon className="h-3.5 w-3.5" />
+              <span>Download Screenshot Walkthrough PPT (.pptx)</span>
+            </button>
+
+            <button
               onClick={handleDownloadNativePptx}
               disabled={isExporting}
-              className="inline-flex items-center space-x-1.5 rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 px-4 py-1.5 text-xs font-bold text-white shadow-lg shadow-amber-600/30 hover:from-amber-500 hover:to-red-500 active:scale-95 transition-all disabled:opacity-50"
+              className="inline-flex items-center space-x-1.5 rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-lg shadow-amber-600/30 hover:from-amber-500 hover:to-red-500 active:scale-95 transition-all disabled:opacity-50"
             >
               <Download className={`h-3.5 w-3.5 ${isExporting ? 'animate-spin' : ''}`} />
-              <span>{isExporting ? 'Exporting PPTX...' : 'Download Microsoft PPT (.pptx)'}</span>
+              <span>{isExporting ? 'Exporting PPTX...' : 'Download Executive PPT (.pptx)'}</span>
             </button>
 
             <button
