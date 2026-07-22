@@ -10,8 +10,7 @@ import {
   EyeOff, 
   Save, 
   CheckCircle2, 
-  Lock,
-  FileCode
+  Lock
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 
@@ -24,7 +23,7 @@ interface EnvVarEntry {
 }
 
 export const EnvironmentManagerModal: React.FC = () => {
-  const { envVariables, loadCollection, collectionName, rootNodes } = useRunnerStore();
+  const { envVariables } = useRunnerStore();
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [entries, setEntries] = useState<EnvVarEntry[]>([]);
@@ -59,24 +58,22 @@ export const EnvironmentManagerModal: React.FC = () => {
   }, [isOpen, envVariables]);
 
   const handleAddRow = () => {
-    setEntries([
-      ...entries,
-      {
-        id: `env-${Date.now()}`,
-        key: '',
-        value: '',
-        enabled: true,
-        isSecret: false
-      }
-    ]);
+    const newEntry: EnvVarEntry = {
+      id: `env-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      key: '',
+      value: '',
+      enabled: true,
+      isSecret: false
+    };
+    setEntries((prev) => [...prev, newEntry]);
   };
 
   const handleRemoveRow = (id: string) => {
-    setEntries(entries.filter(e => e.id !== id));
+    setEntries((prev) => prev.filter(e => e.id !== id));
   };
 
   const handleFieldChange = (id: string, field: keyof EnvVarEntry, val: any) => {
-    setEntries(entries.map(e => {
+    setEntries((prev) => prev.map(e => {
       if (e.id === id) {
         const updated = { ...e, [field]: val };
         if (field === 'key') {
@@ -145,10 +142,10 @@ export const EnvironmentManagerModal: React.FC = () => {
           </span>
         </div>
 
-        {/* Environment Table */}
-        <div className="rounded-xl border border-slate-800 bg-slate-950 overflow-hidden">
+        {/* Environment Table Container - FIXED SCROLLABILITY */}
+        <div className="rounded-xl border border-slate-800 bg-slate-950 max-h-[360px] overflow-y-auto custom-scrollbar">
           <table className="w-full text-left text-xs">
-            <thead className="border-b border-slate-800 bg-slate-900/60 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
+            <thead className="sticky top-0 z-10 border-b border-slate-800 bg-slate-900 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
               <tr>
                 <th className="py-2.5 px-3 w-8 text-center">Use</th>
                 <th className="py-2.5 px-3">Variable Key</th>
@@ -237,8 +234,9 @@ export const EnvironmentManagerModal: React.FC = () => {
         {/* Modal Controls */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-800">
           <button
+            type="button"
             onClick={handleAddRow}
-            className="inline-flex items-center space-x-1.5 rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition-all"
+            className="inline-flex items-center space-x-1.5 rounded-xl border border-slate-800 bg-slate-950 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5 text-indigo-400" />
             <span>Add Variable</span>
