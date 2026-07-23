@@ -1,9 +1,12 @@
 'use client';
 
 import React from 'react';
-import { GitBranch, Mail, User, ShieldCheck, Heart, ExternalLink } from 'lucide-react';
+import { GitBranch, Mail, User, ExternalLink } from 'lucide-react';
+import { useAdminStore } from '@/lib/admin-store';
 
 export const Footer: React.FC = () => {
+  const { showGithubLink, githubRepoUrl } = useAdminStore();
+
   return (
     <footer className="w-full border-t border-slate-800/80 bg-slate-950/90 py-6 text-xs backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl flex-col md:flex-row items-center justify-between gap-4 px-4 sm:px-6">
@@ -31,17 +34,19 @@ export const Footer: React.FC = () => {
             <span>vedmtripathi@gmail.com</span>
           </a>
 
-          {/* GitHub Repository */}
-          <a
-            href="https://github.com/ved-agentic-ai/runner"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center space-x-1.5 rounded-xl border border-indigo-900/60 bg-indigo-950/40 px-3.5 py-1.5 font-semibold text-indigo-300 hover:bg-indigo-900/60 hover:text-white transition-all shadow-sm"
-          >
-            <GitBranch className="h-3.5 w-3.5 text-indigo-400" />
-            <span>GitHub: ved-agentic-ai/runner</span>
-            <ExternalLink className="h-3 w-3 text-indigo-400" />
-          </a>
+          {/* GitHub Repository (Conditionally Toggled) */}
+          {showGithubLink && (
+            <a
+              href={githubRepoUrl || 'https://github.com/ved-agentic-ai/runner'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center space-x-1.5 rounded-xl border border-indigo-900/60 bg-indigo-950/40 px-3.5 py-1.5 font-semibold text-indigo-300 hover:bg-indigo-900/60 hover:text-white transition-all shadow-sm"
+            >
+              <GitBranch className="h-3.5 w-3.5 text-indigo-400" />
+              <span>GitHub Repository</span>
+              <ExternalLink className="h-3 w-3 text-indigo-400" />
+            </a>
+          )}
         </div>
 
         {/* Copyright & Disclaimer Note */}

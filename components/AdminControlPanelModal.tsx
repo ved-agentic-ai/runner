@@ -49,6 +49,9 @@ export const AdminControlPanelModal: React.FC = () => {
     showQuotaTelemetry,
     showPresetButton,
     showAiKeyButton,
+    showGithubLink,
+    githubRepoUrl,
+    setGithubRepoUrl,
     toggleSectionVisibility,
     memoryResetPolicy,
     setMemoryResetPolicy,
@@ -438,6 +441,7 @@ export const AdminControlPanelModal: React.FC = () => {
                       { key: 'showQuotaTelemetry', label: '📊 App Demo Key / Token Usage Monitor' },
                       { key: 'showPresetButton', label: '📁 "Load Demo API Presets" Button' },
                       { key: 'showAiKeyButton', label: '🔑 "Configure AI API Key" Button' },
+                      { key: 'showGithubLink', label: '🐙 GitHub Repository Links & Icons' },
                       { key: 'showTrafficSimulator', label: '📈 Live Traffic Simulator Widget' },
                       { key: 'showCustomRulesVault', label: '🪄 Custom AI Rules Vault (Tab 3)' },
                       { key: 'showDocumentation', label: '☁️ AWS System Architecture (Tab 4)' },
@@ -456,6 +460,20 @@ export const AdminControlPanelModal: React.FC = () => {
                         </div>
                       );
                     })}
+                  </div>
+
+                  {/* GitHub Repository URL Config Input */}
+                  <div className="pt-3 border-t border-slate-800 space-y-2">
+                    <label className="block text-xs font-bold text-slate-200">
+                      Custom GitHub Repository URL (Visible when GitHub Links enabled):
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="https://github.com/your-username/your-repo"
+                      value={githubRepoUrl}
+                      onChange={(e) => setGithubRepoUrl(e.target.value)}
+                      className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs text-indigo-300 placeholder-slate-600 focus:border-indigo-500 focus:outline-none font-mono"
+                    />
                   </div>
                 </div>
 

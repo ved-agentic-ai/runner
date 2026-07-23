@@ -23,6 +23,8 @@ export interface AdminSettings {
   showQuotaTelemetry: boolean;
   showPresetButton: boolean;
   showAiKeyButton: boolean;
+  showGithubLink: boolean;
+  githubRepoUrl: string;
 
   // Memory & Reset Policy: 'retain' (persist state) vs 'flush' (reset state on page load)
   memoryResetPolicy: 'retain' | 'flush';
@@ -42,7 +44,8 @@ export interface AdminSettings {
   // State Actions
   setWorkspaceMode: (mode: 'full' | 'light') => void;
   setDisclaimerMode: (mode: 'modal' | 'tab') => void;
-  toggleSectionVisibility: (sectionKey: keyof Omit<AdminSettings, 'workspaceMode' | 'disclaimerMode' | 'memoryResetPolicy' | 'mfaEnabled' | 'mfaSecret' | 'isMfaAuthenticated' | 'protectedSections' | 'monetizationEnabled' | 'stripeAccountId' | 'bankPayoutStatus' | 'adSenseClientId'>) => void;
+  setGithubRepoUrl: (url: string) => void;
+  toggleSectionVisibility: (sectionKey: keyof Omit<AdminSettings, 'workspaceMode' | 'disclaimerMode' | 'memoryResetPolicy' | 'mfaEnabled' | 'mfaSecret' | 'isMfaAuthenticated' | 'protectedSections' | 'monetizationEnabled' | 'stripeAccountId' | 'bankPayoutStatus' | 'adSenseClientId' | 'githubRepoUrl'>) => void;
   setMemoryResetPolicy: (policy: 'retain' | 'flush') => void;
   setMfaEnabled: (enabled: boolean) => void;
   setMfaSecret: (secret: string) => void;
@@ -73,6 +76,8 @@ export const useAdminStore = create<AdminSettings>()(
       showQuotaTelemetry: true,
       showPresetButton: true,
       showAiKeyButton: true,
+      showGithubLink: true,
+      githubRepoUrl: 'https://github.com/ved-agentic-ai/runner',
 
       memoryResetPolicy: 'retain',
 
@@ -93,6 +98,8 @@ export const useAdminStore = create<AdminSettings>()(
       setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
 
       setDisclaimerMode: (mode) => set({ disclaimerMode: mode }),
+
+      setGithubRepoUrl: (url) => set({ githubRepoUrl: url }),
 
       toggleSectionVisibility: (key) => 
         set((state) => ({ [key]: !state[key] } as any)),
@@ -157,6 +164,8 @@ export const useAdminStore = create<AdminSettings>()(
         showQuotaTelemetry: true,
         showPresetButton: true,
         showAiKeyButton: true,
+        showGithubLink: true,
+        githubRepoUrl: 'https://github.com/ved-agentic-ai/runner',
         memoryResetPolicy: 'retain',
         mfaEnabled: true,
         mfaSecret: 'GOD3PU4Z4UWCLZFHVJ6FERNYCZ6UTVZK',
@@ -166,7 +175,7 @@ export const useAdminStore = create<AdminSettings>()(
       })
     }),
     {
-      name: 'runner_admin_settings_v14',
+      name: 'runner_admin_settings_v15',
       partialize: (state) => {
         const { isMfaAuthenticated, ...persistedState } = state;
         return persistedState as AdminSettings;

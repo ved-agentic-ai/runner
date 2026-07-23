@@ -29,8 +29,10 @@ import {
   BookOpen
 } from 'lucide-react';
 import { InteractiveUserGuideModal } from './InteractiveUserGuideModal';
+import { useAdminStore } from '@/lib/admin-store';
 
 export const AppDocumentationSection: React.FC = () => {
+  const { githubRepoUrl } = useAdminStore();
   const [activeTab, setActiveTab] = useState<'user_guide' | 'aws_architecture' | 'ai_ml_deepdive' | 'admin_security' | 'ai_prompts_deck' | 'techstack' | 'futurescope'>('user_guide');
   const [isCloudFormationOpen, setIsCloudFormationOpen] = useState(false);
   const [copiedNapkin, setCopiedNapkin] = useState(false);
@@ -213,7 +215,7 @@ Resources:
     Type: AWS::Amplify::App
     Properties:
       Name: api-collection-runner
-      Repository: https://github.com/ved-agentic-ai/runner
+      Repository: ${githubRepoUrl || 'https://github.com/ved-agentic-ai/runner'}
       BuildSpec: |
         version: 1
         frontend:
