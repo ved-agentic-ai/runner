@@ -28,9 +28,10 @@ import {
   Award,
   BookOpen
 } from 'lucide-react';
+import { InteractiveUserGuideModal } from './InteractiveUserGuideModal';
 
 export const AppDocumentationSection: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'aws_architecture' | 'ai_ml_deepdive' | 'admin_security' | 'ai_prompts_deck' | 'techstack' | 'futurescope'>('aws_architecture');
+  const [activeTab, setActiveTab] = useState<'user_guide' | 'aws_architecture' | 'ai_ml_deepdive' | 'admin_security' | 'ai_prompts_deck' | 'techstack' | 'futurescope'>('user_guide');
   const [isCloudFormationOpen, setIsCloudFormationOpen] = useState(false);
   const [copiedNapkin, setCopiedNapkin] = useState(false);
   const [copiedGamma, setCopiedGamma] = useState(false);
@@ -91,12 +92,13 @@ Slide 10: Product Roadmap & Future Scope (GitHub Actions CI/CD, OpenAPI 3.0, Web
       {/* 2. Full-Width Sub-Navigation Tab Bar Below Header */}
       <div className="w-full flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-slate-950 border border-slate-800 overflow-x-auto custom-scrollbar">
         {[
-          { id: 'aws_architecture', label: '☁️ 1. Architecture & AWS Cloud', icon: Cloud },
-          { id: 'ai_ml_deepdive', label: '🧠 2. AI, Agentic AI & ML Deep Dive', icon: Brain },
-          { id: 'admin_security', label: '🔐 3. Security, MFA & Admin Controls', icon: Lock },
-          { id: 'ai_prompts_deck', label: '🎨 4. Visual Prompts & PPT Deck', icon: Presentation },
-          { id: 'techstack', label: '</> 5. Tech Stack & Decision Matrix', icon: Code2 },
-          { id: 'futurescope', label: '🚀 6. Future Scope & Roadmap', icon: Rocket },
+          { id: 'user_guide', label: '📖 1. Interactive User Manual & Simulator', icon: BookOpen },
+          { id: 'aws_architecture', label: '☁️ 2. Architecture & AWS Cloud', icon: Cloud },
+          { id: 'ai_ml_deepdive', label: '🧠 3. AI, Agentic AI & ML Deep Dive', icon: Brain },
+          { id: 'admin_security', label: '🔐 4. Security, MFA & Admin Controls', icon: Lock },
+          { id: 'ai_prompts_deck', label: '🎨 5. Visual Prompts & PPT Deck', icon: Presentation },
+          { id: 'techstack', label: '</> 6. Tech Stack & Decision Matrix', icon: Code2 },
+          { id: 'futurescope', label: '🚀 7. Future Scope & Roadmap', icon: Rocket },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -111,6 +113,11 @@ Slide 10: Product Roadmap & Future Scope (GitHub Actions CI/CD, OpenAPI 3.0, Web
           </button>
         ))}
       </div>
+
+      {/* TAB 1: INTERACTIVE USER MANUAL & SIMULATOR */}
+      {activeTab === 'user_guide' && (
+        <InteractiveUserGuideModal isEmbedded={true} />
+      )}
 
       {/* TAB 1: SYSTEM ARCHITECTURE & AWS CLOUD DEPLOYMENT */}
       {activeTab === 'aws_architecture' && (
