@@ -118,7 +118,7 @@ export const Header: React.FC = () => {
           <div className="min-w-0">
             <div className="flex items-center space-x-2">
               <h1 className="text-base font-extrabold tracking-tight text-white whitespace-nowrap">
-                API Collection <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Runner</span>
+                Vkratim <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">APIRunner</span>
               </h1>
               <span className={`inline-flex items-center space-x-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border whitespace-nowrap ${
                 workspaceMode === 'light' 

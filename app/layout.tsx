@@ -13,13 +13,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI-Powered API Collection Runner & Test Engine | Ved Tripathi",
-  description: "Automated Postman Collection Runner powered by Next.js 14, Tailwind CSS, and Google Gemini API. 100% Zero-Trust Local Secret Isolation with CORS Bypass Proxy Engine.",
+  title: "Vkratim — AI-Powered API Collection Runner & Test Engine | Ved Tripathi",
+  description: "Vkratim is a high-concurrency automated Postman Collection runner powered by Next.js 16, Tailwind CSS, and Google Gemini 1.5 Flash. 100% Zero-Trust Local Secret Isolation with CORS Bypass Proxy Engine.",
   keywords: [
+    "Vkratim",
+    "Vkratim.ai",
+    "Vkratim API Runner",
     "API Collection Runner",
     "Postman Collection Automation",
     "AI Test Generator",
-    "Gemini 2.5 API",
+    "Gemini AI API Testing",
     "CORS Bypass Proxy",
     "API Telemetry Dashboard",
     "Ved Tripathi",
@@ -29,16 +32,16 @@ export const metadata: Metadata = {
   authors: [{ name: "Ved Tripathi", url: "https://github.com/ved-agentic-ai/runner" }],
   creator: "Ved Tripathi",
   openGraph: {
-    title: "AI-Powered API Collection Runner & Test Engine",
-    description: "Automate API testing with AI-generated test rules and zero secret leakage. CORS-bypass proxy runner with live SLA telemetry.",
-    url: "https://runner-app.vercel.app",
-    siteName: "API Collection Runner",
+    title: "Vkratim — AI-Powered API Collection Runner & Test Engine",
+    description: "Vkratim automates API testing with AI-generated test rules and zero secret leakage. CORS-bypass proxy runner with live SLA telemetry.",
+    url: "https://vkratim.ai",
+    siteName: "Vkratim APIRunner",
     locale: "en_US",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI-Powered API Collection Runner",
+    title: "Vkratim — AI-Powered API Collection Runner",
     description: "Automated Postman Collection testing with Gemini AI & Zero-Trust Secret Isolation.",
     creator: "@vedtripathi",
   },
@@ -63,8 +66,8 @@ export default function RootLayout({
   const jsonLdSchema = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "name": "AI-Powered API Collection Runner & Test Engine",
-    "url": "https://github.com/ved-agentic-ai/runner",
+    "name": "Vkratim — AI-Powered API Collection Runner & Test Engine",
+    "url": "https://vkratim.ai",
     "author": {
       "@type": "Person",
       "name": "Ved Tripathi",
@@ -72,7 +75,7 @@ export default function RootLayout({
     },
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "All",
-    "description": "Automated Postman Collection runner powered by Next.js 14, Gemini API, and zero-trust local secret masking."
+    "description": "Vkratim is an automated Postman Collection runner powered by Next.js 16, Gemini AI, and zero-trust local secret masking."
   };
 
   return (
