@@ -63,6 +63,7 @@ export const AdminControlPanelModal: React.FC = () => {
     protectedSections,
     toggleSectionProtection,
     monetizationEnabled,
+    adSenseClientId,
     updateMonetization,
     resetAllSettings
   } = useAdminStore();
@@ -625,6 +626,36 @@ export const AdminControlPanelModal: React.FC = () => {
                       </p>
                     </div>
                   </div>
+
+                  {/* Google AdSense Publisher ID Input */}
+                  <div className="pt-4 border-t border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-amber-300 flex items-center gap-1.5">
+                        <DollarSign className="h-4 w-4 text-amber-400" /> Google AdSense Publisher Client ID
+                      </span>
+                      <button
+                        onClick={() => updateMonetization({ monetizationEnabled: !monetizationEnabled })}
+                        className={`px-3 py-1 rounded-xl text-xs font-bold border transition-all ${
+                          monetizationEnabled 
+                            ? 'bg-emerald-950 text-emerald-300 border-emerald-800' 
+                            : 'bg-slate-900 text-slate-500 border-slate-800'
+                        }`}
+                      >
+                        {monetizationEnabled ? '✅ Ads Enabled' : '⏸️ Ads Disabled'}
+                      </button>
+                    </div>
+                    <p className="text-slate-400 text-[11px]">
+                      Enter your approved Google AdSense Publisher ID below (e.g. <code className="text-amber-300">ca-pub-1234567890123456</code>). It will automatically activate Google AdSense script on your live domain <code className="text-indigo-300">vkratim.com</code>!
+                    </p>
+                    <input
+                      type="text"
+                      placeholder="ca-pub-1234567890123456"
+                      value={adSenseClientId}
+                      onChange={(e) => updateMonetization({ adSenseClientId: e.target.value })}
+                      className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs text-amber-300 placeholder-slate-600 focus:border-amber-500 focus:outline-none font-mono"
+                    />
+                  </div>
+
                 </div>
               </div>
             )}

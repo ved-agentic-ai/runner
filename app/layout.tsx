@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AdSenseScript } from "@/components/AdSenseScript";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,6 +18,7 @@ export const metadata: Metadata = {
   description: "Vkratim is a high-concurrency automated Postman Collection runner powered by Next.js 16, Tailwind CSS, and Google Gemini 1.5 Flash. 100% Zero-Trust Local Secret Isolation with CORS Bypass Proxy Engine.",
   keywords: [
     "Vkratim",
+    "Vkratim.com",
     "Vkratim.ai",
     "Vkratim API Runner",
     "API Collection Runner",
@@ -34,7 +36,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Vkratim — AI-Powered API Collection Runner & Test Engine",
     description: "Vkratim automates API testing with AI-generated test rules and zero secret leakage. CORS-bypass proxy runner with live SLA telemetry.",
-    url: "https://vkratim.ai",
+    url: "https://vkratim.com",
     siteName: "Vkratim APIRunner",
     locale: "en_US",
     type: "website",
@@ -67,7 +69,7 @@ export default function RootLayout({
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": "Vkratim — AI-Powered API Collection Runner & Test Engine",
-    "url": "https://vkratim.ai",
+    "url": "https://vkratim.com",
     "author": {
       "@type": "Person",
       "name": "Ved Tripathi",
@@ -89,6 +91,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0b0f19] text-slate-100 min-h-screen`}
       >
+        <AdSenseScript />
         {children}
       </body>
     </html>
