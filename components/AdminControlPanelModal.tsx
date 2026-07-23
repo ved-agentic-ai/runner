@@ -25,7 +25,15 @@ import {
   Award,
   Layers,
   Key,
-  BarChart3
+  BarChart3,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Users,
+  Eye as EyeIcon,
+  Globe,
+  Info,
+  X 
 } from 'lucide-react';
 import { useAdminStore } from '@/lib/admin-store';
 import { generateMfaSetup, generateBase32Secret } from '@/lib/totp-utils';
@@ -263,6 +271,14 @@ export const AdminControlPanelModal: React.FC = () => {
                   {tab.label}
                 </button>
               ))}
+            </div>
+
+            {/* Session Override Notice Banner */}
+            <div className="rounded-2xl border border-sky-800/60 bg-sky-950/40 p-3.5 text-xs text-sky-200 leading-relaxed flex items-start space-x-3">
+              <Info className="h-5 w-5 text-sky-400 shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-sky-300 font-semibold">Session Override Notice:</strong> Any configuration changes made in this control panel will temporarily override default settings for your current browser session. Once your browser session ends or cache is cleared, default backend configurations will be re-applied automatically.
+              </div>
             </div>
 
             {/* TAB 1: SECURITY & MFA PROTECTION */}
