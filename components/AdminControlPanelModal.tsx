@@ -23,10 +23,12 @@ import {
   ToggleLeft,
   ToggleRight,
   Award,
-  Layers
+  Layers,
+  Key
 } from 'lucide-react';
 import { useAdminStore } from '@/lib/admin-store';
 import { generateMfaSetup, generateBase32Secret } from '@/lib/totp-utils';
+import { getQuotaState, resetDemoQuota } from '@/lib/quota-tracker';
 
 export const AdminControlPanelModal: React.FC = () => {
   const {
@@ -516,6 +518,38 @@ export const AdminControlPanelModal: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Owner API Quota & 5-Hour Cooldown Override Card */}
+                <div className="rounded-2xl border border-amber-800/60 bg-amber-950/20 p-5 space-y-3">
+                  <div className="flex items-center justify-between border-b border-amber-900/40 pb-2">
+                    <span className="font-bold text-xs text-amber-300 flex items-center gap-1.5">
+                      <Key className="h-4 w-4 text-amber-400" /> Owner API Quota & 5-Hour Cooldown Override
+                    </span>
+                    <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-mono text-amber-200 border border-amber-500/40 font-extrabold">
+                      MFA Admin Authorized
+                    </span>
+                  </div>
+                  <p className="text-slate-300 text-xs leading-relaxed">
+                    Public users are restricted to 3 demo API calls with an automatic <strong>5-hour cooldown timer</strong> to protect platform infrastructure from cost overruns. As the MFA-authenticated owner, you can manually reset the 5-hour cooldown timer at any time below.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-2 gap-3 border-t border-amber-900/40">
+                    <span className="font-mono text-xs text-amber-200">
+                      Status: {getQuotaState().rateLimitStatus === 'quota_exceeded' ? `🔒 Locked (5h Cooldown - ${getQuotaState().cooldownFormatted || 'Active'})` : '✅ Operational (0/3 Calls Used)'}
+                    </span>
+                    <button
+                      onClick={() => {
+                        resetDemoQuota();
+                        alert('App Demo Key Quota & 5-Hour Cooldown reset successfully!');
+                      }}
+                      className="inline-flex items-center space-x-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-amber-500 transition-all shrink-0"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      <span>Reset Demo Quota & Cooldown Now</span>
+                    </button>
+                  </div>
+                </div>
+
               </div>
             )}
 

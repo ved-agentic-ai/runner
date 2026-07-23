@@ -364,6 +364,13 @@ Resources:
                   Payments process 100% on Stripe/PayPal encrypted servers via SAQ A hosted tokens. Zero card data leakage.
                 </p>
               </div>
+
+              <div className="rounded-2xl border border-amber-900/60 bg-amber-950/20 p-4 space-y-2 col-span-1 md:col-span-3">
+                <span className="font-bold text-xs text-amber-300 block">4. 5-Hour Rate-Limit Cooldown & Owner Quota Shield</span>
+                <p className="text-slate-300 text-[11px] leading-relaxed">
+                  Demo API key usage is capped at 3 requests max with an automatic <strong>5-hour rate-limit cooldown window</strong> to prevent public abuse and protect platform infrastructure costs. Public reset is disabled; only the MFA-authenticated owner can manually reset the 5-hour cooldown timer from the owner panel.
+                </p>
+              </div>
             </div>
           </div>
         </div>
