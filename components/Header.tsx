@@ -153,8 +153,8 @@ export const Header: React.FC = () => {
             {/* Postman-Style Environment Manager Button */}
             <EnvironmentManagerModal />
 
-            {/* SaaS Upgrade & Subscription Button (Hidden in Light Mode or if toggled off) */}
-            {workspaceMode === 'full' && showSaaSUpgrades && <PricingCheckoutModal />}
+            {/* SaaS Upgrade & Subscription Button (ALWAYS visible for all public visitors) */}
+            {showSaaSUpgrades && <PricingCheckoutModal />}
 
             {/* Stakeholder Presentation Deck Modal */}
             <PresentationDeckModal />
