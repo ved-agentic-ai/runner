@@ -40,7 +40,7 @@ export const PricingCheckoutModal: React.FC<PricingCheckoutModalProps> = ({
   const [expiry, setExpiry] = useState('12/28');
   const [cvc, setCvc] = useState('888');
 
-  const { plan, setPlan, billingCycle, setBillingCycle } = useSubscriptionStore();
+  const { plan, setPlan, billingCycle, setBillingCycle, cancelSubscription } = useSubscriptionStore();
 
   useEffect(() => {
     setMounted(true);
@@ -204,8 +204,17 @@ export const PricingCheckoutModal: React.FC<PricingCheckoutModalProps> = ({
             </div>
 
             <button
+              onClick={() => {
+                cancelSubscription();
+                setCheckoutSuccess('Plan reset to Starter Free');
+                setTimeout(() => setCheckoutSuccess(null), 2000);
+              }}
               disabled={plan === 'free'}
-              className="w-full rounded-2xl border border-slate-800 bg-slate-900 py-2.5 text-xs font-bold text-slate-400 cursor-default"
+              className={`w-full rounded-2xl border py-2.5 text-xs font-bold transition-all ${
+                plan === 'free' 
+                  ? 'border-slate-800 bg-slate-900 text-slate-500 cursor-default'
+                  : 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 cursor-pointer'
+              }`}
             >
               {plan === 'free' ? 'Active Plan' : 'Downgrade to Free'}
             </button>
@@ -266,16 +275,16 @@ export const PricingCheckoutModal: React.FC<PricingCheckoutModalProps> = ({
             <div className="space-y-2">
               <button
                 onClick={() => handleOpenGatewayModal('pro', 'stripe')}
-                disabled={isProcessing || plan === 'pro'}
+                disabled={isProcessing}
                 className="w-full inline-flex items-center justify-center space-x-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 py-3 text-xs font-extrabold text-white shadow-lg shadow-indigo-500/30 hover:from-indigo-400 hover:to-purple-500 active:scale-95 transition-all disabled:opacity-50"
               >
                 <CreditCard className="h-4 w-4" />
-                <span>{plan === 'pro' ? 'Current Active Plan' : 'Pay via Stripe Gateway ($9.99)'}</span>
+                <span>{plan === 'pro' ? 'Renew via Stripe Gateway ($9.99)' : 'Pay via Stripe Gateway ($9.99)'}</span>
               </button>
 
               <button
                 onClick={() => handleOpenGatewayModal('pro', 'paypal')}
-                disabled={isProcessing || plan === 'pro'}
+                disabled={isProcessing}
                 className="w-full inline-flex items-center justify-center space-x-2 rounded-2xl border border-blue-800/80 bg-blue-950/60 py-2.5 text-xs font-bold text-blue-300 hover:bg-blue-900 transition-all disabled:opacity-50"
               >
                 <Building2 className="h-4 w-4 text-blue-400" />
