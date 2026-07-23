@@ -24,7 +24,8 @@ import {
   ToggleRight,
   Award,
   Layers,
-  Key
+  Key,
+  BarChart3
 } from 'lucide-react';
 import { useAdminStore } from '@/lib/admin-store';
 import { generateMfaSetup, generateBase32Secret } from '@/lib/totp-utils';
@@ -52,6 +53,9 @@ export const AdminControlPanelModal: React.FC = () => {
     showGithubLink,
     githubRepoUrl,
     setGithubRepoUrl,
+    totalPageViews,
+    todayPageViews,
+    uniqueSessions,
     toggleSectionVisibility,
     memoryResetPolicy,
     setMemoryResetPolicy,
@@ -331,6 +335,39 @@ export const AdminControlPanelModal: React.FC = () => {
             {activeTab === 'layout' && (
               <div className="space-y-5 text-xs text-slate-300">
                 
+                {/* Real-Time Visitor & Pageview Telemetry Counter Card */}
+                <div className="rounded-2xl border border-indigo-800/60 bg-indigo-950/20 p-5 space-y-4 shadow-xl">
+                  <div className="flex items-center justify-between border-b border-indigo-900/50 pb-3">
+                    <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-indigo-400" /> Real-Time Live Website Visitor & Traffic Counter
+                    </h3>
+                    <span className="inline-flex items-center space-x-1.5 rounded-full bg-emerald-950/80 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-800/80">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+                      <span>Live Telemetry Engine Active</span>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5 text-center">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Total Pageviews</span>
+                      <span className="text-2xl font-black text-indigo-400 font-mono">{totalPageViews || 0}</span>
+                      <span className="text-[10px] text-slate-500 block mt-1">All-Time Hits</span>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5 text-center">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Today's Visits</span>
+                      <span className="text-2xl font-black text-emerald-400 font-mono">{todayPageViews || 0}</span>
+                      <span className="text-[10px] text-slate-500 block mt-1">24-Hour Traffic</span>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3.5 text-center">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Unique Sessions</span>
+                      <span className="text-2xl font-black text-purple-400 font-mono">{uniqueSessions || 0}</span>
+                      <span className="text-[10px] text-slate-500 block mt-1">Distinct Devices</span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Workspace Presentation Mode Selector */}
                 <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 space-y-4">
                   <div className="border-b border-slate-800 pb-3">

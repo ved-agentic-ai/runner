@@ -48,7 +48,8 @@ export default function Home() {
     memoryResetPolicy,
     mfaEnabled,
     isMfaAuthenticated,
-    protectedSections 
+    protectedSections,
+    recordPageView
   } = useAdminStore();
   
   // Active workspace tab
@@ -56,6 +57,9 @@ export default function Home() {
   const [showVaultMfaModal, setShowVaultMfaModal] = useState(false);
 
   useEffect(() => {
+    // Record real-time pageview visit
+    recordPageView();
+
     // If memory policy is set to 'flush', reset state on page refresh
     if (memoryResetPolicy === 'flush') {
       useRunnerStore.setState({

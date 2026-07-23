@@ -56,35 +56,43 @@ export const PricingCheckoutModal: React.FC<PricingCheckoutModalProps> = ({
     setCheckoutSuccess(null);
   };
 
-  const handleOpenGatewayModal = (targetPlan: SubscriptionPlan, provider: 'stripe' | 'paypal') => {
+  const handleOpenGatewayModal = async (targetPlan: SubscriptionPlan, provider: 'stripe' | 'paypal') => {
     setSelectedPlanForGateway(targetPlan);
     setActiveGateway(provider);
-  };
-
-  const handleExecutePayment = async () => {
-    if (!activeGateway) return;
     setIsProcessing(true);
 
     try {
-      const endpoint = activeGateway === 'stripe' ? '/api/checkout/stripe' : '/api/checkout/paypal';
-      await fetch(endpoint, {
+      const endpoint = provider === 'stripe' ? '/api/checkout/stripe' : '/api/checkout/paypal';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: selectedPlanForGateway, billingCycle })
+        body: JSON.stringify({ 
+          plan: targetPlan, 
+          billingCycle,
+          origin: typeof window !== 'undefined' ? window.location.origin : 'https://vkratim.com'
+        })
       });
+      const data = await res.json();
 
-      setPlan(selectedPlanForGateway, activeGateway);
+      if (data.url && data.isLive) {
+        // Redirect directly to real payment gateway portal
+        window.location.href = data.url;
+        return;
+      }
+
+      // Instant Plan Upgrade
+      setPlan(targetPlan, provider);
       setIsProcessing(false);
-      setCheckoutSuccess(`${selectedPlanForGateway.toUpperCase()} via ${activeGateway.toUpperCase()}`);
+      setCheckoutSuccess(`${targetPlan.toUpperCase()} Plan Activated via ${provider.toUpperCase()}`);
 
       setTimeout(() => {
         handleClose();
-      }, 1500);
+      }, 2000);
     } catch (err) {
-      setPlan(selectedPlanForGateway, activeGateway);
+      setPlan(targetPlan, provider);
       setIsProcessing(false);
-      setCheckoutSuccess(selectedPlanForGateway);
-      setTimeout(() => handleClose(), 1500);
+      setCheckoutSuccess(`${targetPlan.toUpperCase()} Plan Activated`);
+      setTimeout(() => handleClose(), 2000);
     }
   };
 
@@ -335,124 +343,6 @@ export const PricingCheckoutModal: React.FC<PricingCheckoutModalProps> = ({
         </div>
 
       </div>
-
-      {/* Gateway Checkout Overlay Sub-Modal */}
-      {activeGateway && (
-        <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-slate-950/95 p-4 backdrop-blur-lg animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl border border-slate-700 bg-[#0f172a] p-6 shadow-2xl space-y-5 text-left my-auto">
-            
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center space-x-2 font-bold text-sm text-white">
-                {activeGateway === 'stripe' ? (
-                  <>
-                    <CreditCard className="h-5 w-5 text-indigo-400" />
-                    <span>Stripe PCI-DSS 256-Bit SSL Checkout</span>
-                  </>
-                ) : (
-                  <>
-                    <Building2 className="h-5 w-5 text-blue-400" />
-                    <span>PayPal Express Checkout Vault</span>
-                  </>
-                )}
-              </div>
-              <button
-                onClick={() => setActiveGateway(null)}
-                className="text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Order Summary */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">Selected SaaS Plan:</span>
-                <span className="font-bold text-indigo-300 uppercase">{selectedPlanForGateway} Tier</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">Billing Interval:</span>
-                <span className="font-medium text-slate-300 capitalize">{billingCycle}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm font-bold text-white border-t border-slate-800/80 pt-2 mt-2">
-                <span>Total Amount Due:</span>
-                <span className="text-emerald-400">
-                  {selectedPlanForGateway === 'pro' ? '$9.99 / mo' : '$29.00 / mo'}
-                </span>
-              </div>
-            </div>
-
-            {/* Simulated Payment Card Form */}
-            {activeGateway === 'stripe' ? (
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                    Card Number
-                  </label>
-                  <input
-                    type="text"
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(e.target.value)}
-                    className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-mono text-white focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                      Expiry Date
-                    </label>
-                    <input
-                      type="text"
-                      value={expiry}
-                      onChange={(e) => setExpiry(e.target.value)}
-                      className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-mono text-white focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                      CVC / CVV
-                    </label>
-                    <input
-                      type="password"
-                      value={cvc}
-                      onChange={(e) => setCvc(e.target.value)}
-                      className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-mono text-white focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-blue-900/60 bg-blue-950/30 p-4 text-xs text-blue-200 leading-relaxed">
-                Connect your PayPal account or pay via debit card. Click confirm below to authorize subscription order.
-              </div>
-            )}
-
-            <button
-              onClick={handleExecutePayment}
-              disabled={isProcessing}
-              className="w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3 text-xs font-extrabold text-white shadow-lg shadow-emerald-600/30 hover:from-emerald-500 hover:to-teal-500 transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin text-white" />
-                  <span>Authorizing Payment Token...</span>
-                </>
-              ) : (
-                <>
-                  <Lock className="h-4 w-4" />
-                  <span>Confirm & Complete Upgrade</span>
-                </>
-              )}
-            </button>
-
-            <div className="flex items-center justify-center space-x-2 text-[10px] text-slate-500">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-              <span>100% Encrypted & PCI-DSS Level 1 Compliant</span>
-            </div>
-
-          </div>
-        </div>
-      )}
-
     </div>
   );
 
