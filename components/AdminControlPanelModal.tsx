@@ -429,6 +429,7 @@ export const AdminControlPanelModal: React.FC = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[
+                      { key: 'showStepByStepGuide', label: '🧭 Step-by-Step "Where to Click" Guide' },
                       { key: 'showSaaSUpgrades', label: '👑 "Upgrade to Pro" SaaS Pricing Button' },
                       { key: 'showCapabilitiesGrid', label: '⚡ 4-Column Core Capabilities Grid' },
                       { key: 'showPlatformOverviewBanner', label: '✨ Creative Platform Architecture Banner' },

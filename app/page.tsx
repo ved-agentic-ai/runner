@@ -13,6 +13,7 @@ import { CustomUseCasesVault } from '@/components/CustomUseCasesVault';
 import { EndpointDetailSheet } from '@/components/EndpointDetailSheet';
 import { LegalDisclaimerModal } from '@/components/LegalDisclaimerModal';
 import { MfaPromptModal } from '@/components/MfaPromptModal';
+import { StepByStepClickGuide } from '@/components/StepByStepClickGuide';
 import { Footer } from '@/components/Footer';
 import { useRunnerStore } from '@/lib/store';
 import { useAdminStore } from '@/lib/admin-store';
@@ -42,6 +43,7 @@ export default function Home() {
     showCustomRulesVault, 
     showDocumentation,
     showPrivacyBanner,
+    showStepByStepGuide,
     workspaceMode,
     memoryResetPolicy,
     mfaEnabled,
@@ -208,6 +210,11 @@ export default function Home() {
         {activeMainTab === 'upload' && (
           <div className="space-y-6 py-2">
             
+            {/* Interactive Step-by-Step Instructions: Where to Click & How to Run */}
+            {showStepByStepGuide && (
+              <StepByStepClickGuide onNavigateTab={(tab) => setActiveMainTab(tab)} />
+            )}
+
             {/* Top Row: Balanced 2-Column Desktop Grid (7 cols / 5 cols) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               

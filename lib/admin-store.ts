@@ -9,6 +9,7 @@ export interface AdminSettings {
   disclaimerMode: 'modal' | 'tab';
   
   // 100% Granular Section & Widget Visibility Toggles
+  showStepByStepGuide: boolean;
   showFooter: boolean;
   showPlatformOverviewBanner: boolean;
   showCapabilitiesGrid: boolean;
@@ -58,6 +59,7 @@ export const useAdminStore = create<AdminSettings>()(
       workspaceMode: 'full',
       disclaimerMode: 'modal',
       
+      showStepByStepGuide: true,
       showFooter: true,
       showPlatformOverviewBanner: true,
       showCapabilitiesGrid: true,
@@ -141,6 +143,7 @@ export const useAdminStore = create<AdminSettings>()(
       resetAllSettings: () => set({
         workspaceMode: 'full',
         disclaimerMode: 'modal',
+        showStepByStepGuide: true,
         showFooter: true,
         showPlatformOverviewBanner: true,
         showCapabilitiesGrid: true,
@@ -163,7 +166,7 @@ export const useAdminStore = create<AdminSettings>()(
       })
     }),
     {
-      name: 'runner_admin_settings_v13',
+      name: 'runner_admin_settings_v14',
       partialize: (state) => {
         const { isMfaAuthenticated, ...persistedState } = state;
         return persistedState as AdminSettings;
