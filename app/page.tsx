@@ -164,31 +164,31 @@ export default function Home() {
             </button>
 
             {/* Render Tabs 3 & 4 ONLY in Full Scale Mode */}
-            {workspaceMode === 'full' && showCustomRulesVault && (
-              <button
-                onClick={() => handleTabClick('vault')}
-                className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold whitespace-nowrap transition-all ${
-                  activeMainTab === 'vault' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Sparkles className="h-4 w-4 shrink-0" />
-                <span>🪄 3. Custom AI Rules Vault</span>
-                {mfaEnabled && protectedSections.vault && !isMfaAuthenticated && (
-                  <ShieldAlert className="h-3.5 w-3.5 text-amber-400 ml-0.5" />
-                )}
-              </button>
-            )}
+            {workspaceMode === 'full' && (
+              <>
+                <button
+                  onClick={() => handleTabClick('vault')}
+                  className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold whitespace-nowrap transition-all ${
+                    activeMainTab === 'vault' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Sparkles className="h-4 w-4 shrink-0" />
+                  <span>🪄 3. Custom AI Rules Vault</span>
+                  {mfaEnabled && protectedSections.vault && !isMfaAuthenticated && (
+                    <ShieldAlert className="h-3.5 w-3.5 text-amber-400 ml-0.5" />
+                  )}
+                </button>
 
-            {workspaceMode === 'full' && showDocumentation && (
-              <button
-                onClick={() => handleTabClick('architecture')}
-                className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold whitespace-nowrap transition-all ${
-                  activeMainTab === 'architecture' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Cloud className="h-4 w-4 shrink-0" />
-                <span>☁️ 4. AWS Cloud & AI Deep Dive</span>
-              </button>
+                <button
+                  onClick={() => handleTabClick('architecture')}
+                  className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold whitespace-nowrap transition-all ${
+                    activeMainTab === 'architecture' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Cloud className="h-4 w-4 shrink-0" />
+                  <span>☁️ 4. AWS Cloud & AI Deep Dive</span>
+                </button>
+              </>
             )}
 
             {/* Render Disclaimer as a standalone tab when disclaimerMode is 'tab' */}

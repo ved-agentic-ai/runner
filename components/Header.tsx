@@ -17,6 +17,7 @@ import { QuotaTelemetryWidget } from './QuotaTelemetryWidget';
 import { PresentationDeckModal } from './PresentationDeckModal';
 import { AdminControlPanelModal } from './AdminControlPanelModal';
 import { PricingCheckoutModal } from './PricingCheckoutModal';
+import { UserAuthModal } from './UserAuthModal';
 import { useAdminStore } from '@/lib/admin-store';
 
 export const Header: React.FC = () => {
@@ -144,6 +145,9 @@ export const Header: React.FC = () => {
         {/* PRIMARY CONTROLS (Row 1 Right) */}
         {showHeaderControls && (
           <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2 shrink-0">
+            {/* User Account Sign In / Sign Up Modal */}
+            <UserAuthModal />
+
             {/* Owner & Admin Control Panel */}
             <AdminControlPanelModal />
 

@@ -5,18 +5,23 @@ export async function POST(req: Request) {
     const { plan, billingCycle, paypalClientId } = await req.json();
 
     const clientId = paypalClientId || process.env.PAYPAL_CLIENT_ID;
+    const paypalAccount = process.env.PAYPAL_EMAIL || 'vedbhasker@gmail.com';
+    const amount = plan === 'enterprise' ? (billingCycle === 'annual' ? '23.00' : '29.00') : (billingCycle === 'annual' ? '7.99' : '9.99');
 
-    // If PayPal API credentials are configured
+    // If PayPal Client ID or Email is configured
     if (clientId && clientId.trim().length > 10) {
+      // Standard Official PayPal Subscription Hosted Checkout URL
+      const checkoutUrl = `https://www.paypal.com/cgi-bin/webscr?cmd=_xclick-subscriptions&business=${encodeURIComponent(paypalAccount)}&item_name=Vkratim+SaaS+${plan.toUpperCase()}+Developer+Subscription&a3=${amount}&p3=1&t3=M&src=1&currency_code=USD&return=https://vkratim.com?payment=success`;
+
       return NextResponse.json({
         success: true,
-        url: `https://www.paypal.com/checkoutnow?client_id=${encodeURIComponent(clientId)}&plan=${plan}`,
+        url: checkoutUrl,
         orderId: `PAYPAL_${Date.now()}`,
         isLive: true
       });
     }
 
-    // Direct Instant Activation Mode
+    // Direct Instant Activation Mode fallback
     return NextResponse.json({
       success: true,
       url: null,
