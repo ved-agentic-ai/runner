@@ -24,7 +24,7 @@ export const StepByStepClickGuide: React.FC<StepByStepClickGuideProps> = ({
 }) => {
   const { loadDemoCollection, selectAllNodes, runSelectedEndpoints } = useRunnerStore();
   const [activeStep, setActiveStep] = useState<number>(1);
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
   const [actionDoneMsg, setActionDoneMsg] = useState<string | null>(null);
 
   const triggerAction = (stepId: number) => {
