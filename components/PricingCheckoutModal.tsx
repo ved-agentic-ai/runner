@@ -323,6 +323,10 @@ export const PricingCheckoutModal: React.FC<PricingCheckoutModalProps> = ({
                 For software engineering teams needing dedicated proxies, multi-user sync, and SLAs.
               </p>
 
+              <div className="rounded-xl border border-amber-800/60 bg-amber-950/40 p-2.5 text-[11px] text-amber-200 leading-snug">
+                ⚠️ <strong>Subscription Limit Reached</strong>: Enterprise onboarding is temporarily paused due to high server capacity demand. Please select SaaS Pro.
+              </div>
+
               <ul className="space-y-2 text-xs text-slate-300">
                 {[
                   'Everything in SaaS Pro plan',
@@ -331,7 +335,7 @@ export const PricingCheckoutModal: React.FC<PricingCheckoutModalProps> = ({
                   'Automated scheduled cron runners',
                   '24/7 Priority SLA engineering support'
                 ].map((feat, idx) => (
-                  <li key={idx} className="flex items-center space-x-2">
+                  <li key={idx} className="flex items-center space-x-2 opacity-60">
                     <Check className="h-4 w-4 text-amber-400 shrink-0" />
                     <span>{feat}</span>
                   </li>
@@ -340,12 +344,10 @@ export const PricingCheckoutModal: React.FC<PricingCheckoutModalProps> = ({
             </div>
 
             <button
-              onClick={() => handleOpenGatewayModal('enterprise', 'stripe')}
-              disabled={isProcessing || plan === 'enterprise'}
-              className="w-full inline-flex items-center justify-center space-x-2 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 py-3 text-xs font-bold text-white shadow-lg shadow-amber-600/30 hover:from-amber-500 hover:to-orange-500 transition-all disabled:opacity-50 flex items-center justify-center"
+              disabled={true}
+              className="w-full inline-flex items-center justify-center space-x-2 rounded-2xl border border-slate-800 bg-slate-900 py-3 text-xs font-bold text-slate-500 cursor-not-allowed"
             >
-              <span>{plan === 'enterprise' ? 'Current Active Plan' : 'Upgrade to Enterprise ($29)'}</span>
-              <ArrowRight className="h-4 w-4 ml-1" />
+              <span>Enterprise Paused (Capacity Full)</span>
             </button>
           </div>
 

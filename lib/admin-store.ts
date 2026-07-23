@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export interface AdminSettings {
-  // Workspace Presentation Mode: 'full' (all enterprise features) vs 'light' (clean team presentation view)
+  // Workspace Presentation Mode: 'full' (owner admin mode with all features) vs 'light' (clean public visitor mode)
   workspaceMode: 'full' | 'light';
 
   // Disclaimer Display Mode: 'modal' (on page load) vs 'tab' (embedded section)
@@ -68,19 +68,20 @@ export interface AdminSettings {
 export const useAdminStore = create<AdminSettings>()(
   persist(
     (set, get) => ({
-      workspaceMode: 'full',
+      // Default to 'light' (clean public visitor view with architecture/vault tabs hidden)
+      workspaceMode: 'light',
       disclaimerMode: 'modal',
       
       showStepByStepGuide: true,
-      showFooter: true,
-      showPlatformOverviewBanner: true,
+      showFooter: false, // Hidden in public light mode
+      showPlatformOverviewBanner: false, // Hidden in public light mode
       showCapabilitiesGrid: true,
-      showTrafficSimulator: true,
-      showCustomRulesVault: true,
-      showDocumentation: true,
+      showTrafficSimulator: false, // Hidden in public light mode
+      showCustomRulesVault: false, // Hidden in public light mode
+      showDocumentation: false, // Hidden in public light mode
       showHeaderControls: true,
       showSaaSUpgrades: true,
-      showPciCompliance: true,
+      showPciCompliance: false, // Hidden in public light mode
       showPrivacyBanner: true,
       showQuotaTelemetry: true,
       showPresetButton: true,
@@ -101,8 +102,8 @@ export const useAdminStore = create<AdminSettings>()(
       isMfaAuthenticated: false,
       protectedSections: {
         admin: true,
-        vault: false,
-        environment: false,
+        vault: true,
+        environment: true,
       },
 
       monetizationEnabled: true,
@@ -112,7 +113,15 @@ export const useAdminStore = create<AdminSettings>()(
       bankPayoutStatus: 'unconfigured',
       adSenseClientId: 'ca-pub-2966115619566020',
 
-      setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
+      setWorkspaceMode: (mode) => set({ 
+        workspaceMode: mode,
+        showCustomRulesVault: mode === 'full',
+        showDocumentation: mode === 'full',
+        showFooter: mode === 'full',
+        showPlatformOverviewBanner: mode === 'full',
+        showTrafficSimulator: mode === 'full',
+        showPciCompliance: mode === 'full',
+      }),
 
       setDisclaimerMode: (mode) => set({ disclaimerMode: mode }),
 
@@ -145,7 +154,16 @@ export const useAdminStore = create<AdminSettings>()(
         const secret = get().mfaSecret || 'GOD3PU4Z4UWCLZFHVJ6FERNYCZ6UTVZK';
         
         if (token.trim() === '123456') {
-          set({ isMfaAuthenticated: true });
+          set({ 
+            isMfaAuthenticated: true,
+            workspaceMode: 'full',
+            showCustomRulesVault: true,
+            showDocumentation: true,
+            showFooter: true,
+            showPlatformOverviewBanner: true,
+            showTrafficSimulator: true,
+            showPciCompliance: true
+          });
           return true;
         }
 
@@ -157,7 +175,16 @@ export const useAdminStore = create<AdminSettings>()(
           });
           const data = await res.json();
           if (data.success) {
-            set({ isMfaAuthenticated: true });
+            set({ 
+              isMfaAuthenticated: true,
+              workspaceMode: 'full',
+              showCustomRulesVault: true,
+              showDocumentation: true,
+              showFooter: true,
+              showPlatformOverviewBanner: true,
+              showTrafficSimulator: true,
+              showPciCompliance: true
+            });
             return true;
           }
         } catch (err) {
@@ -167,7 +194,16 @@ export const useAdminStore = create<AdminSettings>()(
         return false;
       },
 
-      lockAdminPanel: () => set({ isMfaAuthenticated: false }),
+      lockAdminPanel: () => set({ 
+        isMfaAuthenticated: false,
+        workspaceMode: 'light',
+        showCustomRulesVault: false,
+        showDocumentation: false,
+        showFooter: false,
+        showPlatformOverviewBanner: false,
+        showTrafficSimulator: false,
+        showPciCompliance: false
+      }),
 
       toggleSectionProtection: (sectionKey) => set((state) => ({
         protectedSections: {
@@ -179,18 +215,18 @@ export const useAdminStore = create<AdminSettings>()(
       updateMonetization: (config) => set((state) => ({ ...state, ...config })),
 
       resetAllSettings: () => set({
-        workspaceMode: 'full',
+        workspaceMode: 'light',
         disclaimerMode: 'modal',
         showStepByStepGuide: true,
-        showFooter: true,
-        showPlatformOverviewBanner: true,
+        showFooter: false,
+        showPlatformOverviewBanner: false,
         showCapabilitiesGrid: true,
-        showTrafficSimulator: true,
-        showCustomRulesVault: true,
-        showDocumentation: true,
+        showTrafficSimulator: false,
+        showCustomRulesVault: false,
+        showDocumentation: false,
         showHeaderControls: true,
         showSaaSUpgrades: true,
-        showPciCompliance: true,
+        showPciCompliance: false,
         showPrivacyBanner: true,
         showQuotaTelemetry: true,
         showPresetButton: true,
@@ -205,7 +241,7 @@ export const useAdminStore = create<AdminSettings>()(
         mfaEnabled: true,
         mfaSecret: 'GOD3PU4Z4UWCLZFHVJ6FERNYCZ6UTVZK',
         isMfaAuthenticated: false,
-        protectedSections: { admin: true, vault: false, environment: false },
+        protectedSections: { admin: true, vault: true, environment: true },
         monetizationEnabled: true,
         stripeAccountId: '',
         stripeSecretKey: '',
@@ -215,7 +251,7 @@ export const useAdminStore = create<AdminSettings>()(
       })
     }),
     {
-      name: 'runner_admin_settings_v17',
+      name: 'runner_admin_settings_v18',
       partialize: (state) => {
         const { isMfaAuthenticated, ...persistedState } = state;
         return persistedState as AdminSettings;
