@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Play, 
   RotateCcw, 
@@ -18,7 +18,9 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Flame,
+  AlertTriangle
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { EndpointDetailSheet } from './EndpointDetailSheet';
@@ -42,7 +44,7 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
   } = useRunnerStore();
 
   const [resultsPanelCollapsed, setResultsPanelCollapsed] = useState(false);
-  const [groupByStatus, setGroupByStatus] = useState(false);
+  const [viewMode, setViewMode] = useState<'flat' | 'status' | 'reason'>('flat');
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   // Sorting State
@@ -88,8 +90,8 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
       valA = a.responseTimeMs || 0;
       valB = b.responseTimeMs || 0;
     } else if (sortField === 'assertions') {
-      valA = a.assertionResults.filter((x) => x.status === 'pass').length;
-      valB = b.assertionResults.filter((x) => x.status === 'pass').length;
+      valA = a.assertionResults.filter((x: any) => x.status === 'pass').length;
+      valB = b.assertionResults.filter((x: any) => x.status === 'pass').length;
     }
 
     if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
@@ -107,6 +109,39 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
   const passedGroup = sortedResults.filter((r) => r.status === 'passed');
   const failedGroup = sortedResults.filter((r) => r.status === 'failed');
   const pendingGroup = sortedResults.filter((r) => r.status === 'pending' || r.status === 'running');
+
+  // Group by Failure Reason / Root Cause buckets
+  const failureReasonBuckets = useMemo(() => {
+    const map = new Map<string, any[]>();
+    sortedResults.forEach((res) => {
+      let key = 'PASSED (200 OK)';
+      if (res.status !== 'passed') {
+        if (res.responseBody) {
+          try {
+            const parsed = typeof res.responseBody === 'string' ? JSON.parse(res.responseBody) : res.responseBody;
+            if (parsed.errorResponse?.statusMessage) {
+              key = `HTTP ${res.statusCode || 400}: ${parsed.errorResponse.statusMessage}`;
+            } else if (parsed.errorResponse?.rootCause) {
+              key = `HTTP ${res.statusCode || 400}: ${parsed.errorResponse.rootCause}`;
+            } else if (parsed.message) {
+              key = `HTTP ${res.statusCode || 400}: ${parsed.message}`;
+            }
+          } catch (e) {}
+        }
+        if (key === 'PASSED (200 OK)' && res.assertionResults && res.assertionResults.length > 0) {
+          const failed = res.assertionResults.find((a: any) => a.status === 'fail');
+          if (failed) key = `Assertion Fail: ${failed.description || failed.message}`;
+        }
+        if (key === 'PASSED (200 OK)') {
+          key = `HTTP ${res.statusCode || 'ERR'}: Request Execution Failure`;
+        }
+      }
+
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(res);
+    });
+    return Array.from(map.entries());
+  }, [sortedResults]);
 
   const renderSortIndicator = (field: SortField) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3 text-slate-600 ml-1 inline shrink-0" />;
@@ -352,18 +387,38 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
               ))}
             </div>
 
-            {/* Group by Status Toggle */}
-            <button
-              onClick={() => setGroupByStatus(!groupByStatus)}
-              className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl text-xs font-bold border transition-all ${
-                groupByStatus 
-                  ? 'bg-purple-950 text-purple-300 border-purple-700 shadow-md'
-                  : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
-              }`}
-            >
-              <ListFilter className="h-3.5 w-3.5 text-purple-400" />
-              <span>{groupByStatus ? 'Grouped by Status' : 'Flat List'}</span>
-            </button>
+            {/* View Mode Grouping Toggles */}
+            <div className="flex items-center space-x-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+              <button
+                onClick={() => setViewMode('flat')}
+                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                  viewMode === 'flat' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Flat List
+              </button>
+
+              <button
+                onClick={() => setViewMode('status')}
+                className={`inline-flex items-center space-x-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                  viewMode === 'status' ? 'bg-purple-950 text-purple-300 border border-purple-700 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <ListFilter className="h-3 w-3 text-purple-400" />
+                <span>By Status</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode('reason')}
+                className={`inline-flex items-center space-x-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                  viewMode === 'reason' ? 'bg-red-950 text-red-300 border border-red-700 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Group failed requests by their specific root cause / error reason"
+              >
+                <Flame className="h-3 w-3 text-red-400" />
+                <span>🔥 By Failure Reason</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center space-x-3">
@@ -428,7 +483,44 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
                       No endpoint runs to display yet. Click &quot;Run Selected Endpoints&quot; above to execute.
                     </td>
                   </tr>
-                ) : groupByStatus ? (
+                ) : viewMode === 'reason' ? (
+                  /* GROUP BY FAILURE REASON / ROOT CAUSE BUCKETS */
+                  failureReasonBuckets.map(([reasonKey, items], bIdx) => {
+                    const isCollapsed = collapsedGroups[`reason-${bIdx}`] ?? false;
+                    const isPassedBucket = reasonKey.includes('PASSED');
+
+                    return (
+                      <React.Fragment key={bIdx}>
+                        <tr 
+                          onClick={() => toggleGroupCollapse(`reason-${bIdx}`)}
+                          className={`border-y font-sans font-bold cursor-pointer transition-colors select-none ${
+                            isPassedBucket 
+                              ? 'bg-emerald-950/50 border-emerald-800/80 text-emerald-300 hover:bg-emerald-900/60'
+                              : 'bg-red-950/60 border-red-800/90 text-red-200 hover:bg-red-900/70'
+                          }`}
+                        >
+                          <td colSpan={6} className="py-2.5 px-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2 text-xs">
+                                <span>{isCollapsed ? '▶' : '▼'}</span>
+                                {isPassedBucket ? (
+                                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                                ) : (
+                                  <AlertTriangle className="h-4 w-4 text-red-400" />
+                                )}
+                                <span className="font-extrabold uppercase">{reasonKey} ({items.length} Endpoints)</span>
+                              </div>
+                              <span className="text-[10px] font-mono font-normal opacity-80">
+                                {isCollapsed ? 'Click to Expand Reason' : 'Click to Collapse'}
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                        {!isCollapsed && items.map(renderRow)}
+                      </React.Fragment>
+                    );
+                  })
+                ) : viewMode === 'status' ? (
                   <>
                     {/* GROUP 1: PASSED (COLLAPSIBLE) */}
                     {passedGroup.length > 0 && (

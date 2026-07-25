@@ -48,7 +48,7 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
   // Per-file subfolder expansion state
   const [expandedSubfolders, setExpandedSubfolders] = useState<Record<string, boolean>>({});
   // Per-file selection state
-  const [selectedSidebarNodeIds, setSelectedSidebarNodeIds] = useState<Record<string, Set<string>>>({});
+  const [selectedSidebarNodeIds, setSelectedSidebarNodeIds] = useState<Record<string, Set<string>> >({});
 
   // Custom Delete Modal State
   const [fileToDelete, setFileToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -136,6 +136,15 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
     return { rootNodes: [], allNodeIds, totalEndpoints: 0 };
   }
 
+  const handleEndpointClick = (node: TreeNode) => {
+    // Ensure node is registered in Zustand store flatEndpointMap so EndpointDetailSheet can open it cleanly
+    const state = useRunnerStore.getState();
+    if (!state.flatEndpointMap.has(node.id)) {
+      state.flatEndpointMap.set(node.id, node);
+    }
+    setSelectedEndpointIdForDetail(node.id);
+  };
+
   function toggleSidebarNodeSelection(fileId: string, nodeId: string, allIds: string[], subNodes?: TreeNode[]) {
     const currentSet = new Set(selectedSidebarNodeIds[fileId] || allIds);
     const shouldSelect = !currentSet.has(nodeId);
@@ -150,7 +159,13 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
     }
 
     toggleSubtree(nodeId, subNodes);
-    setSelectedSidebarNodeIds((prev) => ({ ...prev, [fileId]: currentSet }));
+    const nextSet = new Set(currentSet);
+    setSelectedSidebarNodeIds((prev) => ({ ...prev, [fileId]: nextSet }));
+
+    // Sync directly into Zustand selectedNodeIds
+    useRunnerStore.setState({
+      selectedNodeIds: Array.from(nextSet)
+    });
   }
 
   function renderSidebarTree(fileId: string, nodes: TreeNode[], allNodeIds: string[], depth = 0) {
@@ -163,16 +178,16 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
       const isSelected = fileSelectedSet.has(node.id);
 
       return (
-        <div key={node.id || idx} style={{ marginLeft: `${depth * 12}px` }} className="space-y-0.5 text-[10px] font-mono">
+        <div key={node.id || idx} style={{ marginLeft: `${depth * 12}px` }} className="space-y-0.5 text-xs font-mono">
           <div className="flex items-center justify-between py-1 px-1.5 rounded-lg hover:bg-slate-800/80 cursor-pointer select-none group">
             <div className="flex items-center space-x-1.5 min-w-0">
               {/* Subfolder Collapse Arrow */}
               {isFolder ? (
                 <button type="button" onClick={() => toggleSubfolder(node.id)} className="text-amber-400 p-0.5 hover:text-white shrink-0">
-                  {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                 </button>
               ) : (
-                <span className="w-3 shrink-0" />
+                <span className="w-3.5 shrink-0" />
               )}
 
               {/* Checkbox */}
@@ -186,14 +201,14 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
 
               {/* Icon */}
               {isFolder ? (
-                <Folder className="h-3 w-3 text-amber-400 shrink-0" />
+                <Folder className="h-3.5 w-3.5 text-amber-400 shrink-0" />
               ) : (
-                <FileText className="h-3 w-3 text-emerald-400 shrink-0" />
+                <FileText className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
               )}
 
               {/* Node Name (Click Endpoint to Inspect Details) */}
               <span 
-                onClick={() => isFolder ? toggleSubfolder(node.id) : setSelectedEndpointIdForDetail(node.id)}
+                onClick={() => isFolder ? toggleSubfolder(node.id) : handleEndpointClick(node)}
                 className={`truncate ${isSelected ? 'text-slate-200 font-bold group-hover:text-indigo-300' : 'text-slate-500 line-through'}`}
                 title={node.name}
               >
@@ -203,7 +218,7 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
 
             {/* Method Badge */}
             {node.method && (
-              <span className={`px-1 py-0.2 rounded text-[8px] font-bold shrink-0 ml-1 ${
+              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ml-2 ${
                 node.method === 'GET' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
                 node.method === 'POST' ? 'bg-indigo-950 text-indigo-400 border border-indigo-800' :
                 node.method === 'DELETE' ? 'bg-red-950 text-red-400 border border-red-800' :
@@ -221,7 +236,7 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
   }
 
   return (
-    <div className="w-full lg:w-80 shrink-0 rounded-3xl border border-slate-800 bg-slate-950 p-4 space-y-4 shadow-xl">
+    <div className="w-full lg:w-[380px] xl:w-[420px] shrink-0 rounded-3xl border border-slate-800 bg-slate-950 p-4 space-y-4 shadow-xl">
       
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -252,17 +267,17 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
       <div className="space-y-1">
         <div 
           onClick={() => setCollectionsExpanded(!collectionsExpanded)}
-          className="flex items-center justify-between p-1.5 rounded-xl bg-slate-900/60 border border-slate-800/80 cursor-pointer hover:bg-slate-900"
+          className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-slate-800/80 cursor-pointer hover:bg-slate-900"
         >
           <div className="flex items-center space-x-2 text-xs font-bold text-indigo-300">
-            {collectionsExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            {collectionsExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             <FileCode className="h-4 w-4 text-indigo-400" />
             <span>API Collections ({collections.length})</span>
           </div>
         </div>
 
         {collectionsExpanded && (
-          <div className="pl-1 space-y-2 pt-1">
+          <div className="pl-1 space-y-2.5 pt-1">
             {collections.length === 0 ? (
               <p className="text-[10px] text-slate-500 italic pl-3 py-1">No collections saved on server.</p>
             ) : (
@@ -274,7 +289,7 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                 return (
                   <div 
                     key={f.id} 
-                    className={`rounded-2xl border p-2.5 text-xs space-y-2 transition-all ${
+                    className={`rounded-2xl border p-3 text-xs space-y-2.5 transition-all ${
                       loadedFileId === f.id ? 'border-emerald-800/80 bg-emerald-950/20' : 'border-slate-800/80 bg-slate-900/40 hover:border-slate-700'
                     }`}
                   >
@@ -285,9 +300,9 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                           className="text-slate-400 hover:text-amber-400 p-0.5"
                           title={isTreeExpanded ? 'Collapse Tree Preview' : 'Expand Tree Preview'}
                         >
-                          {isTreeExpanded ? <ChevronDown className="h-3.5 w-3.5 text-amber-400" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
+                          {isTreeExpanded ? <ChevronDown className="h-4 w-4 text-amber-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
                         </button>
-                        <span className="font-bold text-slate-200 truncate max-w-[140px]" title={f.fileName}>{f.fileName}</span>
+                        <span className="font-bold text-slate-200 truncate max-w-[160px]" title={f.fileName}>{f.fileName}</span>
                       </div>
                       
                       <div className="flex items-center space-x-1.5">
@@ -301,10 +316,13 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
 
                         <button
                           onClick={() => {
-                            onLoadFileToWorkspace(f);
+                            onLoadFileToWorkspace({
+                              ...f,
+                              selectedNodeIds: Array.from(fileSelectedSet)
+                            });
                             setLoadedFileId(f.id);
                           }}
-                          className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition-all shadow-sm ${
+                          className={`px-3 py-1 rounded-xl font-bold text-xs transition-all shadow-sm ${
                             loadedFileId === f.id ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-500'
                           }`}
                         >
@@ -313,11 +331,11 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
-                      <span className="flex items-center gap-1 text-[9px] text-slate-500">
-                        <Calendar className="h-2.5 w-2.5" /> {new Date(f.updatedAt).toLocaleDateString()}
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                      <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                        <Calendar className="h-3 w-3" /> {new Date(f.updatedAt).toLocaleDateString()}
                       </span>
-                      <span className="text-[10px] font-mono text-indigo-300 font-bold">
+                      <span className="text-[11px] font-mono text-indigo-300 font-bold">
                         {fileSelectedSet.size} / {allNodeIds.length} Nodes ({totalEndpoints} Endpoints)
                       </span>
                     </div>
@@ -326,8 +344,8 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                     {isTreeExpanded && (
                       <div className="pt-2 border-t border-slate-800/80 space-y-2 animate-in fade-in">
                         {/* Control Toolbar (Collapse, Expand, Select All, None) */}
-                        <div className="flex items-center justify-between px-2 py-1 bg-slate-950 rounded-xl border border-slate-800/80 text-[10px] font-mono">
-                          <div className="flex items-center space-x-1.5">
+                        <div className="flex items-center justify-between px-2.5 py-1.5 bg-slate-950 rounded-xl border border-slate-800/80 text-[11px] font-mono">
+                          <div className="flex items-center space-x-2">
                             <button
                               type="button"
                               onClick={() => {
@@ -335,10 +353,10 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                                 allNodeIds.forEach((id) => { next[id] = false; });
                                 setExpandedSubfolders((prev) => ({ ...prev, ...next }));
                               }}
-                              className="inline-flex items-center space-x-0.5 text-slate-400 hover:text-amber-400 font-medium"
+                              className="inline-flex items-center space-x-1 text-slate-400 hover:text-amber-400 font-medium"
                               title="Collapse All Subfolders"
                             >
-                              <ChevronsUp className="h-3 w-3 text-amber-400" />
+                              <ChevronsUp className="h-3.5 w-3.5 text-amber-400" />
                               <span>Collapse</span>
                             </button>
 
@@ -351,18 +369,22 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                                 allNodeIds.forEach((id) => { next[id] = true; });
                                 setExpandedSubfolders((prev) => ({ ...prev, ...next }));
                               }}
-                              className="inline-flex items-center space-x-0.5 text-slate-400 hover:text-indigo-400 font-medium"
+                              className="inline-flex items-center space-x-1 text-slate-400 hover:text-indigo-400 font-medium"
                               title="Expand All Subfolders"
                             >
-                              <ChevronsDown className="h-3 w-3 text-indigo-400" />
+                              <ChevronsDown className="h-3.5 w-3.5 text-indigo-400" />
                               <span>Expand</span>
                             </button>
                           </div>
 
-                          <div className="flex items-center space-x-1.5">
+                          <div className="flex items-center space-x-2">
                             <button
                               type="button"
-                              onClick={() => setSelectedSidebarNodeIds((prev) => ({ ...prev, [f.id]: new Set(allNodeIds) }))}
+                              onClick={() => {
+                                const fullSet = new Set(allNodeIds);
+                                setSelectedSidebarNodeIds((prev) => ({ ...prev, [f.id]: fullSet }));
+                                useRunnerStore.setState({ selectedNodeIds: Array.from(fullSet) });
+                              }}
                               className="text-indigo-400 hover:underline font-bold"
                             >
                               All
@@ -370,7 +392,10 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                             <span className="text-slate-700">|</span>
                             <button
                               type="button"
-                              onClick={() => setSelectedSidebarNodeIds((prev) => ({ ...prev, [f.id]: new Set() }))}
+                              onClick={() => {
+                                setSelectedSidebarNodeIds((prev) => ({ ...prev, [f.id]: new Set() }));
+                                useRunnerStore.setState({ selectedNodeIds: [] });
+                              }}
                               className="text-slate-400 hover:underline font-bold"
                             >
                               None
@@ -378,8 +403,11 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                           </div>
                         </div>
 
-                        <div className="max-h-56 overflow-y-auto custom-scrollbar p-1.5 bg-slate-950/80 rounded-xl border border-slate-800/80 space-y-1">
-                          {renderSidebarTree(f.id, sidebarTree, allNodeIds)}
+                        {/* Tree View Box with Horizontal & Vertical Scrollbars */}
+                        <div className="max-h-64 overflow-y-auto overflow-x-auto custom-scrollbar p-2 bg-slate-950/90 rounded-xl border border-slate-800/80 space-y-1">
+                          <div className="min-w-max">
+                            {renderSidebarTree(f.id, sidebarTree, allNodeIds)}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -395,42 +423,42 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
       <div className="space-y-1">
         <div 
           onClick={() => setEnvExpanded(!envExpanded)}
-          className="flex items-center justify-between p-1.5 rounded-xl bg-slate-900/60 border border-slate-800/80 cursor-pointer hover:bg-slate-900"
+          className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-slate-800/80 cursor-pointer hover:bg-slate-900"
         >
           <div className="flex items-center space-x-2 text-xs font-bold text-amber-300">
-            {envExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            {envExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             <Key className="h-4 w-4 text-amber-400" />
             <span>Environment Files ({envFiles.length})</span>
           </div>
         </div>
 
         {envExpanded && (
-          <div className="pl-1 space-y-1.5 pt-1">
+          <div className="pl-1 space-y-2 pt-1">
             {envFiles.length === 0 ? (
               <p className="text-[10px] text-slate-500 italic pl-3 py-1">No .env files saved on server.</p>
             ) : (
               envFiles.map((f) => (
                 <div 
                   key={f.id} 
-                  className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-2 text-xs space-y-1 hover:border-slate-700 transition-all"
+                  className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-2.5 text-xs space-y-1 hover:border-slate-700 transition-all"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-200 truncate max-w-[150px]">{f.fileName}</span>
+                    <span className="font-bold text-slate-200 truncate max-w-[160px]">{f.fileName}</span>
                     <button
                       onClick={() => setFileToDelete({ id: f.id, name: f.fileName })}
                       className="text-slate-500 hover:text-red-400 p-0.5"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
-                    <span className="flex items-center gap-1 text-[9px] text-slate-500">
-                      <Calendar className="h-2.5 w-2.5" /> {new Date(f.updatedAt).toLocaleDateString()}
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                    <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                      <Calendar className="h-3 w-3" /> {new Date(f.updatedAt).toLocaleDateString()}
                     </span>
                     <button
                       onClick={() => onLoadFileToWorkspace(f)}
-                      className="px-2 py-0.5 rounded-lg font-bold text-[10px] bg-amber-600 text-white hover:bg-amber-500 transition-all"
+                      className="px-2.5 py-1 rounded-lg font-bold text-xs bg-amber-600 text-white hover:bg-amber-500 transition-all"
                     >
                       Load Env
                     </button>

@@ -8,7 +8,8 @@ import {
   FolderPlus, 
   Zap,
   Sparkles,
-  RotateCcw
+  RotateCcw,
+  Bot
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { EnvironmentManagerModal } from './EnvironmentManagerModal';
@@ -19,6 +20,7 @@ import { PresentationDeckModal } from './PresentationDeckModal';
 import { AdminControlPanelModal } from './AdminControlPanelModal';
 import { PricingCheckoutModal } from './PricingCheckoutModal';
 import { UserAuthModal } from './UserAuthModal';
+import { AiWorkspaceCopilotModal } from './AiWorkspaceCopilotModal';
 import { useAdminStore } from '@/lib/admin-store';
 
 export const Header: React.FC = () => {
@@ -42,6 +44,7 @@ export const Header: React.FC = () => {
 
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
+  const [showAiCopilotModal, setShowAiCopilotModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [keyInput, setKeyInput] = useState(geminiApiKey);
 
@@ -181,6 +184,16 @@ export const Header: React.FC = () => {
 
               {/* View All AI Test Rules Button */}
               {workspaceMode === 'full' && <AiTestSuiteViewerModal />}
+
+              {/* AI Workspace Copilot Assistant Button */}
+              <button
+                onClick={() => setShowAiCopilotModal(true)}
+                className="inline-flex items-center space-x-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-3.5 py-1.5 text-xs font-extrabold text-white shadow-md shadow-indigo-600/30 hover:from-indigo-500 hover:to-pink-500 transition-all whitespace-nowrap"
+                title="Ask NLP questions about your workspace endpoints and error telemetry"
+              >
+                <Bot className="h-4 w-4 shrink-0 fill-white/20" />
+                <span>🤖 AI Copilot</span>
+              </button>
             </div>
 
             {/* Right Side Workspace Shortcuts */}
@@ -292,6 +305,12 @@ export const Header: React.FC = () => {
         </div>,
         document.body
       )}
+
+      {/* AI WORKSPACE COPILOT ASSISTANT MODAL */}
+      <AiWorkspaceCopilotModal 
+        isOpen={showAiCopilotModal} 
+        onClose={() => setShowAiCopilotModal(false)} 
+      />
     </header>
   );
 };

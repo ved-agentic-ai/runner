@@ -169,7 +169,39 @@ export default function Home() {
     try {
       if (fileRecord.fileType === 'collection') {
         const parsed = JSON.parse(fileRecord.content);
-        const { collectionName: loadedName, rootNodes: loadedRoots, flatEndpointMap: loadedMap, allNodeIds: loadedIds } = parseAndNormalizeServerCollection(parsed, fileRecord.fileName);
+        let { collectionName: loadedName, rootNodes: loadedRoots, flatEndpointMap: loadedMap, allNodeIds: loadedIds } = parseAndNormalizeServerCollection(parsed, fileRecord.fileName);
+
+        // If sidebar selection subset exists (e.g., 6 out of 32 nodes), filter loadedRoots & loadedMap
+        if (fileRecord.selectedNodeIds && Array.isArray(fileRecord.selectedNodeIds) && fileRecord.selectedNodeIds.length > 0) {
+          const selectedSet = new Set(fileRecord.selectedNodeIds);
+          function filterNodes(nodes: TreeNode[]): TreeNode[] {
+            const filtered: TreeNode[] = [];
+            for (const n of nodes) {
+              if (n.type === 'endpoint') {
+                if (selectedSet.has(n.id)) filtered.push({ ...n });
+              } else if (n.type === 'folder' && n.children) {
+                const sub = filterNodes(n.children);
+                if (sub.length > 0) filtered.push({ ...n, children: sub });
+              }
+            }
+            return filtered;
+          }
+          loadedRoots = filterNodes(loadedRoots);
+
+          // Rebuild map & ids
+          const newMap = new Map<string, TreeNode>();
+          const newIds: string[] = [];
+          function rebuildMap(nodes: TreeNode[]) {
+            nodes.forEach((n) => {
+              newIds.push(n.id);
+              if (n.type === 'endpoint') newMap.set(n.id, n);
+              if (n.children) rebuildMap(n.children);
+            });
+          }
+          rebuildMap(loadedRoots);
+          loadedMap = newMap;
+          loadedIds = newIds;
+        }
 
         if (overrideMode === 'replace') {
           useRunnerStore.setState({
