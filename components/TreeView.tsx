@@ -1,41 +1,87 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Folder, 
   FolderOpen, 
   ChevronRight, 
   ChevronDown, 
-  CheckSquare, 
+  Check, 
   Square, 
   MinusSquare,
   Search,
-  CheckCircle2,
-  XCircle,
-  Clock,
   Send,
   ChevronsUp,
-  ChevronsDown
+  ChevronsDown,
+  CheckCircle2,
+  XCircle,
+  Laptop,
+  Cloud,
+  FileText
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { TreeNode, HttpMethod } from '@/lib/types';
-import { AiTestBadge } from './AiTestBadge';
 
 export const TreeView: React.FC = () => {
   const { 
     rootNodes, 
+    serverRootNodes,
+    activeWorkspaceSource,
+    setActiveWorkspaceSource,
     selectedNodeIds, 
-    toggleNodeSelection, 
-    selectAllNodes, 
+    toggleNodeSelection,
+    selectAllNodes,
     deselectAllNodes,
-    generatedTestSuites,
-    executionResults,
     searchQuery,
     setSearchQuery,
+    executionResults,
+    selectedEndpointIdForDetail,
     setSelectedEndpointIdForDetail
   } = useRunnerStore();
 
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+
+  const activeNodes = (activeWorkspaceSource === 'server' && serverRootNodes.length > 0) || (rootNodes.length === 0 && serverRootNodes.length > 0) 
+    ? serverRootNodes 
+    : rootNodes;
+
+  // Auto-expand all parent ancestor folders leading to selectedEndpointIdForDetail & smooth animated scroll into view
+  useEffect(() => {
+    if (!selectedEndpointIdForDetail || activeNodes.length === 0) return;
+
+    const ancestorsToExpand: Record<string, boolean> = {};
+
+    function findAncestors(nodes: TreeNode[], targetId: string, path: string[] = []): boolean {
+      for (const node of nodes) {
+        if (node.id === targetId) {
+          path.forEach((folderId) => {
+            ancestorsToExpand[folderId] = true;
+          });
+          return true;
+        }
+        if (node.children && node.children.length > 0) {
+          if (findAncestors(node.children, targetId, [...path, node.id])) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    findAncestors(activeNodes, selectedEndpointIdForDetail);
+
+    if (Object.keys(ancestorsToExpand).length > 0) {
+      setExpandedFolders((prev) => ({ ...prev, ...ancestorsToExpand }));
+    }
+
+    // Smooth animated scroll to highlighted node element
+    setTimeout(() => {
+      const targetElement = document.getElementById(`tree-node-${selectedEndpointIdForDetail}`);
+      if (targetElement) {
+        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 150);
+  }, [selectedEndpointIdForDetail, activeNodes]);
 
   // 1-Click Collapse All
   const collapseAllFolders = () => {
@@ -48,7 +94,7 @@ export const TreeView: React.FC = () => {
         }
       });
     }
-    setAllFalse(rootNodes);
+    setAllFalse(activeNodes);
     setExpandedFolders(nextState);
   };
 
@@ -63,7 +109,7 @@ export const TreeView: React.FC = () => {
         }
       });
     }
-    setAllTrue(rootNodes);
+    setAllTrue(activeNodes);
     setExpandedFolders(nextState);
   };
 
@@ -108,58 +154,75 @@ export const TreeView: React.FC = () => {
     }
   };
 
-  const renderNode = (node: TreeNode, depth: number = 0) => {
+  const renderNode = (node: TreeNode, depth = 0) => {
     const isFolder = node.type === 'folder';
     const isExpanded = expandedFolders[node.id] ?? true;
     const checkState = getNodeCheckState(node);
     const result = executionResults[node.id];
-    const testSuite = generatedTestSuites[node.id];
 
-    if (searchQuery.trim().length > 0) {
+    // Filter Match Check
+    if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      const matches = node.name.toLowerCase().includes(query) || (node.url && node.url.toLowerCase().includes(query));
-      if (!matches && !isFolder) return null;
+      const nameMatch = node.name.toLowerCase().includes(query);
+      const methodMatch = node.method?.toLowerCase().includes(query);
+      const urlMatch = node.url?.toLowerCase().includes(query);
+
+      if (!isFolder && !nameMatch && !methodMatch && !urlMatch) {
+        return null;
+      }
     }
 
-    return (
-      <div key={node.id} className="select-none">
-        <div 
-          style={{ paddingLeft: `${depth * 1.25 + 0.5}rem` }}
-          className={`group flex items-center justify-between py-1.5 pr-2 rounded-lg text-xs transition-colors hover:bg-slate-800/60 ${
-            result?.status === 'running' ? 'bg-indigo-950/30' : ''
-          }`}
-        >
-          <div className="flex items-center space-x-2 min-w-0 flex-1">
-            {isFolder ? (
-              <button 
-                onClick={() => toggleExpand(node.id)}
-                className="p-0.5 text-slate-400 hover:text-white"
-              >
-                {isExpanded ? (
-                  <ChevronDown className="h-3.5 w-3.5" />
-                ) : (
-                  <ChevronRight className="h-3.5 w-3.5" />
-                )}
-              </button>
-            ) : (
-              <span className="w-3.5" />
-            )}
+    const isSelectedDetail = selectedEndpointIdForDetail === node.id;
 
+    return (
+      <div key={node.id} id={`tree-node-${node.id}`} className="select-none font-mono text-xs transition-all duration-200">
+        <div 
+          className={`flex items-center space-x-2 rounded-xl px-2.5 py-1.5 transition-all ${
+            isSelectedDetail 
+              ? 'bg-amber-950/80 border-2 border-amber-400 text-white shadow-lg ring-2 ring-amber-400/50 animate-pulse' 
+              : 'hover:bg-slate-800/50 text-slate-300'
+          }`}
+          style={{ paddingLeft: `${Math.max(0.5, depth * 1.2)}rem` }}
+        >
+          {/* Collapse Chevron / Folder Toggle */}
+          {isFolder ? (
             <button
-              onClick={() => toggleNodeSelection(node.id)}
-              className="text-slate-400 hover:text-indigo-400 transition-colors"
+              onClick={() => toggleExpand(node.id)}
+              className="p-0.5 text-slate-400 hover:text-amber-400 transition-colors"
             >
-              {checkState === 'checked' && (
-                <CheckSquare className="h-4 w-4 text-indigo-400 fill-indigo-500/20" />
-              )}
-              {checkState === 'unchecked' && (
-                <Square className="h-4 w-4 text-slate-600 hover:text-slate-400" />
-              )}
-              {checkState === 'indeterminate' && (
-                <MinusSquare className="h-4 w-4 text-purple-400" />
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-amber-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-slate-400" />
               )}
             </button>
+          ) : (
+            <span className="w-4 shrink-0" />
+          )}
 
+          {/* Selection Checkbox */}
+          <button
+            onClick={() => toggleNodeSelection(node.id)}
+            className="p-0.5 text-slate-400 hover:text-emerald-400 transition-colors shrink-0"
+          >
+            {checkState === 'checked' && (
+              <div className="flex h-4 w-4 items-center justify-center rounded bg-emerald-500 text-slate-950 font-bold">
+                <Check className="h-3 w-3 stroke-[3]" />
+              </div>
+            )}
+            {checkState === 'indeterminate' && (
+              <MinusSquare className="h-4 w-4 text-emerald-400" />
+            )}
+            {checkState === 'unchecked' && (
+              <Square className="h-4 w-4 text-slate-600" />
+            )}
+          </button>
+
+          {/* Folder / Endpoint Icon */}
+          <div 
+            onClick={() => isFolder ? toggleExpand(node.id) : setSelectedEndpointIdForDetail(node.id)}
+            className="flex items-center space-x-2 flex-1 cursor-pointer min-w-0"
+          >
             {isFolder ? (
               isExpanded ? (
                 <FolderOpen className="h-4 w-4 text-amber-400 shrink-0" />
@@ -167,38 +230,35 @@ export const TreeView: React.FC = () => {
                 <Folder className="h-4 w-4 text-amber-400 shrink-0" />
               )
             ) : (
-              <span className={`inline-block rounded border px-1.5 py-0.5 text-[9px] font-bold ${getMethodBadgeClass(node.method)}`}>
+              <FileText className="h-4 w-4 text-emerald-400 shrink-0" />
+            )}
+
+            {/* HTTP Method Badge (If endpoint) */}
+            {node.method && (
+              <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold border uppercase shrink-0 ${getMethodBadgeClass(node.method)}`}>
                 {node.method}
               </span>
             )}
 
-            <span 
-              onClick={() => {
-                if (isFolder) toggleExpand(node.id);
-                else setSelectedEndpointIdForDetail(node.id);
-              }}
-              className={`truncate font-medium cursor-pointer ${
-                isFolder ? 'text-slate-200 hover:text-white' : 'text-slate-300 hover:text-indigo-300'
-              }`}
-            >
+            {/* Title / Name */}
+            <span className={`text-xs font-semibold font-sans whitespace-nowrap ${isSelectedDetail ? 'text-amber-200 font-bold' : 'text-slate-200'}`}>
               {node.name}
             </span>
 
-            {!isFolder && (
-              <AiTestBadge testSuite={testSuite} nodeName={node.name} />
+            {/* Endpoint URL Snippet */}
+            {!isFolder && node.url && (
+              <span className="text-[10px] text-slate-500 font-mono whitespace-nowrap">
+                {node.url}
+              </span>
             )}
           </div>
 
+          {/* Execution Result Status Pill */}
           {result && (
-            <div className="flex items-center space-x-1.5 shrink-0 ml-2">
-              {result.status === 'running' && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-indigo-400 font-semibold animate-pulse">
-                  <Clock className="h-3 w-3 animate-spin" /> Running
-                </span>
-              )}
+            <div className="shrink-0 pl-2">
               {result.status === 'passed' && (
                 <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/60">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-400" /> {result.responseTimeMs}ms
+                  <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Pass
                 </span>
               )}
               {result.status === 'failed' && (
@@ -221,6 +281,31 @@ export const TreeView: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full rounded-2xl border border-slate-800 bg-slate-900/80 p-4 backdrop-blur-md shadow-xl">
+      
+      {/* Dual Workspace Selector Tabs (Local Upload vs Server Cloud) */}
+      {serverRootNodes.length > 0 && (
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-950 p-1 border border-slate-800 mb-3">
+          <button
+            onClick={() => setActiveWorkspaceSource('local')}
+            className={`flex items-center justify-center space-x-1.5 rounded-lg py-1.5 text-xs font-bold transition-all ${
+              activeWorkspaceSource === 'local' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Laptop className="h-3.5 w-3.5" />
+            <span>Local Upload ({rootNodes.length})</span>
+          </button>
+          <button
+            onClick={() => setActiveWorkspaceSource('server')}
+            className={`flex items-center justify-center space-x-1.5 rounded-lg py-1.5 text-xs font-bold transition-all ${
+              activeWorkspaceSource === 'server' ? 'bg-amber-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Cloud className="h-3.5 w-3.5" />
+            <span>Server Cloud ({serverRootNodes.length})</span>
+          </button>
+        </div>
+      )}
+
       {/* Search & Collapse Bar Header */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 gap-2">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -234,7 +319,7 @@ export const TreeView: React.FC = () => {
             className="inline-flex items-center space-x-1 text-slate-400 hover:text-amber-400 font-medium transition-colors"
             title="Collapse All Folders"
           >
-            <ChevronsUp className="h-3.5 w-3.5" />
+            <ChevronsUp className="h-3.5 w-3.5 text-amber-400" />
             <span>Collapse</span>
           </button>
           
@@ -246,7 +331,7 @@ export const TreeView: React.FC = () => {
             className="inline-flex items-center space-x-1 text-slate-400 hover:text-indigo-400 font-medium transition-colors"
             title="Expand All Folders"
           >
-            <ChevronsDown className="h-3.5 w-3.5" />
+            <ChevronsDown className="h-3.5 w-3.5 text-indigo-400" />
             <span>Expand</span>
           </button>
 
@@ -258,10 +343,10 @@ export const TreeView: React.FC = () => {
           >
             All
           </button>
-          <span className="text-slate-600">/</span>
+
           <button
             onClick={deselectAllNodes}
-            className="text-slate-400 hover:underline"
+            className="text-slate-400 hover:underline font-medium"
           >
             None
           </button>
@@ -269,27 +354,31 @@ export const TreeView: React.FC = () => {
       </div>
 
       {/* Filter Input */}
-      <div className="relative mt-3">
+      <div className="relative my-3">
         <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
         <input
           type="text"
           placeholder="Filter endpoints or methods..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-xl border border-slate-800 bg-slate-950/80 pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded-xl border border-slate-800 bg-slate-950 pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
         />
       </div>
 
-      {/* Tree Content */}
-      <div className="mt-3 flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar min-h-[300px]">
-        {rootNodes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center text-xs text-slate-500">
-            <Send className="h-8 w-8 text-slate-600 mb-2 opacity-50" />
-            <span>No collection loaded yet.</span>
-            <span className="text-[11px] text-slate-600 mt-1">Upload a Postman Collection JSON above.</span>
+      {/* Tree Content Area with Horizontal & Vertical Scrolling */}
+      <div className="flex-1 overflow-y-auto overflow-x-auto pr-1 space-y-0.5 custom-scrollbar min-w-0">
+        {activeNodes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500 space-y-2">
+            <Send className="h-8 w-8 text-slate-700 stroke-1" />
+            <p className="text-xs">No collection loaded yet.</p>
+            <p className="text-[11px] text-slate-600 max-w-xs">
+              Upload a Postman Collection JSON above.
+            </p>
           </div>
         ) : (
-          rootNodes.map((node) => renderNode(node, 0))
+          <div className="min-w-max">
+            {activeNodes.map((node) => renderNode(node, 0))}
+          </div>
         )}
       </div>
     </div>

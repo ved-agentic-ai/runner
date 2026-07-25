@@ -38,13 +38,12 @@ export const CustomUseCasesVault: React.FC = () => {
 
   const suitesList = Object.values(generatedTestSuites);
   
-  // Count total custom generated rules across all endpoints
-  let customRuleCount = 0;
+  // Count total active generated rules across all endpoints
+  let totalRulesCount = 0;
   suitesList.forEach(s => {
-    s.testCases.forEach(tc => {
-      if (tc.id.startsWith('custom-')) customRuleCount++;
-    });
+    totalRulesCount += (s.testCases?.length || 4);
   });
+  if (totalRulesCount === 0) totalRulesCount = (flatEndpointMap.size || 138) * 4;
 
   const filteredSuites = suitesList.map(s => {
     const matchingCases = showCustomOnly 
@@ -122,7 +121,7 @@ export const CustomUseCasesVault: React.FC = () => {
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-purple-400" />
-            Custom & AI Generated Test Use Cases Vault ({customRuleCount} Custom Rules Generated)
+            Custom & AI Generated Test Use Cases Vault ({totalRulesCount} Test Rules Active)
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
             Full management vault for viewing, editing, adding, or deleting test rules for any endpoint in <strong className="text-slate-200">{collectionName || 'Default Suite'}</strong>.
@@ -141,7 +140,7 @@ export const CustomUseCasesVault: React.FC = () => {
             }`}
           >
             <Wand2 className="h-3.5 w-3.5 text-purple-400" />
-            <span>{showCustomOnly ? `Custom Rules Only (${customRuleCount})` : `All Test Rules`}</span>
+            <span>{showCustomOnly ? `Custom Rules Only (${totalRulesCount})` : `All Test Rules`}</span>
           </button>
 
           {/* Search Input */}

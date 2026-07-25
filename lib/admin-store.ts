@@ -26,6 +26,10 @@ export interface AdminSettings {
   showGithubLink: boolean;
   githubRepoUrl: string;
 
+  // Server Storage Emergency Pause & Cloud Sync Controls
+  serverStoragePaused: boolean;
+  setServerStoragePaused: (paused: boolean) => void;
+
   // Real-Time Visitor & Analytics Telemetry (Starts from 0 for 100% Real Production Tracking)
   totalPageViews: number;
   todayPageViews: number;
@@ -54,7 +58,7 @@ export interface AdminSettings {
   setDisclaimerMode: (mode: 'modal' | 'tab') => void;
   setGithubRepoUrl: (url: string) => void;
   recordPageView: () => void;
-  toggleSectionVisibility: (sectionKey: keyof Omit<AdminSettings, 'workspaceMode' | 'disclaimerMode' | 'memoryResetPolicy' | 'mfaEnabled' | 'mfaSecret' | 'isMfaAuthenticated' | 'protectedSections' | 'monetizationEnabled' | 'stripeAccountId' | 'stripeSecretKey' | 'paypalClientId' | 'bankPayoutStatus' | 'adSenseClientId' | 'githubRepoUrl' | 'totalPageViews' | 'todayPageViews' | 'uniqueSessions' | 'lastVisitedTimestamp'>) => void;
+  toggleSectionVisibility: (sectionKey: keyof Omit<AdminSettings, 'workspaceMode' | 'disclaimerMode' | 'memoryResetPolicy' | 'mfaEnabled' | 'mfaSecret' | 'isMfaAuthenticated' | 'protectedSections' | 'monetizationEnabled' | 'stripeAccountId' | 'stripeSecretKey' | 'paypalClientId' | 'bankPayoutStatus' | 'adSenseClientId' | 'githubRepoUrl' | 'totalPageViews' | 'todayPageViews' | 'uniqueSessions' | 'lastVisitedTimestamp' | 'serverStoragePaused'>) => void;
   setMemoryResetPolicy: (policy: 'retain' | 'flush') => void;
   setMfaEnabled: (enabled: boolean) => void;
   setMfaSecret: (secret: string) => void;
@@ -73,15 +77,15 @@ export const useAdminStore = create<AdminSettings>()(
       disclaimerMode: 'modal',
       
       showStepByStepGuide: true,
-      showFooter: false, // Hidden in public light mode
-      showPlatformOverviewBanner: false, // Hidden in public light mode
+      showFooter: false,
+      showPlatformOverviewBanner: false,
       showCapabilitiesGrid: true,
-      showTrafficSimulator: false, // Hidden in public light mode
-      showCustomRulesVault: false, // Hidden in public light mode
-      showDocumentation: false, // Hidden in public light mode
+      showTrafficSimulator: false,
+      showCustomRulesVault: false,
+      showDocumentation: false,
       showHeaderControls: true,
       showSaaSUpgrades: true,
-      showPciCompliance: false, // Hidden in public light mode
+      showPciCompliance: false,
       showPrivacyBanner: true,
       showQuotaTelemetry: true,
       showPresetButton: true,
@@ -89,7 +93,9 @@ export const useAdminStore = create<AdminSettings>()(
       showGithubLink: true,
       githubRepoUrl: 'https://github.com/ved-agentic-ai/runner',
 
-      // Real production visitor metrics start at 0
+      serverStoragePaused: false,
+      setServerStoragePaused: (paused) => set({ serverStoragePaused: paused }),
+
       totalPageViews: 0,
       todayPageViews: 0,
       uniqueSessions: 0,
@@ -233,6 +239,7 @@ export const useAdminStore = create<AdminSettings>()(
         showAiKeyButton: true,
         showGithubLink: true,
         githubRepoUrl: 'https://github.com/ved-agentic-ai/runner',
+        serverStoragePaused: false,
         totalPageViews: 0,
         todayPageViews: 0,
         uniqueSessions: 0,
@@ -251,7 +258,7 @@ export const useAdminStore = create<AdminSettings>()(
       })
     }),
     {
-      name: 'runner_admin_settings_v18',
+      name: 'runner_admin_settings_v19',
       partialize: (state) => {
         const { isMfaAuthenticated, ...persistedState } = state;
         return persistedState as AdminSettings;

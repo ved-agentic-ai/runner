@@ -7,7 +7,8 @@ import {
   FileCode, 
   FolderPlus, 
   Zap,
-  Sparkles
+  Sparkles,
+  RotateCcw
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { EnvironmentManagerModal } from './EnvironmentManagerModal';
@@ -26,7 +27,8 @@ export const Header: React.FC = () => {
     loadDemoCollection, 
     geminiApiKey, 
     setGeminiApiKey, 
-    generateAiTestsForSelected
+    generateAiTestsForSelected,
+    resetFullWorkspace
   } = useRunnerStore();
 
   const { 
@@ -39,6 +41,7 @@ export const Header: React.FC = () => {
   } = useAdminStore();
 
   const [showKeyModal, setShowKeyModal] = useState(false);
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [keyInput, setKeyInput] = useState(geminiApiKey);
 
@@ -194,6 +197,16 @@ export const Header: React.FC = () => {
                 </button>
               )}
 
+              {/* Reset Full Workspace Button */}
+              <button
+                onClick={() => setShowResetConfirmModal(true)}
+                className="inline-flex items-center space-x-1.5 rounded-xl bg-red-950/40 text-red-300 border border-red-900/60 px-3 py-1.5 text-xs font-medium hover:bg-red-900/60 transition-all shadow-sm whitespace-nowrap"
+                title="Reset local & server workspace memory"
+              >
+                <RotateCcw className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                <span>🔄 Reset Workspace</span>
+              </button>
+
               {/* AI Key Button (Configurable) */}
               {showAiKeyButton && (
                 <button
@@ -215,6 +228,70 @@ export const Header: React.FC = () => {
       )}
 
       {showKeyModal && mounted && createPortal(keyModalContent, document.body)}
+
+      {/* CONFIRM RESET WORKSPACE MODAL PORTAL */}
+      {showResetConfirmModal && mounted && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-red-900/60 bg-[#0f172a] p-6 shadow-2xl space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2.5 text-red-400 font-bold text-sm">
+                <RotateCcw className="h-5 w-5" />
+                <span>Reset Full Workspace Confirmation</span>
+              </div>
+              <button 
+                onClick={() => setShowResetConfirmModal(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Are you sure you want to reset your active workspace? This will restore the application state to clean initial defaults.
+            </p>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3.5 space-y-2 text-xs font-mono">
+              <span className="text-[10px] uppercase font-bold text-amber-400 block tracking-wider">What will be cleared on Reset:</span>
+              <ul className="space-y-1.5 text-slate-300 text-[11px]">
+                <li className="flex items-center space-x-2">
+                  <span className="text-red-400">✓</span> <span>📂 Local API Collection tree & endpoints</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-red-400">✓</span> <span>☁️ Server Cloud workspace & side-by-side tabs</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-red-400">✓</span> <span>🔑 Environment variables & key-value pairs</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-red-400">✓</span> <span>📊 Execution telemetry, pass/fail results & logs</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-red-400">✓</span> <span>🤖 AI test suites & custom assertion rules</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-2">
+              <button
+                onClick={() => setShowResetConfirmModal(false)}
+                className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  resetFullWorkspace();
+                  setShowResetConfirmModal(false);
+                }}
+                className="rounded-xl bg-red-600 px-4 py-2 text-xs font-extrabold text-white shadow-lg shadow-red-600/30 hover:bg-red-500 transition-all"
+              >
+                🔄 Yes, Reset Full Workspace
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </header>
   );
 };

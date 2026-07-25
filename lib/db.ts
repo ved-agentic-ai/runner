@@ -21,22 +21,38 @@ export interface SubscriptionRecord {
   createdAt: string;
 }
 
+export interface UserFileRecord {
+  id: string;
+  userId: string;
+  fileName: string;
+  fileType: 'collection' | 'env';
+  content: string;
+  isRedacted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Local File-Based DB fallback for npm run dev
 const DB_FILE = path.join(process.cwd(), 'dev_database.json');
 
-function readDb(): { users: UserRecord[]; subscriptions: SubscriptionRecord[] } {
+function readDb(): { users: UserRecord[]; subscriptions: SubscriptionRecord[]; userFiles?: UserFileRecord[] } {
   try {
     if (fs.existsSync(DB_FILE)) {
       const data = fs.readFileSync(DB_FILE, 'utf-8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      return {
+        users: parsed.users || [],
+        subscriptions: parsed.subscriptions || [],
+        userFiles: parsed.userFiles || []
+      };
     }
   } catch (err) {
     console.error('Error reading local DB file:', err);
   }
-  return { users: [], subscriptions: [] };
+  return { users: [], subscriptions: [], userFiles: [] };
 }
 
-function writeDb(data: { users: UserRecord[]; subscriptions: SubscriptionRecord[] }) {
+function writeDb(data: { users: UserRecord[]; subscriptions: SubscriptionRecord[]; userFiles?: UserFileRecord[] }) {
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
@@ -44,36 +60,8 @@ function writeDb(data: { users: UserRecord[]; subscriptions: SubscriptionRecord[
   }
 }
 
-// PostgreSQL Serverless Query Helper (Connects to Vercel Postgres / Neon if POSTGRES_URL is present)
-async function queryPostgres(text: string, params: any[] = []): Promise<any> {
-  const postgresUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL;
-  if (!postgresUrl) return null;
-
-  try {
-    // Dynamic import for Vercel Serverless Postgres
-    const { sql } = await import('@vercel/postgres');
-    // Initialize schema if not exists
-    await sql`
-      CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(255) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        role VARCHAR(50) DEFAULT 'user',
-        plan VARCHAR(50) DEFAULT 'free',
-        stripe_customer_id VARCHAR(255),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-    return { isPostgres: true };
-  } catch (err) {
-    console.warn('Postgres connection fallback to local store:', err);
-    return null;
-  }
-}
-
 export const db = {
-  // Find User by Email (Supports PostgreSQL & Local Dev DB)
+  // Find User by Email
   findUserByEmail: async (email: string): Promise<UserRecord | null> => {
     const postgresUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL;
     
@@ -99,7 +87,6 @@ export const db = {
       }
     }
 
-    // Local Dev Fallback
     const { users } = readDb();
     const found = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
     return found || null;
@@ -162,39 +149,42 @@ export const db = {
     return newUser;
   },
 
-  // Update User Plan
-  updateUserPlan: async (userId: string, plan: 'free' | 'pro' | 'enterprise'): Promise<boolean> => {
-    const postgresUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL;
-
-    if (postgresUrl) {
-      try {
-        const { sql } = await import('@vercel/postgres');
-        await sql`UPDATE users SET plan = ${plan} WHERE id = ${userId};`;
-        return true;
-      } catch (err) {
-        console.warn('Postgres update error:', err);
-      }
-    }
+  // Save User File (Collection or Env File)
+  saveUserFile: async (file: Omit<UserFileRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<UserFileRecord> => {
+    const id = `file_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const now = new Date().toISOString();
+    const newFile: UserFileRecord = { ...file, id, createdAt: now, updatedAt: now };
 
     const state = readDb();
-    const userIndex = state.users.findIndex((u) => u.id === userId);
-    if (userIndex !== -1) {
-      state.users[userIndex].plan = plan;
-      writeDb(state);
-      return true;
+    if (!state.userFiles) state.userFiles = [];
+    
+    // Replace if same filename exists for user
+    const existingIdx = state.userFiles.findIndex((f) => f.userId === file.userId && f.fileName === file.fileName);
+    if (existingIdx !== -1) {
+      newFile.createdAt = state.userFiles[existingIdx].createdAt;
+      state.userFiles[existingIdx] = newFile;
+    } else {
+      state.userFiles.unshift(newFile);
     }
-    return false;
+
+    writeDb(state);
+    return newFile;
   },
 
-  // Create Subscription Record
-  createSubscription: async (sub: Omit<SubscriptionRecord, 'id' | 'createdAt'>): Promise<SubscriptionRecord> => {
-    const id = `sub_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const createdAt = new Date().toISOString();
-
+  // Get All Files for User
+  getUserFiles: async (userId: string): Promise<UserFileRecord[]> => {
     const state = readDb();
-    const newSub: SubscriptionRecord = { ...sub, id, createdAt };
-    state.subscriptions.push(newSub);
+    const files = state.userFiles || [];
+    return files.filter((f) => f.userId === userId);
+  },
+
+  // Delete User File
+  deleteUserFile: async (fileId: string, userId: string): Promise<boolean> => {
+    const state = readDb();
+    if (!state.userFiles) return false;
+    const initialLen = state.userFiles.length;
+    state.userFiles = state.userFiles.filter((f) => !(f.id === fileId && f.userId === userId));
     writeDb(state);
-    return newSub;
+    return state.userFiles.length < initialLen;
   }
 };

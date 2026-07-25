@@ -25,6 +25,14 @@ interface RunnerState {
   collectionDescription: string;
   rootNodes: TreeNode[];
   flatEndpointMap: Map<string, TreeNode>;
+
+  // Dual Workspace Tab Support (Local Upload vs Server Cloud)
+  serverCollectionName: string;
+  serverRootNodes: TreeNode[];
+  serverFlatEndpointMap: Map<string, TreeNode>;
+  activeWorkspaceSource: 'local' | 'server';
+  setActiveWorkspaceSource: (source: 'local' | 'server') => void;
+
   envVariables: Record<string, string>;
   selectedNodeIds: string[]; // List of checked node IDs (folder or endpoint)
   generatedTestSuites: Record<string, EndpointTestSuite>;
@@ -49,6 +57,7 @@ interface RunnerState {
   generateAiTestsForSelected: () => Promise<void>;
   runSelectedEndpoints: () => Promise<void>;
   clearResults: () => void;
+  resetFullWorkspace: () => void;
 }
 
 export const useRunnerStore = create<RunnerState>()(
@@ -58,6 +67,13 @@ export const useRunnerStore = create<RunnerState>()(
       collectionDescription: '',
       rootNodes: [],
       flatEndpointMap: new Map(),
+
+      serverCollectionName: '',
+      serverRootNodes: [],
+      serverFlatEndpointMap: new Map(),
+      activeWorkspaceSource: 'local',
+      setActiveWorkspaceSource: (source) => set({ activeWorkspaceSource: source }),
+
       envVariables: {},
       selectedNodeIds: [],
       generatedTestSuites: {},
@@ -449,6 +465,39 @@ export const useRunnerStore = create<RunnerState>()(
             maxLatencyMs: 0,
             status: 'idle',
           },
+        });
+      },
+
+      resetFullWorkspace: () => {
+        set({
+          collectionName: '',
+          collectionDescription: '',
+          rootNodes: [],
+          flatEndpointMap: new Map(),
+
+          serverCollectionName: '',
+          serverRootNodes: [],
+          serverFlatEndpointMap: new Map(),
+          activeWorkspaceSource: 'local',
+
+          envVariables: {},
+          selectedNodeIds: [],
+          generatedTestSuites: {},
+          executionResults: {},
+          runSummary: {
+            total: 0,
+            passed: 0,
+            failed: 0,
+            running: 0,
+            pending: 0,
+            avgLatencyMs: 0,
+            minLatencyMs: 0,
+            maxLatencyMs: 0,
+            status: 'idle',
+          },
+          selectedEndpointIdForDetail: null,
+          searchQuery: '',
+          filterStatus: 'all',
         });
       },
     }),

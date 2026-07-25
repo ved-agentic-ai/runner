@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useAdminStore } from '@/lib/admin-store';
 
 export interface UserAccount {
   id: string;
@@ -16,8 +17,9 @@ export interface UserAuthState {
   isAuthenticated: boolean;
   
   // Actions
+  setUser: (user: UserAccount) => void;
   login: (email: string, pass: string) => Promise<{ success: boolean; message?: string }>;
-  signup: (name: string, email: string, pass: string) => Promise<{ success: boolean; message?: string }>;
+  signup: (name: string, email: string, pass: string, phone?: string, otpCode?: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   updateUserPlan: (plan: 'free' | 'pro' | 'enterprise') => void;
 }
@@ -27,6 +29,15 @@ export const useUserAuthStore = create<UserAuthState>()(
     (set, get) => ({
       user: null,
       isAuthenticated: false,
+
+      setUser: (user) => {
+        set({ user, isAuthenticated: true });
+        if (user.role === 'owner') {
+          useAdminStore.getState().setWorkspaceMode('full');
+        } else {
+          useAdminStore.getState().setWorkspaceMode('light');
+        }
+      },
 
       login: async (email, pass) => {
         try {
@@ -38,48 +49,39 @@ export const useUserAuthStore = create<UserAuthState>()(
           const data = await res.json();
           if (data.success && data.user) {
             set({ user: data.user, isAuthenticated: true });
+            if (data.user.role === 'owner') {
+              useAdminStore.getState().setWorkspaceMode('full');
+            } else {
+              useAdminStore.getState().setWorkspaceMode('light');
+            }
             return { success: true };
           }
-          return { success: false, message: data.error || 'Invalid credentials' };
+          return { success: false, message: data.error || 'Account not found or invalid password. Please create an account first.' };
         } catch (err: any) {
-          // Client-side fallback authentication if backend offline
-          const fallbackUser: UserAccount = {
-            id: `usr_${Date.now()}`,
-            name: email.split('@')[0],
-            email,
-            role: email.includes('admin') || email.includes('ved') ? 'owner' : 'user',
-            plan: 'free',
-            createdAt: new Date().toISOString()
-          };
-          set({ user: fallbackUser, isAuthenticated: true });
-          return { success: true };
+          return { success: false, message: 'Server connection error. Please try again.' };
         }
       },
 
-      signup: async (name, email, pass) => {
+      signup: async (name, email, pass, phone, otpCode) => {
         try {
           const res = await fetch('/api/auth/signup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, password: pass })
+            body: JSON.stringify({ name, email, password: pass, phone, otpCode })
           });
           const data = await res.json();
           if (data.success && data.user) {
             set({ user: data.user, isAuthenticated: true });
+            if (data.user.role === 'owner') {
+              useAdminStore.getState().setWorkspaceMode('full');
+            } else {
+              useAdminStore.getState().setWorkspaceMode('light');
+            }
             return { success: true };
           }
           return { success: false, message: data.error || 'Registration failed' };
         } catch (err: any) {
-          const fallbackUser: UserAccount = {
-            id: `usr_${Date.now()}`,
-            name,
-            email,
-            role: 'user',
-            plan: 'free',
-            createdAt: new Date().toISOString()
-          };
-          set({ user: fallbackUser, isAuthenticated: true });
-          return { success: true };
+          return { success: false, message: 'Server error during account registration. Please try again.' };
         }
       },
 
@@ -88,6 +90,7 @@ export const useUserAuthStore = create<UserAuthState>()(
           fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
         } catch {}
         set({ user: null, isAuthenticated: false });
+        useAdminStore.getState().setWorkspaceMode('light');
       },
 
       updateUserPlan: (plan) => {

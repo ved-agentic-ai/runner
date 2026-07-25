@@ -1,0 +1,478 @@
+{
+  "config": {
+    "workspaceMode": "full",
+    "disclaimerMode": "modal",
+    "stripeSecretKey": "",
+    "paypalClientId": "",
+    "adSenseClientId": "ca-pub-2966115619566020",
+    "allowMfaReset": false,
+    "showStepByStepGuide": true,
+    "showFooter": true,
+    "showPlatformOverviewBanner": true,
+    "showCapabilitiesGrid": true,
+    "showTrafficSimulator": true,
+    "showCustomRulesVault": true,
+    "showDocumentation": true,
+    "showHeaderControls": true,
+    "showSaaSUpgrades": true,
+    "showPciCompliance": true,
+    "showPrivacyBanner": true,
+    "showQuotaTelemetry": true,
+    "showPresetButton": true,
+    "showAiKeyButton": true,
+    "showGithubLink": true,
+    "githubRepoUrl": "https://github.com/ved-agentic-ai/runner"
+  },
+  "auditLogs": [
+    {
+      "id": "log_1784904661880_jl84",
+      "timestamp": "2026-07-24T14:51:01.880Z",
+      "action": "Workspace Mode: switched to Full Enterprise",
+      "settingKey": "workspaceMode",
+      "oldValue": "light",
+      "newValue": "full",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784904661266_aygb",
+      "timestamp": "2026-07-24T14:51:01.266Z",
+      "action": "Workspace Mode: switched to Light Team View",
+      "settingKey": "workspaceMode",
+      "oldValue": "full",
+      "newValue": "light",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784903186852_uvx3",
+      "timestamp": "2026-07-24T14:26:26.852Z",
+      "action": "Workspace Mode: switched to Full Enterprise",
+      "settingKey": "workspaceMode",
+      "oldValue": "light",
+      "newValue": "full",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784903185671_zhax",
+      "timestamp": "2026-07-24T14:26:25.671Z",
+      "action": "Workspace Mode: switched to Light Team View",
+      "settingKey": "workspaceMode",
+      "oldValue": "full",
+      "newValue": "light",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784903184538_t5uo",
+      "timestamp": "2026-07-24T14:26:24.538Z",
+      "action": "Workspace Mode: switched to Full Enterprise",
+      "settingKey": "workspaceMode",
+      "oldValue": "light",
+      "newValue": "full",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784903183990_ltmo",
+      "timestamp": "2026-07-24T14:26:23.990Z",
+      "action": "Workspace Mode: switched to Light Team View",
+      "settingKey": "workspaceMode",
+      "oldValue": "full",
+      "newValue": "light",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784899536377_zgfi",
+      "timestamp": "2026-07-24T13:25:36.377Z",
+      "action": "Legal Disclaimer: set display to Page Popup Modal",
+      "settingKey": "disclaimerMode",
+      "oldValue": "tab",
+      "newValue": "modal",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784899531804_hoir",
+      "timestamp": "2026-07-24T13:25:31.804Z",
+      "action": "Workspace Mode: switched to Full Enterprise",
+      "settingKey": "workspaceMode",
+      "oldValue": "light",
+      "newValue": "full",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784899531142_7eh4",
+      "timestamp": "2026-07-24T13:25:31.142Z",
+      "action": "Workspace Mode: switched to Light Team View",
+      "settingKey": "workspaceMode",
+      "oldValue": "full",
+      "newValue": "light",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890765941_iuqw",
+      "timestamp": "2026-07-24T10:59:25.941Z",
+      "action": "Layout Settings: Enabled PciCompliance widget visibility",
+      "settingKey": "showPciCompliance",
+      "oldValue": "false",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890765806_5xu7",
+      "timestamp": "2026-07-24T10:59:25.806Z",
+      "action": "Layout Settings: Enabled Documentation widget visibility",
+      "settingKey": "showDocumentation",
+      "oldValue": "false",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890765752_zy5c",
+      "timestamp": "2026-07-24T10:59:25.752Z",
+      "action": "Layout Settings: Enabled CustomRulesVault widget visibility",
+      "settingKey": "showCustomRulesVault",
+      "oldValue": "false",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890765653_1bi2",
+      "timestamp": "2026-07-24T10:59:25.653Z",
+      "action": "Layout Settings: Enabled TrafficSimulator widget visibility",
+      "settingKey": "showTrafficSimulator",
+      "oldValue": "false",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890765512_4duq",
+      "timestamp": "2026-07-24T10:59:25.512Z",
+      "action": "Layout Settings: Enabled PlatformOverviewBanner widget visibility",
+      "settingKey": "showPlatformOverviewBanner",
+      "oldValue": "false",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890765420_g893",
+      "timestamp": "2026-07-24T10:59:25.420Z",
+      "action": "Layout Settings: Enabled Footer widget visibility",
+      "settingKey": "showFooter",
+      "oldValue": "false",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890763012_g4wa",
+      "timestamp": "2026-07-24T10:59:23.012Z",
+      "action": "Workspace Mode: switched to Full Enterprise",
+      "settingKey": "workspaceMode",
+      "oldValue": "light",
+      "newValue": "full",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890750955_g1gy",
+      "timestamp": "2026-07-24T10:59:10.956Z",
+      "action": "Layout Settings: Disabled PciCompliance widget visibility",
+      "settingKey": "showPciCompliance",
+      "oldValue": "true",
+      "newValue": "false",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890750761_87vj",
+      "timestamp": "2026-07-24T10:59:10.761Z",
+      "action": "Layout Settings: Disabled Documentation widget visibility",
+      "settingKey": "showDocumentation",
+      "oldValue": "true",
+      "newValue": "false",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890750692_qo12",
+      "timestamp": "2026-07-24T10:59:10.692Z",
+      "action": "Layout Settings: Disabled CustomRulesVault widget visibility",
+      "settingKey": "showCustomRulesVault",
+      "oldValue": "true",
+      "newValue": "false",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890750631_efae",
+      "timestamp": "2026-07-24T10:59:10.631Z",
+      "action": "Layout Settings: Disabled TrafficSimulator widget visibility",
+      "settingKey": "showTrafficSimulator",
+      "oldValue": "true",
+      "newValue": "false",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890750528_ve8r",
+      "timestamp": "2026-07-24T10:59:10.528Z",
+      "action": "Layout Settings: Disabled PlatformOverviewBanner widget visibility",
+      "settingKey": "showPlatformOverviewBanner",
+      "oldValue": "true",
+      "newValue": "false",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890750441_d28e",
+      "timestamp": "2026-07-24T10:59:10.441Z",
+      "action": "Layout Settings: Disabled Footer widget visibility",
+      "settingKey": "showFooter",
+      "oldValue": "true",
+      "newValue": "false",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890608002_trme",
+      "timestamp": "2026-07-24T10:56:48.002Z",
+      "action": "Workspace Mode: switched to Light Team View",
+      "settingKey": "workspaceMode",
+      "oldValue": "full",
+      "newValue": "light",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890607421_8qxa",
+      "timestamp": "2026-07-24T10:56:47.421Z",
+      "action": "Workspace Mode: switched to Full Enterprise",
+      "settingKey": "workspaceMode",
+      "oldValue": "light",
+      "newValue": "full",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784890605849_46c1",
+      "timestamp": "2026-07-24T10:56:45.850Z",
+      "action": "Workspace Mode: switched to Light Team View",
+      "settingKey": "workspaceMode",
+      "oldValue": "full",
+      "newValue": "light",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887768437_g9cp",
+      "timestamp": "2026-07-24T10:09:28.437Z",
+      "action": "System Config: Updated [githubRepoUrl] parameter",
+      "settingKey": "githubRepoUrl",
+      "oldValue": "null",
+      "newValue": "https://github.com/ved-agentic-ai/runner",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887768333_zuwx",
+      "timestamp": "2026-07-24T10:09:28.333Z",
+      "action": "Layout Settings: Enabled GithubLink widget visibility",
+      "settingKey": "showGithubLink",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887768192_pm7f",
+      "timestamp": "2026-07-24T10:09:28.192Z",
+      "action": "Layout Settings: Enabled AiKeyButton widget visibility",
+      "settingKey": "showAiKeyButton",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887768133_3wua",
+      "timestamp": "2026-07-24T10:09:28.133Z",
+      "action": "Layout Settings: Enabled PresetButton widget visibility",
+      "settingKey": "showPresetButton",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887767877_qvzc",
+      "timestamp": "2026-07-24T10:09:27.877Z",
+      "action": "Layout Settings: Enabled QuotaTelemetry widget visibility",
+      "settingKey": "showQuotaTelemetry",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887767729_ffyp",
+      "timestamp": "2026-07-24T10:09:27.729Z",
+      "action": "Layout Settings: Enabled PrivacyBanner widget visibility",
+      "settingKey": "showPrivacyBanner",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887767679_4y4n",
+      "timestamp": "2026-07-24T10:09:27.679Z",
+      "action": "Layout Settings: Enabled PciCompliance widget visibility",
+      "settingKey": "showPciCompliance",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887767609_96vv",
+      "timestamp": "2026-07-24T10:09:27.609Z",
+      "action": "Layout Settings: Enabled SaaSUpgrades widget visibility",
+      "settingKey": "showSaaSUpgrades",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887767553_7sov",
+      "timestamp": "2026-07-24T10:09:27.553Z",
+      "action": "Layout Settings: Enabled HeaderControls widget visibility",
+      "settingKey": "showHeaderControls",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887767478_qg1e",
+      "timestamp": "2026-07-24T10:09:27.478Z",
+      "action": "Layout Settings: Enabled Documentation widget visibility",
+      "settingKey": "showDocumentation",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887767419_is3k",
+      "timestamp": "2026-07-24T10:09:27.419Z",
+      "action": "Layout Settings: Enabled CustomRulesVault widget visibility",
+      "settingKey": "showCustomRulesVault",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887767364_8mgf",
+      "timestamp": "2026-07-24T10:09:27.364Z",
+      "action": "Layout Settings: Enabled TrafficSimulator widget visibility",
+      "settingKey": "showTrafficSimulator",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887767315_yt5f",
+      "timestamp": "2026-07-24T10:09:27.315Z",
+      "action": "Layout Settings: Enabled CapabilitiesGrid widget visibility",
+      "settingKey": "showCapabilitiesGrid",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887767243_fkxe",
+      "timestamp": "2026-07-24T10:09:27.243Z",
+      "action": "Layout Settings: Enabled PlatformOverviewBanner widget visibility",
+      "settingKey": "showPlatformOverviewBanner",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887767197_4716",
+      "timestamp": "2026-07-24T10:09:27.197Z",
+      "action": "Layout Settings: Enabled Footer widget visibility",
+      "settingKey": "showFooter",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887767156_ips4",
+      "timestamp": "2026-07-24T10:09:27.156Z",
+      "action": "Layout Settings: Enabled StepByStepGuide widget visibility",
+      "settingKey": "showStepByStepGuide",
+      "oldValue": "null",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887767108_zn69",
+      "timestamp": "2026-07-24T10:09:27.108Z",
+      "action": "Legal Disclaimer: set display to Standalone Tab",
+      "settingKey": "disclaimerMode",
+      "oldValue": "modal",
+      "newValue": "tab",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887114721_zara",
+      "timestamp": "2026-07-24T09:58:34.721Z",
+      "action": "Updated setting [workspaceMode]",
+      "settingKey": "workspaceMode",
+      "oldValue": "light",
+      "newValue": "full",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1784887114128_7b9p",
+      "timestamp": "2026-07-24T09:58:34.128Z",
+      "action": "Updated setting [workspaceMode]",
+      "settingKey": "workspaceMode",
+      "oldValue": "light",
+      "newValue": "light",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_init",
+      "timestamp": "2026-07-24T09:58:34.128Z",
+      "action": "System Initialized",
+      "settingKey": "system",
+      "oldValue": null,
+      "newValue": "Production Server Config & Audit Engine Active",
+      "actor": "Owner (System Root)",
+      "ip": "127.0.0.1"
+    }
+  ]
+}

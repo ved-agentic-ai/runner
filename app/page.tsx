@@ -1,465 +1,653 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { 
+  FileCode, 
+  Upload, 
+  FolderPlus, 
+  Zap, 
+  Layers, 
+  ShieldAlert, 
+  Sparkles, 
+  BarChart3, 
+  Activity, 
+  CheckCircle,
+  Clock,
+  Play,
+  RotateCcw,
+  Cloud,
+  Laptop,
+  AlertTriangle,
+  Key,
+  ArrowRight,
+  CheckCircle2
+} from 'lucide-react';
 import { Header } from '@/components/Header';
-import { PrivacyBanner } from '@/components/PrivacyBanner';
-import { PciComplianceBanner } from '@/components/PciComplianceBanner';
-import { UploadZone } from '@/components/UploadZone';
 import { TreeView } from '@/components/TreeView';
+import { EndpointDetailSheet } from '@/components/EndpointDetailSheet';
 import { RunnerDashboard } from '@/components/RunnerDashboard';
 import { LiveTrafficSimulator } from '@/components/LiveTrafficSimulator';
-import { AppDocumentationSection } from '@/components/AppDocumentationSection';
 import { CustomUseCasesVault } from '@/components/CustomUseCasesVault';
-import { EndpointDetailSheet } from '@/components/EndpointDetailSheet';
-import { LegalDisclaimerModal } from '@/components/LegalDisclaimerModal';
-import { MfaPromptModal } from '@/components/MfaPromptModal';
-import { StepByStepClickGuide } from '@/components/StepByStepClickGuide';
-import { Footer } from '@/components/Footer';
+import { PresentationDeckModal } from '@/components/PresentationDeckModal';
+import { UserWorkspaceSidebar } from '@/components/UserWorkspaceSidebar';
+import { ServerSaveWarningModal } from '@/components/ServerSaveWarningModal';
+
 import { useRunnerStore } from '@/lib/store';
 import { useAdminStore } from '@/lib/admin-store';
-import { 
-  Play, 
-  Cloud, 
-  UploadCloud, 
-  Sparkles, 
-  ShieldAlert, 
-  Activity, 
-  ShieldCheck, 
-  Cpu, 
-  FolderPlus,
-  Lock,
-  Globe,
-  Award
-} from 'lucide-react';
+import { useUserAuthStore } from '@/lib/user-auth-store';
+import { parsePostmanCollection, parsePostmanEnvironment, formatPostmanUrl } from '@/lib/postman-parser';
+import { TreeNode, HttpMethod } from '@/lib/types';
+
+// Helper function to normalize any collection format (Postman v2 JSON or saved Node Tree) into valid TreeNodes
+function parseAndNormalizeServerCollection(parsed: any, fileName: string): {
+  collectionName: string;
+  rootNodes: TreeNode[];
+  flatEndpointMap: Map<string, TreeNode>;
+  allNodeIds: string[];
+} {
+  const flatEndpointMap = new Map<string, TreeNode>();
+  const allNodeIds: string[] = [];
+
+  // Case 1: Postman collection schema with .info or .item
+  if (parsed.info || parsed.item) {
+    const { rootNodes, flatEndpointMap: parsedMap } = parsePostmanCollection(parsed);
+    function collectIds(nodes: TreeNode[]) {
+      nodes.forEach((n) => {
+        allNodeIds.push(n.id);
+        if (n.children) collectIds(n.children);
+      });
+    }
+    collectIds(rootNodes);
+    return {
+      collectionName: parsed.name || parsed.info?.name || fileName,
+      rootNodes,
+      flatEndpointMap: parsedMap,
+      allNodeIds
+    };
+  }
+
+  // Case 2: Custom node tree array or object with .nodes
+  const rawNodes = Array.isArray(parsed) ? parsed : (parsed.nodes || []);
+
+  function normalizeNodes(nodes: any[], parentId: string | null = null, pathPrefix: string = ''): TreeNode[] {
+    if (!Array.isArray(nodes)) return [];
+    return nodes.map((item, idx) => {
+      const isFolder = item.type === 'folder' || Array.isArray(item.children) || Array.isArray(item.item);
+      const uniqueSuffix = item.name ? item.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 12) : idx;
+      const nodeId = `${parentId ? parentId + '-' : 'node-'}${idx + 1}-${uniqueSuffix}-${isFolder ? 'folder' : 'endpoint'}`;
+      const currentPath = pathPrefix ? `${pathPrefix} / ${item.name}` : (item.name || 'Unnamed');
+
+      allNodeIds.push(nodeId);
+
+      if (isFolder) {
+        const rawChildren = item.children || item.item || [];
+        const children = normalizeNodes(rawChildren, nodeId, currentPath);
+        return {
+          id: nodeId,
+          name: item.name || 'Folder',
+          type: 'folder',
+          description: item.description,
+          children,
+          parentId,
+          path: currentPath,
+        };
+      } else {
+        const method = (item.method?.toUpperCase() as HttpMethod) || 'GET';
+        const url = item.url || (item.request ? formatPostmanUrl(item.request.url) : '');
+        const node: TreeNode = {
+          id: nodeId,
+          name: item.name || 'Endpoint',
+          type: 'endpoint',
+          method,
+          url,
+          description: item.description,
+          request: item.request,
+          parentId,
+          path: currentPath,
+        };
+        flatEndpointMap.set(nodeId, node);
+        return node;
+      }
+    });
+  }
+
+  const rootNodes = normalizeNodes(rawNodes);
+
+  return {
+    collectionName: parsed.name || fileName,
+    rootNodes,
+    flatEndpointMap,
+    allNodeIds
+  };
+}
 
 export default function Home() {
-  const { loadDemoCollection, collectionName } = useRunnerStore();
   const { 
-    disclaimerMode, 
-    showFooter, 
-    showPlatformOverviewBanner,
-    showPciCompliance,
-    showTrafficSimulator, 
-    showCustomRulesVault, 
+    collectionName, 
+    loadCollection, 
+    loadDemoCollection, 
+    rootNodes, 
+    flatEndpointMap,
+    envVariables,
+    runSelectedEndpoints,
+    clearResults
+  } = useRunnerStore();
+
+  const { 
+    workspaceMode, 
+    showStepByStepGuide, 
+    showCapabilitiesGrid,
+    showTrafficSimulator,
+    showCustomRulesVault,
     showDocumentation,
-    showPrivacyBanner,
-    showStepByStepGuide,
-    workspaceMode,
-    memoryResetPolicy,
-    mfaEnabled,
-    isMfaAuthenticated,
-    protectedSections,
     recordPageView
   } = useAdminStore();
-  
-  // Active workspace tab
-  const [activeMainTab, setActiveMainTab] = useState<'upload' | 'runner' | 'vault' | 'architecture' | 'disclaimer'>('upload');
-  const [showVaultMfaModal, setShowVaultMfaModal] = useState(false);
 
-  useEffect(() => {
-    // Record real-time pageview visit
-    recordPageView();
+  const { user, isAuthenticated } = useUserAuthStore();
 
-    // If memory policy is set to 'flush', reset state on page refresh
-    if (memoryResetPolicy === 'flush') {
-      useRunnerStore.setState({
-        executionResults: {},
-        selectedNodeIds: [],
-        envVariables: {},
-        runSummary: {
-          total: 0,
-          passed: 0,
-          failed: 0,
-          pending: 0,
-          running: 0,
-          avgLatencyMs: 0,
-          minLatencyMs: 0,
-          maxLatencyMs: 0,
-          status: 'idle'
-        }
-      });
-    } else {
-      // Re-hydrate flatEndpointMap from rootNodes if persisted in localStorage
-      const storeState = useRunnerStore.getState();
-      if (storeState.rootNodes && storeState.rootNodes.length > 0 && storeState.flatEndpointMap.size === 0) {
-        const map = new Map();
-        function indexNodes(nodes: any[]) {
-          nodes.forEach((n) => {
-            if (n.type === 'endpoint') map.set(n.id, n);
-            if (n.children) indexNodes(n.children);
-          });
-        }
-        indexNodes(storeState.rootNodes);
-        useRunnerStore.setState({ flatEndpointMap: map });
-      }
-    }
+  const [activeMainTab, setActiveMainTab] = useState<'upload' | 'runner' | 'architecture' | 'vault'>('upload');
+  const [fileToSave, setFileToSave] = useState<{ name: string; type: 'collection' | 'env'; content: string } | null>(null);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [sidebarRefresh, setSidebarRefresh] = useState(0);
 
-    // Only load demo if no collection exists
-    const currentName = useRunnerStore.getState().collectionName;
-    if (!currentName) {
-      loadDemoCollection();
-    }
-  }, []);
+  // Sequential Step Flow State in Tab 1
+  const [uploadStep, setUploadStep] = useState<'collection' | 'env_optional'>('collection');
+  const [envNotification, setEnvNotification] = useState<string | null>(null);
 
-  const handleTabClick = (tab: 'upload' | 'runner' | 'vault' | 'architecture' | 'disclaimer') => {
-    if (tab === 'vault' && mfaEnabled && protectedSections.vault && !isMfaAuthenticated) {
-      setShowVaultMfaModal(true);
-      return;
-    }
-    setActiveMainTab(tab);
+  // Load Confirmation Dialog state
+  const [pendingServerFileToLoad, setPendingServerFileToLoad] = useState<any | null>(null);
+
+  const handleLoadServerFile = (fileRecord: any) => {
+    setPendingServerFileToLoad(fileRecord);
   };
 
-  const handleVaultMfaSuccess = () => {
-    setShowVaultMfaModal(false);
-    setActiveMainTab('vault');
+  const executeLoadServerFile = (overrideMode: 'replace' | 'sidebyside') => {
+    if (!pendingServerFileToLoad) return;
+    const fileRecord = pendingServerFileToLoad;
+
+    try {
+      if (fileRecord.fileType === 'collection') {
+        const parsed = JSON.parse(fileRecord.content);
+        const { collectionName: loadedName, rootNodes: loadedRoots, flatEndpointMap: loadedMap, allNodeIds: loadedIds } = parseAndNormalizeServerCollection(parsed, fileRecord.fileName);
+
+        if (overrideMode === 'replace') {
+          useRunnerStore.setState({
+            collectionName: loadedName,
+            rootNodes: loadedRoots,
+            flatEndpointMap: loadedMap,
+            selectedNodeIds: loadedIds,
+            activeWorkspaceSource: 'local',
+            executionResults: {},
+            generatedTestSuites: {},
+            runSummary: {
+              total: loadedMap.size,
+              passed: 0,
+              failed: 0,
+              running: 0,
+              pending: loadedMap.size,
+              avgLatencyMs: 0,
+              minLatencyMs: 0,
+              maxLatencyMs: 0,
+              status: 'idle'
+            }
+          });
+        } else {
+          // Side-by-side mode: populate server workspace and merge maps
+          const currentFlatMap = useRunnerStore.getState().flatEndpointMap;
+          const mergedMap = new Map([...Array.from(currentFlatMap.entries()), ...Array.from(loadedMap.entries())]);
+          const currentSelected = useRunnerStore.getState().selectedNodeIds;
+          const mergedSelected = Array.from(new Set([...currentSelected, ...loadedIds]));
+
+          useRunnerStore.setState({
+            serverCollectionName: loadedName,
+            serverRootNodes: loadedRoots,
+            serverFlatEndpointMap: loadedMap,
+            flatEndpointMap: mergedMap,
+            selectedNodeIds: mergedSelected,
+            activeWorkspaceSource: 'server',
+            executionResults: {},
+            generatedTestSuites: {},
+            runSummary: {
+              total: mergedMap.size,
+              passed: 0,
+              failed: 0,
+              running: 0,
+              pending: mergedMap.size,
+              avgLatencyMs: 0,
+              minLatencyMs: 0,
+              maxLatencyMs: 0,
+              status: 'idle'
+            }
+          });
+        }
+        setEnvNotification(`✅ Server Collection "${loadedName}" loaded (${loadedMap.size} endpoints ready)!`);
+        setTimeout(() => setEnvNotification(null), 4000);
+        setActiveMainTab('runner');
+      } else {
+        // Environment file loading
+        const lines = fileRecord.content.split('\n');
+        const envObj: Record<string, string> = {};
+        lines.forEach((line: string) => {
+          const eqIdx = line.indexOf('=');
+          if (eqIdx !== -1) {
+            const k = line.substring(0, eqIdx).trim();
+            const v = line.substring(eqIdx + 1).trim();
+            if (k) envObj[k] = v;
+          }
+        });
+        useRunnerStore.setState({ envVariables: { ...useRunnerStore.getState().envVariables, ...envObj } });
+        setEnvNotification(`✅ Environment file "${fileRecord.fileName}" loaded into workspace!`);
+        setTimeout(() => setEnvNotification(null), 4000);
+        setActiveMainTab('runner');
+      }
+    } catch (err: any) {
+      console.error('Error loading server file into workspace:', err);
+      alert(`Could not parse server file: ${err.message}`);
+    }
+
+    setPendingServerFileToLoad(null);
+  };
+
+  useEffect(() => {
+    recordPageView();
+  }, [recordPageView]);
+
+  // Step 1 Collection Upload Handler -> Moves to Step 2 (Optional Environment Upload)
+  const handleCollectionUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+        if (parsed.info || parsed.item || parsed.nodes || Array.isArray(parsed)) {
+          loadCollection(parsed);
+          setUploadStep('env_optional');
+        } else {
+          alert('Invalid Postman Collection JSON format.');
+        }
+      } catch (err) {
+        alert('Could not parse collection file. Please ensure it is valid JSON.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleTriggerLoadDemo = () => {
+    loadDemoCollection();
+    setUploadStep('env_optional');
+  };
+
+  // Step 2 Environment Upload Handler -> Moves directly to Tab 2 (Runner)
+  const handleEnvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        let envObj: Record<string, string> = {};
+
+        if (file.name.endsWith('.env')) {
+          const lines = content.split('\n');
+          lines.forEach((line) => {
+            const eqIdx = line.indexOf('=');
+            if (eqIdx !== -1) {
+              const k = line.substring(0, eqIdx).trim();
+              const v = line.substring(eqIdx + 1).trim();
+              if (k) envObj[k] = v;
+            }
+          });
+        } else {
+          const parsed = JSON.parse(content);
+          envObj = parsePostmanEnvironment(parsed);
+        }
+
+        useRunnerStore.setState({ envVariables: { ...envVariables, ...envObj } });
+        setEnvNotification(`✅ Attached ${Object.keys(envObj).length} environment variables to workspace!`);
+        setTimeout(() => setEnvNotification(null), 4000);
+        setActiveMainTab('runner');
+      } catch (err) {
+        alert('Invalid environment file format. Please upload a valid Postman Environment JSON or .env file.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleSaveWorkspaceTrigger = () => {
+    const currentStore = useRunnerStore.getState();
+    const activeNodesToSave = currentStore.rootNodes.length > 0 ? currentStore.rootNodes : currentStore.serverRootNodes;
+
+    if (activeNodesToSave.length === 0) {
+      alert('Workspace is currently empty. Please load or upload a Postman collection first.');
+      return;
+    }
+
+    const exportPayload = {
+      name: currentStore.collectionName || currentStore.serverCollectionName || 'Saved Collection',
+      nodes: activeNodesToSave,
+      savedAt: new Date().toISOString()
+    };
+
+    setFileToSave({
+      name: `${(currentStore.collectionName || currentStore.serverCollectionName || 'workspace').toLowerCase().replace(/\s+/g, '-')}.json`,
+      type: 'collection',
+      content: JSON.stringify(exportPayload, null, 2)
+    });
+    setSaveModalOpen(true);
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#0b0f19] text-slate-100 selection:bg-indigo-500 selection:text-white">
-      
-      {/* Show Legal Disclaimer Modal ONLY if disclaimerMode is 'modal' */}
-      {disclaimerMode === 'modal' && <LegalDisclaimerModal />}
-
-      {/* Inline MFA Prompt Modal for Protected Vault Tab */}
-      <MfaPromptModal
-        isOpen={showVaultMfaModal}
-        sectionTitle="Custom AI Rules Vault"
-        onClose={() => setShowVaultMfaModal(false)}
-        onSuccess={handleVaultMfaSuccess}
-      />
-
-      {/* Navigation Header */}
+    <div className="min-h-screen bg-[#070913] text-slate-100 flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
+      {/* Global Application Navigation Header */}
       <Header />
 
-      {/* Main App Workspace (Expanded to 1600px Full Responsive Width) */}
-      <main className="flex-1 mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 space-y-4">
+      {/* Environment Variable Upload Notification Toast */}
+      {envNotification && (
+        <div className="fixed top-20 right-6 z-[99999] flex items-center space-x-2 rounded-2xl border border-emerald-500/40 bg-slate-900/95 p-4 text-xs font-bold text-emerald-300 shadow-2xl backdrop-blur-md animate-in slide-in-from-top-5">
+          <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+          <span>{envNotification}</span>
+        </div>
+      )}
+
+      {/* MAIN APPLICATION CONTAINER */}
+      <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 space-y-6">
         
-        {/* Local Secrets & Privacy Guarantee Banner (Configurable in Admin Control) */}
-        {showPrivacyBanner && <PrivacyBanner />}
-
-        {/* PCI-DSS Level 1 Security Banner (Hidden in Light Mode or if toggled off) */}
-        {workspaceMode === 'full' && showPciCompliance && <PciComplianceBanner />}
-
-        {/* Main View Mode Selector Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800 backdrop-blur-md gap-3 overflow-hidden">
-          <div className="flex items-center space-x-1 text-xs overflow-x-auto custom-scrollbar max-w-full shrink-0">
+        {/* TOP LEVEL NAVIGATION WORKSPACE TABS */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-900 pb-3">
+          <div className="flex items-center space-x-2">
             <button
-              onClick={() => handleTabClick('upload')}
-              className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold whitespace-nowrap transition-all ${
-                activeMainTab === 'upload' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200'
+              onClick={() => setActiveMainTab('upload')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeMainTab === 'upload'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                  : 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800'
               }`}
             >
-              <UploadCloud className="h-4 w-4 shrink-0" />
-              <span>📤 1. Upload & Collection Presets</span>
+              <Upload className="h-4 w-4 shrink-0" />
+              <span>1. Upload & Collection Presets</span>
             </button>
 
             <button
-              onClick={() => handleTabClick('runner')}
-              className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold whitespace-nowrap transition-all ${
-                activeMainTab === 'runner' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200'
+              onClick={() => setActiveMainTab('runner')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeMainTab === 'runner'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                  : 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800'
               }`}
             >
-              <Play className="h-4 w-4 shrink-0" />
+              <Zap className="h-4 w-4 shrink-0" />
               <span>🚀 2. Runner & Live Telemetry</span>
+              {flatEndpointMap.size > 0 && (
+                <span className="ml-1 rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] text-indigo-300 border border-indigo-500/30 font-mono">
+                  {flatEndpointMap.size}
+                </span>
+              )}
             </button>
 
-            {/* Render Tabs 3 & 4 ONLY in Full Scale Mode */}
             {workspaceMode === 'full' && (
-              <>
-                <button
-                  onClick={() => handleTabClick('vault')}
-                  className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold whitespace-nowrap transition-all ${
-                    activeMainTab === 'vault' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Sparkles className="h-4 w-4 shrink-0" />
-                  <span>🪄 3. Custom AI Rules Vault</span>
-                  {mfaEnabled && protectedSections.vault && !isMfaAuthenticated && (
-                    <ShieldAlert className="h-3.5 w-3.5 text-amber-400 ml-0.5" />
-                  )}
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('architecture')}
-                  className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold whitespace-nowrap transition-all ${
-                    activeMainTab === 'architecture' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Cloud className="h-4 w-4 shrink-0" />
-                  <span>☁️ 4. AWS Cloud & AI Deep Dive</span>
-                </button>
-              </>
-            )}
-
-            {/* Render Disclaimer as a standalone tab when disclaimerMode is 'tab' */}
-            {disclaimerMode === 'tab' && (
               <button
-                onClick={() => handleTabClick('disclaimer')}
-                className={`flex items-center space-x-2 rounded-xl px-3.5 py-2 text-xs font-bold whitespace-nowrap transition-all ${
-                  activeMainTab === 'disclaimer' ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' : 'text-red-400 hover:text-red-300'
+                onClick={() => setActiveMainTab('vault')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  activeMainTab === 'vault'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                    : 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800'
                 }`}
               >
-                <ShieldAlert className="h-4 w-4 shrink-0" />
-                <span>🛡️ Legal Disclaimer & Creator Statement</span>
+                <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
+                <span>🛡️ Custom & AI Generated Test Use Cases Vault</span>
               </button>
             )}
           </div>
 
-          <span className="hidden lg:inline-block text-[11px] text-slate-400 font-mono pr-2 shrink-0">
-            Active Workspace: <strong className="text-slate-200">{collectionName || 'Demo Suite'}</strong>
+          <span className="hidden xl:inline-flex items-center text-[11px] text-slate-400 font-mono px-3 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800/80 shrink-0">
+            Active Workspace: <strong className="text-indigo-300 ml-1 truncate max-w-[220px]">{collectionName || 'Demo Suite'}</strong>
           </span>
         </div>
 
-        {/* MAIN TAB 1: UPLOAD & COLLECTION PRESETS (PERFECT 100% SYMMETRICAL LAYOUT) */}
-        {activeMainTab === 'upload' && (
-          <div className="space-y-6 py-2">
-            
-            {/* Interactive Step-by-Step Instructions: Where to Click & How to Run */}
-            {showStepByStepGuide && (
-              <StepByStepClickGuide onNavigateTab={(tab) => setActiveMainTab(tab)} />
-            )}
+        {/* WORKSPACE FLEX CONTAINER: LEFT SIDEBAR + TAB CONTENTS */}
+        <div className="flex flex-col lg:flex-row items-start gap-6 pt-2">
+          
+          {/* Left Server Workspace Explorer Sidebar for Logged-In Users */}
+          {isAuthenticated && (
+            <UserWorkspaceSidebar
+              onLoadFileToWorkspace={handleLoadServerFile}
+              refreshTrigger={sidebarRefresh}
+            />
+          )}
 
-            {/* Top Row: Balanced 2-Column Desktop Grid (7 cols / 5 cols) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              
-              {/* Left Column: Upload Dropzone & Core Capabilities (7 cols) */}
-              <div className="lg:col-span-7 space-y-6">
-                <UploadZone />
-              </div>
+          {/* MAIN TAB CONTENT CONTAINER */}
+          <div className="flex-1 w-full space-y-6">
 
-              {/* Right Column: Enterprise Telemetry & Status Panel (5 cols) */}
-              <div className="lg:col-span-5 space-y-5">
+            {/* MAIN TAB 1: SEQUENTIAL UPLOAD FLOW (STEP 1 COLLECTION -> STEP 2 OPTIONAL ENV) */}
+            {activeMainTab === 'upload' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
                 
-                {/* System Status Dashboard Card */}
-                <div className="rounded-3xl border border-slate-800 bg-[#0f172a]/90 p-6 space-y-4 shadow-xl">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                    <div className="flex items-center space-x-2.5">
-                      <Activity className="h-5 w-5 text-indigo-400 shrink-0" />
-                      <h3 className="font-bold text-sm text-white">System Status & SLA Health</h3>
+                {/* STEP 1: COLLECTION UPLOAD CARD */}
+                {uploadStep === 'collection' ? (
+                  <div className="relative rounded-3xl border-2 border-dashed border-indigo-500/40 bg-gradient-to-br from-indigo-950/30 via-slate-950 to-slate-950 p-8 sm:p-12 text-center transition-all hover:border-indigo-500/80 shadow-2xl space-y-4">
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={handleCollectionUpload}
+                      className="absolute inset-0 z-10 h-full w-full opacity-0 cursor-pointer"
+                    />
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 mb-2 shadow-lg">
+                      <FileCode className="h-8 w-8" />
                     </div>
-                    <span className="inline-flex items-center space-x-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-extrabold text-emerald-400 border border-emerald-500/20">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>Operational</span>
-                    </span>
-                  </div>
+                    <h2 className="text-lg font-bold text-white">📂 Step 1: Upload Postman Collection (.json)</h2>
+                    <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                      Upload or drag-and-drop your Postman Collection JSON file (v2.0 / v2.1). After parsing, you will have the option to attach an environment file.
+                    </p>
 
-                  <div className="space-y-3 text-xs">
-                    <div className="flex items-center justify-between p-2.5 rounded-xl border border-slate-800/80 bg-slate-950/60">
-                      <span className="text-slate-400 flex items-center gap-1.5">
-                        <Cloud className="h-3.5 w-3.5 text-indigo-400" /> Proxy Execution Gateway
-                      </span>
-                      <span className="font-mono text-emerald-400 font-bold">100.0% Uptime (42ms)</span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 rounded-xl border border-slate-800/80 bg-slate-950/60">
-                      <span className="text-slate-400 flex items-center gap-1.5">
-                        <Cpu className="h-3.5 w-3.5 text-purple-400" /> AI Rule Synthesizer
-                      </span>
-                      <span className="font-mono text-indigo-300 font-bold">Gemini 1.5 Flash Online</span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-2.5 rounded-xl border border-slate-800/80 bg-slate-950/60">
-                      <span className="text-slate-400 flex items-center gap-1.5">
-                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" /> Zero-Trust Privacy Shield
-                      </span>
-                      <span className="font-mono text-emerald-300 font-bold">AES-256 Client Masking</span>
+                    <div className="pt-4 flex flex-wrap justify-center gap-3 z-20">
+                      <button className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 transition-all pointer-events-none">
+                        Select Collection JSON
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleTriggerLoadDemo}
+                        className="rounded-xl border border-slate-800 bg-slate-900 px-5 py-2.5 text-xs font-bold text-indigo-300 hover:bg-slate-800 transition-all pointer-events-auto"
+                      >
+                        ⚡ Load Demo Suite (138 Endpoints)
+                      </button>
                     </div>
                   </div>
-
-                  <div className="pt-2 flex justify-center">
-                    <button
-                      onClick={() => handleTabClick('runner')}
-                      className="w-full inline-flex items-center justify-center space-x-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 py-3 text-xs font-extrabold text-white shadow-lg shadow-indigo-500/25 hover:from-indigo-400 hover:to-purple-500 transition-all"
-                    >
-                      <span>Proceed to 🚀 Runner Workspace</span>
-                      <Play className="h-4 w-4 fill-current" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Preset Collections Quick Selector Card */}
-                <div className="rounded-3xl border border-slate-800 bg-[#0f172a]/90 p-6 space-y-4 shadow-xl">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                    <div className="flex items-center space-x-2.5">
-                      <FolderPlus className="h-5 w-5 text-purple-400 shrink-0" />
-                      <h3 className="font-bold text-sm text-white">Featured API Collection Suites</h3>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2.5 text-xs">
-                    <div 
-                      onClick={loadDemoCollection}
-                      className="p-3 rounded-2xl border border-slate-800 bg-slate-950/60 hover:border-purple-500/50 cursor-pointer transition-all space-y-1"
-                    >
-                      <div className="flex items-center justify-between font-bold text-purple-300">
-                        <span>JSONPlaceholder & ReqRes Test Suite</span>
-                        <span className="text-[10px] text-slate-500 font-mono">16 Endpoints</span>
+                ) : (
+                  /* STEP 2: OPTIONAL ENVIRONMENT UPLOAD CARD */
+                  <div className="space-y-4 animate-in fade-in duration-200">
+                    
+                    {/* Collection Upload Success Banner */}
+                    <div className="flex items-center justify-between rounded-2xl border border-emerald-500/40 bg-emerald-950/30 p-4 shadow-lg">
+                      <div className="flex items-center space-x-3">
+                        <CheckCircle2 className="h-6 w-6 text-emerald-400 shrink-0" />
+                        <div>
+                          <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                            Collection Loaded into Memory
+                          </h3>
+                          <p className="text-xs text-slate-300">
+                            Active Suite: <strong className="text-emerald-300 font-mono">{collectionName}</strong> ({flatEndpointMap.size || 138} endpoints parsed)
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-[11px] text-slate-400">
-                        Full REST API suite testing GET/POST/PUT/DELETE, auth headers, and response latency.
+
+                      <button
+                        onClick={() => setUploadStep('collection')}
+                        className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-800"
+                      >
+                        Change Collection
+                      </button>
+                    </div>
+
+                    {/* Step 2 Optional Env Card */}
+                    <div className="relative rounded-3xl border-2 border-dashed border-amber-500/40 bg-gradient-to-br from-amber-950/20 via-slate-950 to-slate-950 p-8 sm:p-10 text-center transition-all hover:border-amber-500/80 shadow-2xl space-y-4">
+                      <input
+                        type="file"
+                        accept=".json,.env"
+                        onChange={handleEnvUpload}
+                        className="absolute inset-0 z-10 h-full w-full opacity-0 cursor-pointer"
+                      />
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30 mb-1 shadow-lg">
+                        <Key className="h-7 w-7" />
+                      </div>
+                      <h2 className="text-base font-bold text-white">🔑 Step 2: Upload Environment Variables (Optional)</h2>
+                      <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                        Attach a Postman Environment JSON or raw `.env` file to resolve template variables (`{"{{baseUrl}}"}`). Or skip this step to execute with default parameters.
+                      </p>
+
+                      <div className="pt-4 flex flex-wrap justify-center gap-3 z-20">
+                        <button className="rounded-xl bg-amber-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-amber-600/30 hover:bg-amber-500 transition-all pointer-events-none">
+                          Upload Environment File (.json / .env)
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setActiveMainTab('runner')}
+                          className="rounded-xl border border-indigo-500/50 bg-indigo-950 px-5 py-2.5 text-xs font-extrabold text-indigo-200 hover:bg-indigo-900 transition-all pointer-events-auto flex items-center gap-2 shadow-lg"
+                        >
+                          <span>⏭️ Skip & Proceed to Runner</span>
+                          <ArrowRight className="h-4 w-4 text-indigo-400" />
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+
+                {/* Capabilities Grid */}
+                {showCapabilitiesGrid && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-2 backdrop-blur-md">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                        <Zap className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-bold text-sm text-white">High Performance Execution</h3>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Execute hundreds of API requests in parallel with live SLA latency tracking, status validation, and automated retries.
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-2 backdrop-blur-md">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                        <Sparkles className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-bold text-sm text-white">AI Test Assertion Suite</h3>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Automatically analyze request parameters and response schemas to generate custom test assertion suites in real-time.
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-2 backdrop-blur-md">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <ShieldAlert className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-bold text-sm text-white">Cloud Workspace Storage</h3>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Save API collections and environment files to your server account with smart secret redaction (`[REDACTED_SECRET]`).
                       </p>
                     </div>
                   </div>
-                </div>
+                )}
 
               </div>
+            )}
 
-            </div>
-
-            {/* Bottom Section: FULL-WIDTH 100% SYMMETRICAL PLATFORM BANNER (Spans all 12 columns!) */}
-            {showPlatformOverviewBanner && (
-              <div className="relative overflow-hidden rounded-3xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/60 via-purple-950/40 to-slate-950 p-6 shadow-2xl space-y-5 animate-in fade-in">
-                {/* Ambient Lighting */}
-                <div className="absolute -top-20 -left-20 h-56 w-56 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
-                <div className="absolute -bottom-20 -right-20 h-56 w-56 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
-
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-indigo-900/40 pb-4">
-                  <div className="space-y-1">
-                    <span className="inline-flex items-center space-x-1.5 rounded-full bg-indigo-500/20 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-indigo-300 border border-indigo-500/30">
-                      <Sparkles className="h-3 w-3 fill-current text-indigo-400" />
-                      <span>Next-Gen Enterprise API Test Platform v2.5</span>
-                    </span>
-                    <h3 className="text-base font-extrabold text-white">
-                      Automated Assertion Synthesizer & Serverless Execution Engine
-                    </h3>
-                    <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
-                      Seamlessly import Postman Collections (v2.0/v2.1), isolate API secrets locally, and run high-concurrency automated test suites powered by Gemini AI.
-                    </p>
+            {/* MAIN TAB 2: RUNNER & LIVE TELEMETRY WORKSPACE */}
+            {activeMainTab === 'runner' && (
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  
+                  {/* Left Column: Hierarchical Tree View Selector (4 cols) */}
+                  <div className="lg:col-span-4 h-[780px]">
+                    <TreeView />
                   </div>
 
-                  <div className="flex items-center space-x-3 shrink-0">
-                    <div className="rounded-2xl border border-indigo-800/60 bg-indigo-950/60 p-3 text-center">
-                      <span className="block text-lg font-black text-indigo-400 font-mono">100%</span>
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase">Local Secrets</span>
-                    </div>
-                    <div className="rounded-2xl border border-emerald-800/60 bg-emerald-950/60 p-3 text-center">
-                      <span className="block text-lg font-black text-emerald-400 font-mono">42ms</span>
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase">Avg SLA Latency</span>
-                    </div>
-                    <div className="rounded-2xl border border-purple-800/60 bg-purple-950/60 p-3 text-center">
-                      <span className="block text-lg font-black text-purple-300 font-mono">PCI-DSS</span>
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase">SAQ-A Certified</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4 Symmetrical Feature Columns */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 space-y-2">
-                    <div className="flex items-center space-x-2 text-indigo-300 font-bold text-xs">
-                      <Cpu className="h-4 w-4 text-indigo-400 shrink-0" />
-                      <span>1. AI Assertion Generator</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Synthesizes Chai/Jest HTTP status 200, latency bounds, and JSON schema rules in milliseconds.
-                    </p>
+                  {/* Right Column: Execution Engine & Telemetry Dashboard (8 cols) */}
+                  <div className="lg:col-span-8 space-y-5">
+                    <RunnerDashboard onSaveToServer={handleSaveWorkspaceTrigger} />
+                    {workspaceMode === 'full' && showTrafficSimulator && <LiveTrafficSimulator />}
                   </div>
 
-                  <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 space-y-2">
-                    <div className="flex items-center space-x-2 text-emerald-300 font-bold text-xs">
-                      <Lock className="h-4 w-4 text-emerald-400 shrink-0" />
-                      <span>2. Zero-Trust Masking</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Passwords, JWTs, and API tokens are sanitized locally before AI script generation.
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 space-y-2">
-                    <div className="flex items-center space-x-2 text-purple-300 font-bold text-xs">
-                      <Globe className="h-4 w-4 text-purple-400 shrink-0" />
-                      <span>3. Serverless CORS Proxy</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Executes fetch requests server-side bypassing browser cross-origin policy restrictions.
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 space-y-2">
-                    <div className="flex items-center space-x-2 text-amber-300 font-bold text-xs">
-                      <Award className="h-4 w-4 text-amber-400 shrink-0" />
-                      <span>4. Stakeholder PPT Decks</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Generates executive PowerPoint deck presentations for QA leads and stakeholders in 1 click.
-                    </p>
-                  </div>
                 </div>
               </div>
             )}
 
+            {/* MAIN TAB 3: CUSTOM RULES VAULT */}
+            {activeMainTab === 'vault' && workspaceMode === 'full' && (
+              <CustomUseCasesVault />
+            )}
+
           </div>
-        )}
-
-        {/* MAIN TAB 2: RUNNER & LIVE TELEMETRY WORKSPACE */}
-        {activeMainTab === 'runner' && (
-          <div className="space-y-5">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              
-              {/* Left Column: Hierarchical Tree View Selector (4 cols) */}
-              <div className="lg:col-span-4 h-[780px]">
-                <TreeView />
-              </div>
-
-              {/* Right Column: Execution Engine & Telemetry Dashboard (8 cols) */}
-              <div className="lg:col-span-8 space-y-5">
-                <RunnerDashboard />
-                {workspaceMode === 'full' && showTrafficSimulator && <LiveTrafficSimulator />}
-              </div>
-
-            </div>
-          </div>
-        )}
-
-        {/* MAIN TAB 3: CUSTOM AI RULES VAULT */}
-        {activeMainTab === 'vault' && workspaceMode === 'full' && showCustomRulesVault && (
-          <CustomUseCasesVault />
-        )}
-
-        {/* MAIN TAB 4: SYSTEM ARCHITECTURE, AI DEEP DIVE & CLOUD GUIDE */}
-        {activeMainTab === 'architecture' && workspaceMode === 'full' && showDocumentation && (
-          <AppDocumentationSection />
-        )}
-
-        {/* MAIN TAB 5: STANDALONE LEGAL DISCLAIMER (When disclaimerMode is 'tab') */}
-        {activeMainTab === 'disclaimer' && disclaimerMode === 'tab' && (
-          <div className="w-full rounded-3xl border border-slate-800 bg-[#0f172a] p-8 shadow-2xl space-y-6 max-w-4xl mx-auto">
-            <div className="flex items-center space-x-3 border-b border-slate-800 pb-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-500/10 text-red-400 border border-red-500/20">
-                <ShieldAlert className="h-7 w-7" />
-              </div>
-              <h2 className="text-xl font-bold text-red-400 tracking-tight">
-                Legal Disclaimer & Creator Statement
-              </h2>
-            </div>
-
-            <div className="space-y-4 text-sm text-slate-300 leading-relaxed font-sans">
-              <p>
-                This dashboard is a <strong className="text-slate-100">solely personally developed project</strong> created entirely by developer Ved Tripathi for educational and portfolio demonstration purposes. It has absolutely no affiliation, endorsement, connection, or association with any company, employer, firm, or external organization.
-              </p>
-
-              <p>
-                No corporate IP, internal designs, private ideas, or proprietary code structures from any firm have been utilized in this work. All creative concepts, software modules, and source files belong exclusively to the developer.
-              </p>
-
-              <p>
-                <strong className="text-slate-100">Decision-Making Advisory:</strong> The analytics, compounding models, and simulations presented herein are for illustrative purposes only. They do not constitute financial advice. Any reader or user must think rationally and exercise independent diligence before making trading decisions.
-              </p>
-
-              <p>
-                <strong className="text-slate-100">Accusation Warning:</strong> Absolutely no moonlighting, gaslighting, or unauthorized freelance activities were performed in the creation of this project. Any assertions or allegations stating otherwise are false, factually incorrect, and constitute actionable defamation. The creator reserves all legal rights to seek damages against defamatory remarks.
-              </p>
-            </div>
-          </div>
-        )}
+        </div>
 
       </main>
 
-      {/* Slide-out Drawer for Detailed HTTP Logs & Assertions */}
-      <EndpointDetailSheet />
+      {/* SERVER FILE SAVE WARNING MODAL */}
+      {fileToSave && (
+        <ServerSaveWarningModal
+          isOpen={saveModalOpen || !!fileToSave}
+          onClose={() => { setSaveModalOpen(false); setFileToSave(null); }}
+          fileName={fileToSave.name}
+          fileType={fileToSave.type}
+          rawContent={fileToSave.content}
+          userId={user?.id || 'anonymous'}
+          onSuccess={() => setSidebarRefresh((prev) => prev + 1)}
+        />
+      )}
 
-      {/* Developer Credits Footer (Hidden in Light Mode or if toggled off) */}
-      {workspaceMode === 'full' && showFooter && <Footer />}
+      {/* LOAD SERVER COLLECTION OVERRIDE CONFIRMATION MODAL (PORTAL) */}
+      {pendingServerFileToLoad && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-amber-500/40 bg-[#0f172a] p-6 shadow-2xl space-y-4 text-left">
+            <div className="flex items-center space-x-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-white">Load Server Collection</h3>
+                <p className="text-xs text-slate-400 truncate max-w-[220px]">{pendingServerFileToLoad.fileName}</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              How would you like to load server file <code className="text-amber-300 font-bold">{pendingServerFileToLoad.fileName}</code> into your workspace?
+            </p>
+
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => executeLoadServerFile('replace')}
+                className="w-full flex items-center space-x-2 rounded-xl bg-indigo-600 p-3 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 transition-all"
+              >
+                <RotateCcw className="h-4 w-4 text-indigo-200" />
+                <span>🔄 Replace & Override Active Workspace</span>
+              </button>
+
+              <button
+                onClick={() => executeLoadServerFile('sidebyside')}
+                className="w-full flex items-center space-x-2 rounded-xl border border-amber-700 bg-amber-950/60 p-3 text-xs font-bold text-amber-200 hover:bg-amber-900 transition-all"
+              >
+                <Cloud className="h-4 w-4 text-amber-400" />
+                <span>☁️ Load Side-by-Side (Keep Dual Local & Server Tabs)</span>
+              </button>
+            </div>
+
+            <div className="flex items-center justify-end pt-2">
+              <button
+                onClick={() => setPendingServerFileToLoad(null)}
+                className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
     </div>
   );
 }
