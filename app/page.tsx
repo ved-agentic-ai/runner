@@ -24,6 +24,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { Header } from '@/components/Header';
+import { ReleasePipelineBar } from '@/components/ReleasePipelineBar';
 import { TreeView } from '@/components/TreeView';
 import { EndpointDetailSheet } from '@/components/EndpointDetailSheet';
 import { RunnerDashboard } from '@/components/RunnerDashboard';
@@ -136,6 +137,7 @@ export default function Home() {
 
   const { 
     workspaceMode, 
+    releaseEnvironment,
     showStepByStepGuide, 
     showCapabilitiesGrid,
     showTrafficSimulator,
@@ -378,6 +380,9 @@ export default function Home() {
       {/* Global Application Navigation Header */}
       <Header />
 
+      {/* 3-Stage Release Pipeline Environment Bar (DEV, PREVIEW, LIVE) */}
+      <ReleasePipelineBar />
+
       {/* Environment Variable Upload Notification Toast */}
       {envNotification && (
         <div className="fixed top-20 right-6 z-[99999] flex items-center space-x-2 rounded-2xl border border-emerald-500/40 bg-slate-900/95 p-4 text-xs font-bold text-emerald-300 shadow-2xl backdrop-blur-md animate-in slide-in-from-top-5">
@@ -388,6 +393,84 @@ export default function Home() {
 
       {/* MAIN APPLICATION CONTAINER */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 space-y-6">
+        
+        {/* RELEASE ENVIRONMENT STATUS BANNER */}
+        {releaseEnvironment === 'dev' && (
+          <div className="rounded-2xl border border-amber-500/40 bg-amber-950/30 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs backdrop-blur-md animate-in fade-in">
+            <div className="flex items-center space-x-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">🛠️</span>
+              <div>
+                <h4 className="font-extrabold text-amber-200 text-xs flex items-center gap-2">
+                  1. DEVELOPMENT SANDBOX MODE (DEV)
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-mono">Isolated Sandbox</span>
+                </h4>
+                <p className="text-[11px] text-amber-300/80 mt-0.5">
+                  All active edits, test runs, and custom assertions are in development mode. Stable production version is protected from ongoing changes.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => useAdminStore.getState().promoteEnvironment('preview')}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs shadow-md whitespace-nowrap self-start sm:self-auto transition-all"
+            >
+              🚀 Push to Preview Staging
+            </button>
+          </div>
+        )}
+
+        {releaseEnvironment === 'preview' && (
+          <div className="rounded-2xl border border-purple-500/40 bg-purple-950/30 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs backdrop-blur-md animate-in fade-in">
+            <div className="flex items-center space-x-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40">👁️</span>
+              <div>
+                <h4 className="font-extrabold text-purple-200 text-xs flex items-center gap-2">
+                  2. PREVIEW STAGING MODE (PREVIEW)
+                  <span className="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2 py-0.5 rounded-full font-mono">Pre-Live Verification</span>
+                </h4>
+                <p className="text-[11px] text-purple-300/80 mt-0.5">
+                  Pre-live verification view. Test endpoints, review UI telemetry, and inspect changes before promoting to Live production.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 self-start sm:self-auto">
+              <button
+                onClick={() => useAdminStore.getState().rollbackEnvironment('dev')}
+                className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-800"
+              >
+                🔙 Return to DEV
+              </button>
+              <button
+                onClick={() => useAdminStore.getState().promoteEnvironment('live')}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md whitespace-nowrap transition-all"
+              >
+                ✅ Promote to Live Production
+              </button>
+            </div>
+          </div>
+        )}
+
+        {releaseEnvironment === 'live' && (
+          <div className="rounded-2xl border border-emerald-500/40 bg-emerald-950/30 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs backdrop-blur-md animate-in fade-in">
+            <div className="flex items-center space-x-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40">🌟</span>
+              <div>
+                <h4 className="font-extrabold text-emerald-200 text-xs flex items-center gap-2">
+                  3. LIVE PRODUCTION MODE (LIVE)
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-mono">Stable Production</span>
+                </h4>
+                <p className="text-[11px] text-emerald-300/80 mt-0.5">
+                  Official stable release view active for end-users. All workspace changes were verified in Preview before release.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => useAdminStore.getState().setReleaseEnvironment('dev')}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white font-bold text-xs whitespace-nowrap self-start sm:self-auto transition-all"
+            >
+              🛠️ Open Sandbox in DEV Mode
+            </button>
+          </div>
+        )}
         
         {/* TOP LEVEL NAVIGATION WORKSPACE TABS */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-900 pb-3">

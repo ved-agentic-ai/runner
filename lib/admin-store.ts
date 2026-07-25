@@ -2,6 +2,16 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export interface AdminSettings {
+  // 3-Stage Release Pipeline Environment Modes
+  releaseEnvironment: 'dev' | 'preview' | 'live';
+  devSnapshotAt: number | null;
+  previewSnapshotAt: number | null;
+  liveSnapshotAt: number | null;
+  
+  setReleaseEnvironment: (env: 'dev' | 'preview' | 'live') => void;
+  promoteEnvironment: (target: 'preview' | 'live') => void;
+  rollbackEnvironment: (target: 'dev' | 'preview') => void;
+
   // Workspace Presentation Mode: 'full' (owner admin mode with all features) vs 'light' (clean public visitor mode)
   workspaceMode: 'full' | 'light';
 
@@ -72,6 +82,37 @@ export interface AdminSettings {
 export const useAdminStore = create<AdminSettings>()(
   persist(
     (set, get) => ({
+      // 3-Stage Release Pipeline Environment Default State
+      releaseEnvironment: 'dev',
+      devSnapshotAt: Date.now(),
+      previewSnapshotAt: null,
+      liveSnapshotAt: null,
+
+      setReleaseEnvironment: (env) => set({ releaseEnvironment: env }),
+
+      promoteEnvironment: (target) => {
+        const now = Date.now();
+        if (target === 'preview') {
+          set({ 
+            releaseEnvironment: 'preview', 
+            previewSnapshotAt: now 
+          });
+        } else if (target === 'live') {
+          set({ 
+            releaseEnvironment: 'live', 
+            liveSnapshotAt: now 
+          });
+        }
+      },
+
+      rollbackEnvironment: (target) => {
+        if (target === 'dev') {
+          set({ releaseEnvironment: 'dev' });
+        } else if (target === 'preview') {
+          set({ releaseEnvironment: 'preview' });
+        }
+      },
+
       // Default to 'light' (clean public visitor view with architecture/vault tabs hidden)
       workspaceMode: 'light',
       disclaimerMode: 'modal',
