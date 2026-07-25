@@ -22,6 +22,7 @@ import { PricingCheckoutModal } from './PricingCheckoutModal';
 import { UserAuthModal } from './UserAuthModal';
 import { AiWorkspaceCopilotModal } from './AiWorkspaceCopilotModal';
 import { useAdminStore } from '@/lib/admin-store';
+import { useUserAuthStore } from '@/lib/user-auth-store';
 
 export const Header: React.FC = () => {
   const { 
@@ -267,16 +268,22 @@ export const Header: React.FC = () => {
               <span className="text-[10px] uppercase font-bold text-amber-400 block tracking-wider">What will be cleared on Reset:</span>
               <ul className="space-y-1.5 text-slate-300 text-[11px]">
                 <li className="flex items-center space-x-2">
-                  <span className="text-red-400">✓</span> <span>📂 Local API Collection tree & endpoints</span>
+                  <span className="text-red-400">✓</span> <span>📂 Local API Collection tree & endpoints in memory</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <span className="text-red-400">✓</span> <span>☁️ Server Cloud workspace & side-by-side tabs</span>
+                  <span className="text-red-400">✓</span> <span>☁️ Server Cloud workspace & side-by-side hierarchy tabs</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-red-400">✓</span> <span>💾 Saved server collection JSONs & .env files</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-red-400">✓</span> <span>⚡ Server Storage Quota (Resets to 0.00 KB used / 1.00 MB free)</span>
                 </li>
                 <li className="flex items-center space-x-2">
                   <span className="text-red-400">✓</span> <span>🔑 Environment variables & key-value pairs</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <span className="text-red-400">✓</span> <span>📊 Execution telemetry, pass/fail results & logs</span>
+                  <span className="text-red-400">✓</span> <span>📊 Execution telemetry, pass/fail results & SLA latency stats</span>
                 </li>
                 <li className="flex items-center space-x-2">
                   <span className="text-red-400">✓</span> <span>🤖 AI test suites & custom assertion rules</span>
@@ -292,13 +299,27 @@ export const Header: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   resetFullWorkspace();
                   setShowResetConfirmModal(false);
+                  
+                  // Delete all server files and reset quota
+                  const currentUser = useUserAuthStore.getState().user;
+                  if (currentUser?.id) {
+                    try {
+                      const res = await fetch(`/api/user/files?userId=${currentUser.id}`);
+                      const data = await res.json();
+                      if (data.files && Array.isArray(data.files)) {
+                        for (const f of data.files) {
+                          await fetch(`/api/user/files?fileId=${f.id}&userId=${currentUser.id}`, { method: 'DELETE' });
+                        }
+                      }
+                    } catch (e) {}
+                  }
                 }}
                 className="rounded-xl bg-red-600 px-4 py-2 text-xs font-extrabold text-white shadow-lg shadow-red-600/30 hover:bg-red-500 transition-all"
               >
-                🔄 Yes, Reset Full Workspace
+                🔄 Yes, Reset Full Workspace & Server Storage
               </button>
             </div>
           </div>

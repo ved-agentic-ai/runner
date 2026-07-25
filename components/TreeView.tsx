@@ -154,24 +154,128 @@ export const TreeView: React.FC = () => {
     }
   };
 
+  // Recursive tree filtering for both folder-level search and endpoint-level matching
+  function filterNodesRecursively(
+    nodes: TreeNode[],
+    query: string
+  ): { filtered: TreeNode[]; matchedFolderIds: Set<string> } {
+    const q = query.trim().toLowerCase();
+    if (!q) return { filtered: nodes, matchedFolderIds: new Set() };
+
+    const matchedFolderIds = new Set<string>();
+
+    function walk(list: TreeNode[], parentFolderNameMatched = false): TreeNode[] {
+      const result: TreeNode[] = [];
+
+      list.forEach((node) => {
+        if (node.type === 'folder') {
+          const folderNameMatches = node.name.toLowerCase().includes(q);
+          const childrenMatched = walk(node.children || [], parentFolderNameMatched || folderNameMatches);
+
+          if (childrenMatched.length > 0 || folderNameMatches) {
+            matchedFolderIds.add(node.id);
+            result.push({
+              ...node,
+              children: childrenMatched
+            });
+          }
+        } else {
+          const nameMatch = node.name.toLowerCase().includes(q);
+          const methodMatch = node.method?.toLowerCase().includes(q);
+          const urlMatch = node.url?.toLowerCase().includes(q);
+
+          if (nameMatch || methodMatch || urlMatch || parentFolderNameMatched) {
+            result.push(node);
+          }
+        }
+      });
+
+      return result;
+    }
+
+    return { filtered: walk(nodes), matchedFolderIds };
+  }
+
+  const { filtered: displayNodes, matchedFolderIds } = filterNodesRecursively(activeNodes, searchQuery);
+
+  function countEndpoints(nodes: TreeNode[]): number {
+    let count = 0;
+    nodes.forEach((n) => {
+      if (n.type === 'endpoint') count += 1;
+      if (n.children) count += countEndpoints(n.children);
+    });
+    return count;
+  }
+
+  const matchedEndpointsCount = countEndpoints(displayNodes);
+  const totalEndpointsCount = countEndpoints(activeNodes);
+
+  function countSelectedEndpointsInTree(nodes: TreeNode[]): number {
+    let count = 0;
+    const selectedSet = new Set(selectedNodeIds);
+    function walk(list: TreeNode[]) {
+      list.forEach((n) => {
+        if (n.type === 'endpoint') {
+          if (selectedSet.has(n.id)) count++;
+        }
+        if (n.children) walk(n.children);
+      });
+    }
+    walk(nodes);
+    return count;
+  }
+
+  const selectedEndpointsInTreeCount = countSelectedEndpointsInTree(activeNodes);
+  const selectedMatchedEndpointsCount = countSelectedEndpointsInTree(displayNodes);
+
+  const handleSelectAll = () => {
+    if (searchQuery.trim()) {
+      const idsToSelect: string[] = [];
+      function collectIds(nodes: TreeNode[]) {
+        nodes.forEach((n) => {
+          idsToSelect.push(n.id);
+          if (n.children) collectIds(n.children);
+        });
+      }
+      collectIds(displayNodes);
+      const newSet = new Set([...selectedNodeIds, ...idsToSelect]);
+      useRunnerStore.setState({ selectedNodeIds: Array.from(newSet) });
+    } else {
+      selectAllNodes();
+    }
+  };
+
+  const handleDeselectAll = () => {
+    if (searchQuery.trim()) {
+      const idsToRemove = new Set<string>();
+      function collectIds(nodes: TreeNode[]) {
+        nodes.forEach((n) => {
+          idsToRemove.add(n.id);
+          if (n.children) collectIds(n.children);
+        });
+      }
+      collectIds(displayNodes);
+      const nextSelected = selectedNodeIds.filter((id) => !idsToRemove.has(id));
+      useRunnerStore.setState({ selectedNodeIds: nextSelected });
+    } else {
+      deselectAllNodes();
+    }
+  };
+
+  // Auto-expand matched folders when searching
+  useEffect(() => {
+    if (searchQuery && matchedFolderIds.size > 0) {
+      const toExpand: Record<string, boolean> = {};
+      matchedFolderIds.forEach((id) => { toExpand[id] = true; });
+      setExpandedFolders((prev) => ({ ...prev, ...toExpand }));
+    }
+  }, [searchQuery, matchedFolderIds.size]);
+
   const renderNode = (node: TreeNode, depth = 0) => {
     const isFolder = node.type === 'folder';
     const isExpanded = expandedFolders[node.id] ?? true;
     const checkState = getNodeCheckState(node);
     const result = executionResults[node.id];
-
-    // Filter Match Check
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const nameMatch = node.name.toLowerCase().includes(query);
-      const methodMatch = node.method?.toLowerCase().includes(query);
-      const urlMatch = node.url?.toLowerCase().includes(query);
-
-      if (!isFolder && !nameMatch && !methodMatch && !urlMatch) {
-        return null;
-      }
-    }
-
     const isSelectedDetail = selectedEndpointIdForDetail === node.id;
 
     return (
@@ -218,44 +322,35 @@ export const TreeView: React.FC = () => {
             )}
           </button>
 
-          {/* Folder / Endpoint Icon */}
-          <div 
-            onClick={() => isFolder ? toggleExpand(node.id) : setSelectedEndpointIdForDetail(node.id)}
-            className="flex items-center space-x-2 flex-1 cursor-pointer min-w-0"
-          >
-            {isFolder ? (
-              isExpanded ? (
+          {/* Node Icon & Method Badge */}
+          {isFolder ? (
+            <div 
+              onClick={() => toggleExpand(node.id)}
+              className="flex items-center space-x-2 cursor-pointer flex-1 min-w-0"
+            >
+              {isExpanded ? (
                 <FolderOpen className="h-4 w-4 text-amber-400 shrink-0" />
               ) : (
-                <Folder className="h-4 w-4 text-amber-400 shrink-0" />
-              )
-            ) : (
-              <FileText className="h-4 w-4 text-emerald-400 shrink-0" />
-            )}
-
-            {/* HTTP Method Badge (If endpoint) */}
-            {node.method && (
-              <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold border uppercase shrink-0 ${getMethodBadgeClass(node.method)}`}>
-                {node.method}
+                <Folder className="h-4 w-4 text-amber-500/80 shrink-0" />
+              )}
+              <span className="font-semibold text-slate-200 truncate">{node.name}</span>
+            </div>
+          ) : (
+            <div 
+              onClick={() => setSelectedEndpointIdForDetail(node.id)}
+              className="flex items-center space-x-2 cursor-pointer flex-1 min-w-0"
+              title="Click to view detailed request spec"
+            >
+              <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-extrabold uppercase shrink-0 ${getMethodBadgeClass(node.method)}`}>
+                {node.method || 'GET'}
               </span>
-            )}
+              <span className="text-slate-300 truncate hover:text-white transition-colors">{node.name}</span>
+            </div>
+          )}
 
-            {/* Title / Name */}
-            <span className={`text-xs font-semibold font-sans whitespace-nowrap ${isSelectedDetail ? 'text-amber-200 font-bold' : 'text-slate-200'}`}>
-              {node.name}
-            </span>
-
-            {/* Endpoint URL Snippet */}
-            {!isFolder && node.url && (
-              <span className="text-[10px] text-slate-500 font-mono whitespace-nowrap">
-                {node.url}
-              </span>
-            )}
-          </div>
-
-          {/* Execution Result Status Pill */}
+          {/* Execution Result Status Badge */}
           {result && (
-            <div className="shrink-0 pl-2">
+            <div className="shrink-0 ml-auto pl-2">
               {result.status === 'passed' && (
                 <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/60">
                   <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Pass
@@ -307,49 +402,68 @@ export const TreeView: React.FC = () => {
       )}
 
       {/* Search & Collapse Bar Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 gap-2">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-          Collection Hierarchy
-        </h3>
+      <div className="space-y-2 pb-3 border-b border-slate-800/80">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center space-x-2 min-w-0">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-300 shrink-0">
+              Collection Hierarchy
+            </span>
+            {searchQuery.trim() ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-800/80 font-mono text-[10px] font-bold whitespace-nowrap animate-in fade-in truncate">
+                🔍 {matchedEndpointsCount} matches ({selectedMatchedEndpointsCount} selected)
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800/80 font-mono text-[10px] font-bold whitespace-nowrap shrink-0">
+                ☑️ {selectedEndpointsInTreeCount} / {totalEndpointsCount} selected
+              </span>
+            )}
+          </div>
 
-        <div className="flex items-center space-x-2 text-[11px]">
-          {/* 1-Click Collapse All */}
-          <button
-            onClick={collapseAllFolders}
-            className="inline-flex items-center space-x-1 text-slate-400 hover:text-amber-400 font-medium transition-colors"
-            title="Collapse All Folders"
-          >
-            <ChevronsUp className="h-3.5 w-3.5 text-amber-400" />
-            <span>Collapse</span>
-          </button>
-          
-          <span className="text-slate-600">|</span>
+          <div className="flex items-center space-x-1.5 text-[11px] font-mono shrink-0">
+            {/* 1-Click Collapse All */}
+            <button
+              type="button"
+              onClick={collapseAllFolders}
+              className="inline-flex items-center space-x-1 text-slate-400 hover:text-amber-400 font-semibold transition-colors"
+              title="Collapse All Folders"
+            >
+              <ChevronsUp className="h-3.5 w-3.5 text-amber-400" />
+              <span>Collapse</span>
+            </button>
+            
+            <span className="text-slate-700">|</span>
 
-          {/* 1-Click Expand All */}
-          <button
-            onClick={expandAllFolders}
-            className="inline-flex items-center space-x-1 text-slate-400 hover:text-indigo-400 font-medium transition-colors"
-            title="Expand All Folders"
-          >
-            <ChevronsDown className="h-3.5 w-3.5 text-indigo-400" />
-            <span>Expand</span>
-          </button>
+            {/* 1-Click Expand All */}
+            <button
+              type="button"
+              onClick={expandAllFolders}
+              className="inline-flex items-center space-x-1 text-slate-400 hover:text-indigo-400 font-semibold transition-colors"
+              title="Expand All Folders"
+            >
+              <ChevronsDown className="h-3.5 w-3.5 text-indigo-400" />
+              <span>Expand</span>
+            </button>
 
-          <span className="text-slate-600">|</span>
+            <span className="text-slate-700">|</span>
 
-          <button
-            onClick={selectAllNodes}
-            className="text-indigo-400 hover:underline font-medium"
-          >
-            All
-          </button>
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className="text-indigo-400 hover:text-indigo-300 font-bold hover:underline"
+              title={searchQuery.trim() ? 'Select all matching search endpoints' : 'Select all endpoints'}
+            >
+              All
+            </button>
 
-          <button
-            onClick={deselectAllNodes}
-            className="text-slate-400 hover:underline font-medium"
-          >
-            None
-          </button>
+            <button
+              type="button"
+              onClick={handleDeselectAll}
+              className="text-slate-400 hover:text-slate-200 font-bold hover:underline"
+              title={searchQuery.trim() ? 'Deselect all matching search endpoints' : 'Deselect all endpoints'}
+            >
+              None
+            </button>
+          </div>
         </div>
       </div>
 
@@ -375,9 +489,14 @@ export const TreeView: React.FC = () => {
               Upload a Postman Collection JSON above.
             </p>
           </div>
+        ) : displayNodes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center text-slate-500 space-y-1">
+            <p className="text-xs font-bold text-amber-400">No matching endpoints found</p>
+            <p className="text-[11px] text-slate-600">No endpoints or folders match "{searchQuery}"</p>
+          </div>
         ) : (
           <div className="min-w-max">
-            {activeNodes.map((node) => renderNode(node, 0))}
+            {displayNodes.map((node) => renderNode(node, 0))}
           </div>
         )}
       </div>

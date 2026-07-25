@@ -51,6 +51,8 @@ export interface AdminSettings {
 
   // Security & MFA Gate
   mfaEnabled: boolean;
+  mfaForEnvComparison: boolean;
+  setMfaForEnvComparison: (enabled: boolean) => void;
   mfaSecret: string;
   isMfaAuthenticated: boolean;
   protectedSections: Record<string, boolean>;
@@ -145,6 +147,8 @@ export const useAdminStore = create<AdminSettings>()(
       memoryResetPolicy: 'retain',
 
       mfaEnabled: true,
+      mfaForEnvComparison: true,
+      setMfaForEnvComparison: (enabled) => set({ mfaForEnvComparison: enabled }),
       mfaSecret: 'GOD3PU4Z4UWCLZFHVJ6FERNYCZ6UTVZK',
       isMfaAuthenticated: false,
       protectedSections: {

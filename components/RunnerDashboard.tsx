@@ -23,6 +23,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
+import { TreeNode } from '@/lib/types';
 import { EndpointDetailSheet } from './EndpointDetailSheet';
 
 interface RunnerDashboardProps {
@@ -38,10 +39,63 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
     runSelectedEndpoints, 
     clearResults,
     selectedNodeIds,
+    rootNodes,
+    serverRootNodes,
+    activeWorkspaceSource,
+    flatEndpointMap,
+    searchQuery,
     filterStatus,
     setFilterStatus,
     setSelectedEndpointIdForDetail
   } = useRunnerStore();
+
+  const activeNodes = (activeWorkspaceSource === 'server' && serverRootNodes.length > 0) || (rootNodes.length === 0 && serverRootNodes.length > 0) 
+    ? serverRootNodes 
+    : rootNodes;
+
+  const selectedEndpointCount = useMemo(() => {
+    const selectedSet = new Set(selectedNodeIds);
+    const q = searchQuery.trim().toLowerCase();
+    let count = 0;
+
+    function countSelectedEndpoints(nodes: TreeNode[], parentFolderMatched = false) {
+      nodes.forEach((node) => {
+        if (node.type === 'folder') {
+          const folderMatches = node.name.toLowerCase().includes(q);
+          if (node.children) {
+            countSelectedEndpoints(node.children, parentFolderMatched || folderMatches);
+          }
+        } else {
+          if (selectedSet.has(node.id)) {
+            if (!q) {
+              count++;
+            } else {
+              const nameMatch = node.name.toLowerCase().includes(q);
+              const methodMatch = node.method?.toLowerCase().includes(q);
+              const urlMatch = node.url?.toLowerCase().includes(q);
+              if (nameMatch || methodMatch || urlMatch || parentFolderMatched) {
+                count++;
+              }
+            }
+          }
+        }
+      });
+    }
+
+    if (activeNodes && activeNodes.length > 0) {
+      countSelectedEndpoints(activeNodes, false);
+    } else if (flatEndpointMap && flatEndpointMap.size > 0) {
+      flatEndpointMap.forEach((node, id) => {
+        if (selectedSet.has(id) && (node.type === 'endpoint' || !node.children)) {
+          if (!q || node.name.toLowerCase().includes(q) || node.url?.toLowerCase().includes(q)) {
+            count++;
+          }
+        }
+      });
+    }
+
+    return count;
+  }, [selectedNodeIds, activeNodes, flatEndpointMap, searchQuery]);
 
   const [resultsPanelCollapsed, setResultsPanelCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState<'flat' | 'status' | 'reason'>('flat');
@@ -284,7 +338,7 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
       </div>
 
       {/* KPI METRIC TILES */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Pass Rate */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-1 backdrop-blur-md">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
@@ -334,7 +388,7 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
             <Layers className="h-4 w-4 text-purple-400" />
           </div>
           <div className="flex items-baseline space-x-2">
-            <span className="text-xl font-extrabold text-white font-mono">{selectedNodeIds.length}</span>
+            <span className="text-xl font-extrabold text-white font-mono">{selectedEndpointCount}</span>
             <span className="text-[11px] text-slate-400 font-semibold">
               Selected for Run
             </span>
@@ -361,12 +415,12 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
       {/* Execution Results Section */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 backdrop-blur-md flex-1 flex flex-col min-h-0">
         
-        {/* Controls Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-800 gap-3">
-          <div className="flex flex-wrap items-center gap-2">
+        {/* Controls Bar with Symmetrical Tab Alignment */}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between pb-3.5 border-b border-slate-800 gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             
             {/* Filter Status Tabs */}
-            <div className="flex items-center space-x-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+            <div className="inline-flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800 text-xs shadow-inner">
               {[
                 { id: 'all', label: 'All Results' },
                 { id: 'passed', label: `Passed (${runSummary.passed})` },
@@ -376,10 +430,10 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
                 <button
                   key={tab.id}
                   onClick={() => setFilterStatus(tab.id as any)}
-                  className={`rounded-lg px-3 py-1 text-xs font-medium transition-all ${
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                     filterStatus === tab.id
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                   }`}
                 >
                   {tab.label}
@@ -387,12 +441,14 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
               ))}
             </div>
 
+            <div className="hidden sm:block h-6 w-px bg-slate-800" />
+
             {/* View Mode Grouping Toggles */}
-            <div className="flex items-center space-x-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+            <div className="inline-flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800 text-xs shadow-inner">
               <button
                 onClick={() => setViewMode('flat')}
-                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
-                  viewMode === 'flat' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'flat' ? 'bg-slate-800 text-white shadow-sm border border-slate-700' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 Flat List
@@ -400,39 +456,39 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
 
               <button
                 onClick={() => setViewMode('status')}
-                className={`inline-flex items-center space-x-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
-                  viewMode === 'status' ? 'bg-purple-950 text-purple-300 border border-purple-700 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                className={`inline-flex items-center space-x-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'status' ? 'bg-purple-950 text-purple-200 border border-purple-700 shadow-sm' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <ListFilter className="h-3 w-3 text-purple-400" />
+                <ListFilter className="h-3.5 w-3.5 text-purple-400" />
                 <span>By Status</span>
               </button>
 
               <button
                 onClick={() => setViewMode('reason')}
-                className={`inline-flex items-center space-x-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
-                  viewMode === 'reason' ? 'bg-red-950 text-red-300 border border-red-700 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                className={`inline-flex items-center space-x-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'reason' ? 'bg-red-950 text-red-200 border border-red-700 shadow-sm' : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title="Group failed requests by their specific root cause / error reason"
               >
-                <Flame className="h-3 w-3 text-red-400" />
-                <span>🔥 By Failure Reason</span>
+                <Flame className="h-3.5 w-3.5 text-red-400" />
+                <span>By Failure Reason</span>
               </button>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
-            <span className="text-xs text-slate-400">
+          <div className="flex items-center space-x-3 shrink-0 self-end xl:self-center">
+            <span className="text-xs text-slate-400 font-mono">
               Showing {sortedResults.length} endpoint executions
             </span>
 
             {/* Collapse Results Panel Button */}
             <button
               onClick={() => setResultsPanelCollapsed(!resultsPanelCollapsed)}
-              className="text-slate-400 hover:text-white p-1 rounded-lg border border-slate-800 bg-slate-950"
+              className="text-slate-400 hover:text-white p-1.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 transition-all cursor-pointer"
               title={resultsPanelCollapsed ? 'Expand Results' : 'Collapse Results'}
             >
-              {resultsPanelCollapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+              {resultsPanelCollapsed ? <Maximize2 className="h-4 w-4 text-indigo-400" /> : <Minimize2 className="h-4 w-4 text-indigo-400" />}
             </button>
           </div>
         </div>

@@ -716,6 +716,7 @@ export const AdminControlPanelModal: React.FC = () => {
                       { key: 'showCustomRulesVault', label: '🪄 Custom AI Rules Vault (Tab 3)' },
                       { key: 'showDocumentation', label: '☁️ AWS System Architecture (Tab 4)' },
                       { key: 'showFooter', label: '📝 Footer Developer Credits & Copyright Panel' },
+                      { key: 'mfaForEnvComparison', label: '🔒 Require MFA OTP to Compare Sensitive Environment Secrets' },
                     ].map((item) => {
                       const isVisible = !!(useAdminStore.getState() as any)[item.key];
                       return (
@@ -829,7 +830,8 @@ export const AdminControlPanelModal: React.FC = () => {
                     <button
                       onClick={() => {
                         resetDemoQuota();
-                        alert('App Demo Key Quota & 5-Hour Cooldown reset successfully!');
+                        setSaveStatus('✅ App Demo Key Quota & 5-Hour Cooldown reset successfully!');
+                        setTimeout(() => setSaveStatus(null), 3500);
                       }}
                       className="inline-flex items-center space-x-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-amber-500 transition-all shrink-0"
                     >

@@ -10,7 +10,7 @@ export const PciComplianceBanner: React.FC = () => {
   if (!showPciCompliance) return null;
 
   return (
-    <div className="w-full rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-3 text-slate-300 animate-in fade-in">
+    <div className="w-full max-w-7xl mx-auto rounded-2xl border border-emerald-500/30 bg-emerald-950/30 p-4 text-slate-300 shadow-xl my-6 animate-in fade-in">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
         
         <div className="flex items-center space-x-3">

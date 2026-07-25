@@ -21,7 +21,10 @@ import {
   AlertTriangle,
   Key,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  CheckSquare,
+  Square,
+  Search
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { ReleasePipelineBar } from '@/components/ReleasePipelineBar';
@@ -33,95 +36,20 @@ import { CustomUseCasesVault } from '@/components/CustomUseCasesVault';
 import { PresentationDeckModal } from '@/components/PresentationDeckModal';
 import { UserWorkspaceSidebar } from '@/components/UserWorkspaceSidebar';
 import { ServerSaveWarningModal } from '@/components/ServerSaveWarningModal';
+import { Footer } from '@/components/Footer';
+import { AppDocumentationSection } from '@/components/AppDocumentationSection';
+import { PciComplianceBanner } from '@/components/PciComplianceBanner';
+import { PrivacyBanner } from '@/components/PrivacyBanner';
+import { StepByStepClickGuide } from '@/components/StepByStepClickGuide';
+import { MfaPromptModal } from '@/components/MfaPromptModal';
+import { CustomDialogModal } from '@/components/CustomDialogModal';
 
 import { useRunnerStore } from '@/lib/store';
 import { useAdminStore } from '@/lib/admin-store';
 import { useUserAuthStore } from '@/lib/user-auth-store';
-import { parsePostmanCollection, parsePostmanEnvironment, formatPostmanUrl } from '@/lib/postman-parser';
+import { parsePostmanCollection, parsePostmanEnvironment, parseEnvironmentContent, formatPostmanUrl } from '@/lib/postman-parser';
+import { parseAndNormalizeServerCollection } from '@/lib/collection-parser';
 import { TreeNode, HttpMethod } from '@/lib/types';
-
-// Helper function to normalize any collection format (Postman v2 JSON or saved Node Tree) into valid TreeNodes
-function parseAndNormalizeServerCollection(parsed: any, fileName: string): {
-  collectionName: string;
-  rootNodes: TreeNode[];
-  flatEndpointMap: Map<string, TreeNode>;
-  allNodeIds: string[];
-} {
-  const flatEndpointMap = new Map<string, TreeNode>();
-  const allNodeIds: string[] = [];
-
-  // Case 1: Postman collection schema with .info or .item
-  if (parsed.info || parsed.item) {
-    const { rootNodes, flatEndpointMap: parsedMap } = parsePostmanCollection(parsed);
-    function collectIds(nodes: TreeNode[]) {
-      nodes.forEach((n) => {
-        allNodeIds.push(n.id);
-        if (n.children) collectIds(n.children);
-      });
-    }
-    collectIds(rootNodes);
-    return {
-      collectionName: parsed.name || parsed.info?.name || fileName,
-      rootNodes,
-      flatEndpointMap: parsedMap,
-      allNodeIds
-    };
-  }
-
-  // Case 2: Custom node tree array or object with .nodes
-  const rawNodes = Array.isArray(parsed) ? parsed : (parsed.nodes || []);
-
-  function normalizeNodes(nodes: any[], parentId: string | null = null, pathPrefix: string = ''): TreeNode[] {
-    if (!Array.isArray(nodes)) return [];
-    return nodes.map((item, idx) => {
-      const isFolder = item.type === 'folder' || Array.isArray(item.children) || Array.isArray(item.item);
-      const uniqueSuffix = item.name ? item.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 12) : idx;
-      const nodeId = `${parentId ? parentId + '-' : 'node-'}${idx + 1}-${uniqueSuffix}-${isFolder ? 'folder' : 'endpoint'}`;
-      const currentPath = pathPrefix ? `${pathPrefix} / ${item.name}` : (item.name || 'Unnamed');
-
-      allNodeIds.push(nodeId);
-
-      if (isFolder) {
-        const rawChildren = item.children || item.item || [];
-        const children = normalizeNodes(rawChildren, nodeId, currentPath);
-        return {
-          id: nodeId,
-          name: item.name || 'Folder',
-          type: 'folder',
-          description: item.description,
-          children,
-          parentId,
-          path: currentPath,
-        };
-      } else {
-        const method = (item.method?.toUpperCase() as HttpMethod) || 'GET';
-        const url = item.url || (item.request ? formatPostmanUrl(item.request.url) : '');
-        const node: TreeNode = {
-          id: nodeId,
-          name: item.name || 'Endpoint',
-          type: 'endpoint',
-          method,
-          url,
-          description: item.description,
-          request: item.request,
-          parentId,
-          path: currentPath,
-        };
-        flatEndpointMap.set(nodeId, node);
-        return node;
-      }
-    });
-  }
-
-  const rootNodes = normalizeNodes(rawNodes);
-
-  return {
-    collectionName: parsed.name || fileName,
-    rootNodes,
-    flatEndpointMap,
-    allNodeIds
-  };
-}
 
 export default function Home() {
   const { 
@@ -137,21 +65,72 @@ export default function Home() {
 
   const { 
     workspaceMode, 
+    setWorkspaceMode,
     releaseEnvironment,
     showStepByStepGuide, 
     showCapabilitiesGrid,
+    showPlatformOverviewBanner,
     showTrafficSimulator,
     showCustomRulesVault,
     showDocumentation,
+    showFooter,
+    showPciCompliance,
+    showPrivacyBanner,
+    mfaForEnvComparison,
+    isMfaAuthenticated,
     recordPageView
   } = useAdminStore();
 
   const { user, isAuthenticated } = useUserAuthStore();
 
-  const [activeMainTab, setActiveMainTab] = useState<'upload' | 'runner' | 'architecture' | 'vault'>('upload');
+  const [activeMainTab, setActiveMainTab] = useState<'upload' | 'runner' | 'architecture' | 'vault' | 'simulator'>('upload');
   const [fileToSave, setFileToSave] = useState<{ name: string; type: 'collection' | 'env'; content: string } | null>(null);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [sidebarRefresh, setSidebarRefresh] = useState(0);
+
+  // Environment File Comparison Modal state
+  const [envCompareModalOpen, setEnvCompareModalOpen] = useState(false);
+  const [envCompareFile, setEnvCompareFile] = useState<any | null>(null);
+  const [showMfaForCompare, setShowMfaForCompare] = useState(false);
+  const [selectedCompareKeys, setSelectedCompareKeys] = useState<Set<string>>(new Set());
+  const [editedCompareValues, setEditedCompareValues] = useState<Record<string, string>>({});
+  const [expandedCompareRowKey, setExpandedCompareRowKey] = useState<string | null>(null);
+  const [compareSearchQuery, setCompareSearchQuery] = useState('');
+
+  // Custom Interactive Dialog State (Replaces all browser alert calls)
+  const [dialogState, setDialogState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type?: 'error' | 'warning' | 'info' | 'success';
+  }>({ isOpen: false, title: '', message: '', type: 'warning' });
+
+  useEffect(() => {
+    if (envCompareFile) {
+      let serverEnv: Record<string, string> = {};
+      const trimmed = (envCompareFile.content || '').trim();
+      if (trimmed.startsWith('{')) {
+        try {
+          const json = JSON.parse(trimmed);
+          if (json.values && Array.isArray(json.values)) {
+            json.values.forEach((v: any) => { if (v.key) serverEnv[v.key] = String(v.value || ''); });
+          } else {
+            serverEnv = json;
+          }
+        } catch (e) {}
+      } else {
+        trimmed.split('\n').forEach((l: string) => {
+          const eq = l.indexOf('=');
+          if (eq !== -1) {
+            const k = l.substring(0, eq).trim();
+            const v = l.substring(eq + 1).trim();
+            if (k) serverEnv[k] = v;
+          }
+        });
+      }
+      setSelectedCompareKeys(new Set(Object.keys(serverEnv)));
+    }
+  }, [envCompareFile]);
 
   // Sequential Step Flow State in Tab 1
   const [uploadStep, setUploadStep] = useState<'collection' | 'env_optional'>('collection');
@@ -180,7 +159,7 @@ export default function Home() {
             const filtered: TreeNode[] = [];
             for (const n of nodes) {
               if (n.type === 'endpoint') {
-                if (selectedSet.has(n.id)) filtered.push({ ...n });
+                if (selectedSet.has(n.id) || selectedSet.has(n.name)) filtered.push({ ...n });
               } else if (n.type === 'folder' && n.children) {
                 const sub = filterNodes(n.children);
                 if (sub.length > 0) filtered.push({ ...n, children: sub });
@@ -188,30 +167,36 @@ export default function Home() {
             }
             return filtered;
           }
-          loadedRoots = filterNodes(loadedRoots);
+          const filteredRoots = filterNodes(loadedRoots);
+          if (filteredRoots.length > 0) {
+            loadedRoots = filteredRoots;
 
-          // Rebuild map & ids
-          const newMap = new Map<string, TreeNode>();
-          const newIds: string[] = [];
-          function rebuildMap(nodes: TreeNode[]) {
-            nodes.forEach((n) => {
-              newIds.push(n.id);
-              if (n.type === 'endpoint') newMap.set(n.id, n);
-              if (n.children) rebuildMap(n.children);
-            });
+            // Rebuild map & ids
+            const newMap = new Map<string, TreeNode>();
+            const newIds: string[] = [];
+            function rebuildMap(nodes: TreeNode[]) {
+              nodes.forEach((n) => {
+                newIds.push(n.id);
+                if (n.type === 'endpoint') newMap.set(n.id, n);
+                if (n.children) rebuildMap(n.children);
+              });
+            }
+            rebuildMap(loadedRoots);
+            loadedMap = newMap;
+            loadedIds = newIds;
           }
-          rebuildMap(loadedRoots);
-          loadedMap = newMap;
-          loadedIds = newIds;
         }
 
         if (overrideMode === 'replace') {
           useRunnerStore.setState({
             collectionName: loadedName,
             rootNodes: loadedRoots,
+            serverCollectionName: loadedName,
+            serverRootNodes: loadedRoots,
+            serverFlatEndpointMap: loadedMap,
             flatEndpointMap: loadedMap,
             selectedNodeIds: loadedIds,
-            activeWorkspaceSource: 'local',
+            activeWorkspaceSource: 'server',
             executionResults: {},
             generatedTestSuites: {},
             runSummary: {
@@ -255,29 +240,55 @@ export default function Home() {
             }
           });
         }
-        setEnvNotification(`✅ Server Collection "${loadedName}" loaded (${loadedMap.size} endpoints ready)!`);
+        setEnvNotification(`✅ Server Collection "${loadedName}" loaded (${loadedMap.size} selected endpoints ready)!`);
         setTimeout(() => setEnvNotification(null), 4000);
         setActiveMainTab('runner');
       } else {
-        // Environment file loading
-        const lines = fileRecord.content.split('\n');
-        const envObj: Record<string, string> = {};
-        lines.forEach((line: string) => {
-          const eqIdx = line.indexOf('=');
-          if (eqIdx !== -1) {
-            const k = line.substring(0, eqIdx).trim();
-            const v = line.substring(eqIdx + 1).trim();
-            if (k) envObj[k] = v;
-          }
-        });
-        useRunnerStore.setState({ envVariables: { ...useRunnerStore.getState().envVariables, ...envObj } });
-        setEnvNotification(`✅ Environment file "${fileRecord.fileName}" loaded into workspace!`);
-        setTimeout(() => setEnvNotification(null), 4000);
+        // Robust Environment file loading (supports both JSON Postman Env and KEY=VAL formats)
+        let envObj: Record<string, string> = {};
+        const trimmedContent = fileRecord.content.trim();
+        
+        if (trimmedContent.startsWith('{')) {
+          try {
+            const json = JSON.parse(trimmedContent);
+            if (json.values && Array.isArray(json.values)) {
+              json.values.forEach((v: any) => {
+                if (v.key) envObj[v.key] = String(v.value || '');
+              });
+            } else {
+              envObj = json;
+            }
+          } catch (e) {}
+        } else {
+          const lines = trimmedContent.split('\n');
+          lines.forEach((line: string) => {
+            const eqIdx = line.indexOf('=');
+            if (eqIdx !== -1) {
+              const k = line.substring(0, eqIdx).trim();
+              const v = line.substring(eqIdx + 1).trim();
+              if (k) envObj[k] = v;
+            }
+          });
+        }
+
+        if (overrideMode === 'replace') {
+          useRunnerStore.setState({ envVariables: envObj });
+        } else {
+          useRunnerStore.setState({ envVariables: { ...useRunnerStore.getState().envVariables, ...envObj } });
+        }
+
+        setEnvNotification(`✅ Server Environment file "${fileRecord.fileName}" loaded (${Object.keys(envObj).length} keys active in workspace memory)!`);
+        setTimeout(() => setEnvNotification(null), 4500);
         setActiveMainTab('runner');
       }
     } catch (err: any) {
       console.error('Error loading server file into workspace:', err);
-      alert(`Could not parse server file: ${err.message}`);
+      setDialogState({
+        isOpen: true,
+        title: '⚠️ Could Not Load Server File',
+        message: `Could not parse server file: ${err.message}`,
+        type: 'error'
+      });
     }
 
     setPendingServerFileToLoad(null);
@@ -287,7 +298,7 @@ export default function Home() {
     recordPageView();
   }, [recordPageView]);
 
-  // Step 1 Collection Upload Handler -> Moves to Step 2 (Optional Environment Upload)
+  // Step 1 Collection or Environment Upload Handler
   const handleCollectionUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -296,16 +307,39 @@ export default function Home() {
     reader.onload = (event) => {
       try {
         const content = event.target?.result as string;
+
+        // Auto-detect if file is an Environment file (.env or Postman Environment JSON)
+        const { envMap, isEnvFile } = parseEnvironmentContent(content);
+        if (isEnvFile || file.name.endsWith('.env')) {
+          useRunnerStore.setState({ envVariables: { ...useRunnerStore.getState().envVariables, ...envMap } });
+          setEnvNotification(`💡 Environment file "${file.name}" detected & attached to workspace (${Object.keys(envMap).length} variables configured)!`);
+          setTimeout(() => setEnvNotification(null), 4500);
+          setUploadStep('env_optional');
+          e.target.value = '';
+          return;
+        }
+
         const parsed = JSON.parse(content);
         if (parsed.info || parsed.item || parsed.nodes || Array.isArray(parsed)) {
           loadCollection(parsed);
           setUploadStep('env_optional');
         } else {
-          alert('Invalid Postman Collection JSON format.');
+          setDialogState({
+            isOpen: true,
+            title: '⚠️ Unrecognized Collection Schema',
+            message: 'The uploaded file does not match a valid Postman Collection JSON schema (missing "info" or "item" nodes). If this is an environment file, please attach it as an environment file.',
+            type: 'warning'
+          });
         }
       } catch (err) {
-        alert('Could not parse collection file. Please ensure it is valid JSON.');
+        setDialogState({
+          isOpen: true,
+          title: '⚠️ File Parse Error',
+          message: 'Could not parse collection file. Please ensure it is a valid Postman Collection JSON or .env file.',
+          type: 'error'
+        });
       }
+      e.target.value = '';
     };
     reader.readAsText(file);
   };
@@ -324,30 +358,30 @@ export default function Home() {
     reader.onload = (event) => {
       try {
         const content = event.target?.result as string;
-        let envObj: Record<string, string> = {};
+        const { envMap, isEnvFile } = parseEnvironmentContent(content);
 
-        if (file.name.endsWith('.env')) {
-          const lines = content.split('\n');
-          lines.forEach((line) => {
-            const eqIdx = line.indexOf('=');
-            if (eqIdx !== -1) {
-              const k = line.substring(0, eqIdx).trim();
-              const v = line.substring(eqIdx + 1).trim();
-              if (k) envObj[k] = v;
-            }
-          });
+        if (isEnvFile || Object.keys(envMap).length > 0) {
+          useRunnerStore.setState({ envVariables: { ...useRunnerStore.getState().envVariables, ...envMap } });
+          setEnvNotification(`✅ Attached ${Object.keys(envMap).length} environment variables to active workspace!`);
+          setTimeout(() => setEnvNotification(null), 4000);
+          setActiveMainTab('runner');
         } else {
-          const parsed = JSON.parse(content);
-          envObj = parsePostmanEnvironment(parsed);
+          setDialogState({
+            isOpen: true,
+            title: '⚠️ Invalid Environment File',
+            message: 'The uploaded file does not contain valid KEY=VALUE pairs or Postman Environment JSON.',
+            type: 'warning'
+          });
         }
-
-        useRunnerStore.setState({ envVariables: { ...envVariables, ...envObj } });
-        setEnvNotification(`✅ Attached ${Object.keys(envObj).length} environment variables to workspace!`);
-        setTimeout(() => setEnvNotification(null), 4000);
-        setActiveMainTab('runner');
       } catch (err) {
-        alert('Invalid environment file format. Please upload a valid Postman Environment JSON or .env file.');
+        setDialogState({
+          isOpen: true,
+          title: '⚠️ Environment File Error',
+          message: 'Invalid environment file format. Please upload a valid Postman Environment JSON or .env file.',
+          type: 'error'
+        });
       }
+      e.target.value = '';
     };
     reader.readAsText(file);
   };
@@ -357,7 +391,12 @@ export default function Home() {
     const activeNodesToSave = currentStore.rootNodes.length > 0 ? currentStore.rootNodes : currentStore.serverRootNodes;
 
     if (activeNodesToSave.length === 0) {
-      alert('Workspace is currently empty. Please load or upload a Postman collection first.');
+      setDialogState({
+        isOpen: true,
+        title: '⚠️ Workspace Is Empty',
+        message: 'Workspace is currently empty. Please load or upload a Postman collection first.',
+        type: 'warning'
+      });
       return;
     }
 
@@ -471,7 +510,17 @@ export default function Home() {
             </button>
           </div>
         )}
+
+        {/* 100% LOCAL PRIVACY BANNER AT TOP OF PAGE */}
+        {showPrivacyBanner && (
+          <PrivacyBanner />
+        )}
         
+        {/* STEP BY STEP WHERE TO CLICK GUIDE */}
+        {showStepByStepGuide && (
+          <StepByStepClickGuide onNavigateTab={(t) => setActiveMainTab(t)} />
+        )}
+
         {/* TOP LEVEL NAVIGATION WORKSPACE TABS */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-900 pb-3">
           <div className="flex items-center space-x-2">
@@ -505,17 +554,43 @@ export default function Home() {
             </button>
 
             {workspaceMode === 'full' && (
-              <button
-                onClick={() => setActiveMainTab('vault')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                  activeMainTab === 'vault'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                    : 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800'
-                }`}
-              >
-                <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
-                <span>🛡️ Custom & AI Generated Test Use Cases Vault</span>
-              </button>
+              <>
+                <button
+                  onClick={() => setActiveMainTab('simulator')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    activeMainTab === 'simulator'
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                      : 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  <Activity className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <span>⚡ 3. Live Traffic & Routing Simulator</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveMainTab('vault')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    activeMainTab === 'vault'
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                      : 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
+                  <span>🛡️ 4. Custom & AI Test Use Cases Vault</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveMainTab('architecture')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    activeMainTab === 'architecture'
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                      : 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  <Cloud className="h-4 w-4 shrink-0 text-cyan-400" />
+                  <span>☁️ 5. AWS System Architecture</span>
+                </button>
+              </>
             )}
           </div>
 
@@ -525,7 +600,7 @@ export default function Home() {
         </div>
 
         {/* WORKSPACE FLEX CONTAINER: LEFT SIDEBAR + TAB CONTENTS */}
-        <div className="flex flex-col lg:flex-row items-start gap-6 pt-2">
+        <div className="flex flex-col lg:flex-row items-start gap-6 pt-2 w-full max-w-full overflow-x-hidden">
           
           {/* Left Server Workspace Explorer Sidebar for Logged-In Users */}
           {isAuthenticated && (
@@ -691,15 +766,35 @@ export default function Home() {
               </div>
             )}
 
-            {/* MAIN TAB 3: CUSTOM RULES VAULT */}
+            {/* MAIN TAB 3: LIVE TRAFFIC SIMULATOR */}
+            {activeMainTab === 'simulator' && workspaceMode === 'full' && (
+              <LiveTrafficSimulator />
+            )}
+
+            {/* MAIN TAB 4: CUSTOM RULES VAULT */}
             {activeMainTab === 'vault' && workspaceMode === 'full' && (
               <CustomUseCasesVault />
+            )}
+
+            {/* MAIN TAB 5: AWS ENTERPRISE SYSTEM ARCHITECTURE */}
+            {activeMainTab === 'architecture' && workspaceMode === 'full' && (
+              <AppDocumentationSection initialTab="aws_architecture" />
             )}
 
           </div>
         </div>
 
       </main>
+
+      {/* FULL WIDTH PCI COMPLIANCE BANNER */}
+      {showPciCompliance && (
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-4">
+          <PciComplianceBanner />
+        </div>
+      )}
+
+      {/* GLOBAL APPLICATION FOOTER */}
+      {(workspaceMode === 'full' || showFooter) && <Footer />}
 
       {/* SERVER FILE SAVE WARNING MODAL */}
       {fileToSave && (
@@ -714,43 +809,95 @@ export default function Home() {
         />
       )}
 
-      {/* LOAD SERVER COLLECTION OVERRIDE CONFIRMATION MODAL (PORTAL) */}
+      {/* LOAD SERVER FILE OVERRIDE CONFIRMATION MODAL (PORTAL) */}
       {pendingServerFileToLoad && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-md animate-in fade-in">
           <div className="w-full max-w-md rounded-3xl border border-amber-500/40 bg-[#0f172a] p-6 shadow-2xl space-y-4 text-left">
-            <div className="flex items-center space-x-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-sm text-white">Load Server Collection</h3>
-                <p className="text-xs text-slate-400 truncate max-w-[220px]">{pendingServerFileToLoad.fileName}</p>
-              </div>
-            </div>
+            {pendingServerFileToLoad.fileType === 'env' || pendingServerFileToLoad.fileName?.endsWith('.env') ? (
+              <>
+                <div className="flex items-center space-x-3 border-b border-slate-800 pb-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                    <Key className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-white">Load Server Environment File</h3>
+                    <p className="text-xs text-slate-400 truncate max-w-[220px]">{pendingServerFileToLoad.fileName}</p>
+                  </div>
+                </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
-              How would you like to load server file <code className="text-amber-300 font-bold">{pendingServerFileToLoad.fileName}</code> into your workspace?
-            </p>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  How would you like to load server environment file <code className="text-amber-300 font-bold">{pendingServerFileToLoad.fileName}</code> into your active workspace environment variables?
+                </p>
 
-            <div className="space-y-2 pt-2">
-              <button
-                onClick={() => executeLoadServerFile('replace')}
-                className="w-full flex items-center space-x-2 rounded-xl bg-indigo-600 p-3 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 transition-all"
-              >
-                <RotateCcw className="h-4 w-4 text-indigo-200" />
-                <span>🔄 Replace & Override Active Workspace</span>
-              </button>
+                <div className="space-y-2 pt-2">
+                  <button
+                    onClick={() => executeLoadServerFile('replace')}
+                    className="w-full flex items-center space-x-2.5 rounded-xl bg-indigo-600 p-3 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 transition-all text-left"
+                  >
+                    <RotateCcw className="h-4 w-4 text-indigo-200 shrink-0" />
+                    <div>
+                      <span className="block font-bold">🔄 Replace & Override All Active Variables</span>
+                      <span className="text-[10px] text-indigo-200/70 font-normal">Clears existing workspace variables and loads all keys from file</span>
+                    </div>
+                  </button>
 
-              <button
-                onClick={() => executeLoadServerFile('sidebyside')}
-                className="w-full flex items-center space-x-2 rounded-xl border border-amber-700 bg-amber-950/60 p-3 text-xs font-bold text-amber-200 hover:bg-amber-900 transition-all"
-              >
-                <Cloud className="h-4 w-4 text-amber-400" />
-                <span>☁️ Load Side-by-Side (Keep Dual Local & Server Tabs)</span>
-              </button>
-            </div>
+                  <button
+                    onClick={() => {
+                      if (mfaForEnvComparison && !isMfaAuthenticated) {
+                        setShowMfaForCompare(true);
+                      } else {
+                        setEnvCompareFile(pendingServerFileToLoad);
+                        setEnvCompareModalOpen(true);
+                        setPendingServerFileToLoad(null);
+                      }
+                    }}
+                    className="w-full flex items-center space-x-2.5 rounded-xl border border-amber-700 bg-amber-950/60 p-3 text-xs font-bold text-amber-200 hover:bg-amber-900 transition-all text-left"
+                  >
+                    <Key className="h-4 w-4 text-amber-400 shrink-0" />
+                    <div>
+                      <span className="block font-bold">🔍 Compare & Merge Keys with Active Workspace</span>
+                      <span className="text-[10px] text-amber-300/70 font-normal">Side-by-side comparison with MFA verification & pick-and-choose control</span>
+                    </div>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center space-x-3 border-b border-slate-800 pb-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                    <AlertTriangle className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-white">Load Server Collection</h3>
+                    <p className="text-xs text-slate-400 truncate max-w-[220px]">{pendingServerFileToLoad.fileName}</p>
+                  </div>
+                </div>
 
-            <div className="flex items-center justify-end pt-2">
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  How would you like to load server file <code className="text-amber-300 font-bold">{pendingServerFileToLoad.fileName}</code> into your workspace?
+                </p>
+
+                <div className="space-y-2 pt-2">
+                  <button
+                    onClick={() => executeLoadServerFile('replace')}
+                    className="w-full flex items-center space-x-2 rounded-xl bg-indigo-600 p-3 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 transition-all"
+                  >
+                    <RotateCcw className="h-4 w-4 text-indigo-200" />
+                    <span>🔄 Replace & Override Active Workspace</span>
+                  </button>
+
+                  <button
+                    onClick={() => executeLoadServerFile('sidebyside')}
+                    className="w-full flex items-center space-x-2 rounded-xl border border-amber-700 bg-amber-950/60 p-3 text-xs font-bold text-amber-200 hover:bg-amber-900 transition-all"
+                  >
+                    <Cloud className="h-4 w-4 text-amber-400" />
+                    <span>☁️ Load Side-by-Side (Keep Dual Local & Server Tabs)</span>
+                  </button>
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center justify-end pt-2 border-t border-slate-800/80">
               <button
                 onClick={() => setPendingServerFileToLoad(null)}
                 className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white"
@@ -762,6 +909,274 @@ export default function Home() {
         </div>,
         document.body
       )}
+
+      {/* MFA PROMPT MODAL FOR ENVIRONMENT COMPARISON */}
+      <MfaPromptModal
+        isOpen={showMfaForCompare}
+        sectionTitle="Environment Secrets Comparison"
+        onClose={() => setShowMfaForCompare(false)}
+        onSuccess={() => {
+          setShowMfaForCompare(false);
+          useAdminStore.setState({ isMfaAuthenticated: true });
+          if (pendingServerFileToLoad) {
+            setEnvCompareFile(pendingServerFileToLoad);
+            setEnvCompareModalOpen(true);
+            setPendingServerFileToLoad(null);
+          }
+        }}
+      />
+
+      {/* INTERACTIVE ENVIRONMENT COMPARISON & MERGE MODAL PORTAL */}
+      {envCompareModalOpen && envCompareFile && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-3xl rounded-3xl border border-amber-500/40 bg-[#0f172a] p-6 shadow-2xl space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                  <Key className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-white">Compare & Merge Environment Variables</h3>
+                  <p className="text-xs text-slate-400 truncate max-w-[300px]">{envCompareFile.fileName}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => { setEnvCompareModalOpen(false); setEnvCompareFile(null); }}
+                className="text-slate-400 hover:text-white p-1 font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Review and select which keys from server file <code className="text-amber-300 font-bold">{envCompareFile.fileName}</code> to merge into your active workspace. Key conflicts are highlighted for inspection.
+            </p>
+
+            {/* Comparison Table */}
+            {(() => {
+              const activeEnv = useRunnerStore.getState().envVariables;
+              let serverEnv: Record<string, string> = {};
+              const trimmed = (envCompareFile.content || '').trim();
+              if (trimmed.startsWith('{')) {
+                try {
+                  const json = JSON.parse(trimmed);
+                  if (json.values && Array.isArray(json.values)) {
+                    json.values.forEach((v: any) => { if (v.key) serverEnv[v.key] = String(v.value || ''); });
+                  } else {
+                    serverEnv = json;
+                  }
+                } catch (e) {}
+              } else {
+                trimmed.split('\n').forEach((l: string) => {
+                  const eq = l.indexOf('=');
+                  if (eq !== -1) {
+                    const k = l.substring(0, eq).trim();
+                    const v = l.substring(eq + 1).trim();
+                    if (k) serverEnv[k] = v;
+                  }
+                });
+              }
+
+              const allKeys = Array.from(new Set([...Object.keys(serverEnv), ...Object.keys(activeEnv)]));
+              const filteredKeys = allKeys.filter((key) => {
+                if (!compareSearchQuery.trim()) return true;
+                const q = compareSearchQuery.toLowerCase();
+                const sVal = (serverEnv[key] || '').toLowerCase();
+                const aVal = (activeEnv[key] || '').toLowerCase();
+                return key.toLowerCase().includes(q) || sVal.includes(q) || aVal.includes(q);
+              });
+
+              return (
+                <div className="space-y-3">
+                  {/* Compare Search Filter */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder="Search keys or values to compare..."
+                      value={compareSearchQuery}
+                      onChange={(e) => setCompareSearchQuery(e.target.value)}
+                      className="w-full rounded-xl border border-slate-800 bg-slate-950 pl-9 pr-8 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-amber-500 focus:outline-none font-mono"
+                    />
+                    {compareSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setCompareSearchQuery('')}
+                        className="absolute right-3 top-2 text-[11px] font-bold text-slate-400 hover:text-white"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="relative max-h-72 overflow-y-auto overflow-x-auto custom-scrollbar rounded-2xl border border-slate-800 bg-slate-950">
+                    <table className="w-full text-left font-mono text-xs border-collapse">
+                      <thead className="sticky top-0 z-20 bg-[#0f172a] text-slate-300 text-[10px] uppercase border-b border-slate-700 shadow-md">
+                        <tr>
+                          <th className="p-3 w-10 text-center bg-[#0f172a]">Merge</th>
+                          <th className="p-3 w-44 min-w-[160px] bg-[#0f172a]">Variable Key</th>
+                          <th className="p-3 w-56 min-w-[180px] bg-[#0f172a]">Server File Value</th>
+                          <th className="p-3 w-56 min-w-[180px] bg-[#0f172a]">Active Workspace Value</th>
+                          <th className="p-3 w-28 text-right bg-[#0f172a]">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {filteredKeys.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="py-8 text-center text-slate-500 font-sans">
+                              No keys match "{compareSearchQuery}".
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredKeys.map((key) => {
+                            const serverVal = serverEnv[key];
+                            const activeVal = activeEnv[key];
+                            const hasServer = serverVal !== undefined;
+                            const hasActive = activeVal !== undefined;
+                            const isConflict = hasServer && hasActive && serverVal !== activeVal;
+                            const isMatch = hasServer && hasActive && serverVal === activeVal;
+                            const isNew = hasServer && !hasActive;
+                            const isChecked = selectedCompareKeys.has(key);
+                            const isExpanded = expandedCompareRowKey === key;
+                            const currentEditVal = editedCompareValues[key] !== undefined ? editedCompareValues[key] : (serverVal || '');
+
+                            return (
+                              <React.Fragment key={key}>
+                                <tr 
+                                  onClick={() => setExpandedCompareRowKey(isExpanded ? null : key)}
+                                  className={`hover:bg-slate-900/80 cursor-pointer transition-all ${isConflict ? 'bg-amber-950/20' : ''}`}
+                                >
+                                  <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const next = new Set(selectedCompareKeys);
+                                        if (next.has(key)) next.delete(key);
+                                        else next.add(key);
+                                        setSelectedCompareKeys(next);
+                                      }}
+                                      className="text-amber-400 hover:text-white"
+                                    >
+                                      {isChecked ? <CheckSquare className="h-4 w-4 text-emerald-400" /> : <Square className="h-4 w-4 text-slate-600" />}
+                                    </button>
+                                  </td>
+                                  <td className="p-3 font-bold text-slate-200 break-all min-w-[160px]">
+                                    <div className="flex items-center space-x-1.5">
+                                      <span className="text-[10px] text-slate-500">{isExpanded ? '▼' : '▶'}</span>
+                                      <span>{key}</span>
+                                    </div>
+                                  </td>
+                                  <td className="p-3 font-mono text-emerald-300 break-all min-w-[180px]">
+                                    {serverVal !== undefined ? serverVal : <span className="text-slate-600 italic">None</span>}
+                                  </td>
+                                  <td className="p-3 font-mono text-indigo-300 break-all min-w-[180px]">
+                                    {activeVal !== undefined ? activeVal : <span className="text-slate-600 italic">None</span>}
+                                  </td>
+                                  <td className="p-3 text-right">
+                                    {isConflict ? (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
+                                        ⚠️ Conflict
+                                      </span>
+                                    ) : isMatch ? (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                                        Match
+                                      </span>
+                                    ) : isNew ? (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                                        + New
+                                      </span>
+                                    ) : null}
+                                  </td>
+                                </tr>
+                                {isExpanded && (
+                                  <tr className="bg-slate-950 border-t border-b border-amber-500/30">
+                                    <td colSpan={5} className="p-4 space-y-3">
+                                      <div className="flex items-center justify-between text-xs font-bold text-amber-400 border-b border-slate-800 pb-2">
+                                        <span>🔍 Inspected Variable: <code className="text-white">{key}</code></span>
+                                        <span className="text-[10px] text-slate-400">Full Un-truncated Inspector</span>
+                                      </div>
+                                      
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                        <div className="space-y-1">
+                                          <label className="block text-[10px] uppercase font-bold text-emerald-400">Server File Value (Editable):</label>
+                                          <input
+                                            type="text"
+                                            value={currentEditVal}
+                                            onChange={(e) => setEditedCompareValues({ ...editedCompareValues, [key]: e.target.value })}
+                                            className="w-full rounded-xl border border-slate-800 bg-slate-900 p-2.5 font-mono text-emerald-300 text-xs focus:border-emerald-500 focus:outline-none"
+                                            placeholder="Enter server value..."
+                                          />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="block text-[10px] uppercase font-bold text-indigo-400">Active Workspace Value:</label>
+                                          <div className="w-full rounded-xl border border-slate-800 bg-slate-900/60 p-2.5 font-mono text-indigo-300 text-xs break-all select-all">
+                                            {activeVal !== undefined ? activeVal : <span className="text-slate-600 italic">Not set in active workspace</span>}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                            </React.Fragment>
+                          );
+                        })
+                      )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                    <div className="flex items-center space-x-2 text-xs font-mono text-slate-400">
+                      <span>{selectedCompareKeys.size} keys selected for merge</span>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => { setEnvCompareModalOpen(false); setEnvCompareFile(null); }}
+                        className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          const newEnv = { ...activeEnv };
+                          selectedCompareKeys.forEach((key) => {
+                            if (serverEnv[key] !== undefined) {
+                              newEnv[key] = editedCompareValues[key] !== undefined ? editedCompareValues[key] : serverEnv[key];
+                            }
+                          });
+                          useRunnerStore.setState({ envVariables: newEnv });
+                          setEnvCompareModalOpen(false);
+                          setEnvCompareFile(null);
+                          setEnvNotification(`✅ Merged ${selectedCompareKeys.size} environment variables into active workspace!`);
+                          setTimeout(() => setEnvNotification(null), 4500);
+                          setActiveMainTab('runner');
+                        }}
+                        disabled={selectedCompareKeys.size === 0}
+                        className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-extrabold text-white shadow-lg shadow-amber-600/30 hover:bg-amber-500 transition-all disabled:opacity-40"
+                      >
+                        ✅ Confirm & Merge Selected Variables
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* REUSABLE CUSTOM DIALOG MODAL (REPLACES BROWSER ALERT) */}
+      <CustomDialogModal
+        isOpen={dialogState.isOpen}
+        title={dialogState.title}
+        message={dialogState.message}
+        type={dialogState.type}
+        onClose={() => setDialogState({ ...dialogState, isOpen: false })}
+      />
 
     </div>
   );

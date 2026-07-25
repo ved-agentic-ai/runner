@@ -101,6 +101,65 @@ export function parsePostmanEnvironment(json: PostmanEnvironment): Record<string
 }
 
 /**
+ * Master Environment Parser: Parses ANY Postman Environment JSON or .env file format reliably
+ */
+export function parseEnvironmentContent(content: string): { envMap: Record<string, string>; isEnvFile: boolean } {
+  const envMap: Record<string, string> = {};
+  const trimmed = (content || '').trim();
+  if (!trimmed) return { envMap, isEnvFile: false };
+
+  if (trimmed.startsWith('{')) {
+    try {
+      const json = JSON.parse(trimmed);
+      // Check if Postman Environment schema (has 'values' or 'variable' array)
+      if (json.values && Array.isArray(json.values)) {
+        json.values.forEach((v: any) => {
+          if (v.key) envMap[v.key] = String(v.value || '');
+        });
+        return { envMap, isEnvFile: true };
+      }
+      if (json.variable && Array.isArray(json.variable)) {
+        json.variable.forEach((v: any) => {
+          if (v.key) envMap[v.key] = String(v.value || '');
+        });
+        return { envMap, isEnvFile: true };
+      }
+      // If schema has 'item' or 'info', it's a Postman Collection JSON!
+      if (json.item || json.info) {
+        return { envMap, isEnvFile: false };
+      }
+      // General flat JSON object
+      Object.entries(json).forEach(([k, v]) => {
+        if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+          envMap[k] = String(v);
+        }
+      });
+      return { envMap, isEnvFile: Object.keys(envMap).length > 0 };
+    } catch (e) {
+      return { envMap, isEnvFile: false };
+    }
+  }
+
+  // Standard .env KEY=VAL line parser
+  let foundPairs = 0;
+  trimmed.split('\n').forEach((line) => {
+    const lineTrimmed = line.trim();
+    if (!lineTrimmed || lineTrimmed.startsWith('#')) return;
+    const eqIdx = line.indexOf('=');
+    if (eqIdx !== -1) {
+      const k = line.substring(0, eqIdx).trim();
+      const v = line.substring(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+      if (k) {
+        envMap[k] = v;
+        foundPairs++;
+      }
+    }
+  });
+
+  return { envMap, isEnvFile: foundPairs > 0 };
+}
+
+/**
  * Resolves Postman double curly brace variables like {{baseUrl}}/api/v1/users
  */
 export function resolveVariables(text: string, env: Record<string, string>): string {

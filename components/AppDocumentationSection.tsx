@@ -31,9 +31,13 @@ import {
 import { InteractiveUserGuideModal } from './InteractiveUserGuideModal';
 import { useAdminStore } from '@/lib/admin-store';
 
-export const AppDocumentationSection: React.FC = () => {
+interface AppDocumentationSectionProps {
+  initialTab?: 'user_guide' | 'aws_architecture' | 'ai_ml_deepdive' | 'admin_security' | 'ai_prompts_deck' | 'techstack' | 'futurescope';
+}
+
+export const AppDocumentationSection: React.FC<AppDocumentationSectionProps> = ({ initialTab = 'user_guide' }) => {
   const { githubRepoUrl } = useAdminStore();
-  const [activeTab, setActiveTab] = useState<'user_guide' | 'aws_architecture' | 'ai_ml_deepdive' | 'admin_security' | 'ai_prompts_deck' | 'techstack' | 'futurescope'>('user_guide');
+  const [activeTab, setActiveTab] = useState<'user_guide' | 'aws_architecture' | 'ai_ml_deepdive' | 'admin_security' | 'ai_prompts_deck' | 'techstack' | 'futurescope'>(initialTab);
   const [isCloudFormationOpen, setIsCloudFormationOpen] = useState(false);
   const [copiedNapkin, setCopiedNapkin] = useState(false);
   const [copiedGamma, setCopiedGamma] = useState(false);

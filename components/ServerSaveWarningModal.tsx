@@ -23,11 +23,12 @@ import {
   Key, 
   AlertCircle,
   ChevronsUp,
-  ChevronsDown
+  ChevronsDown,
+  HardDrive
 } from 'lucide-react';
 import { sanitizeEnvContent } from '@/lib/env-sanitizer';
 import { useRunnerStore } from '@/lib/store';
-import { parsePostmanCollection, formatPostmanUrl } from '@/lib/postman-parser';
+import { parsePostmanCollection, parseEnvironmentContent, formatPostmanUrl } from '@/lib/postman-parser';
 import { TreeNode, HttpMethod } from '@/lib/types';
 
 interface ServerSaveWarningModalProps {
@@ -118,9 +119,33 @@ export const ServerSaveWarningModal: React.FC<ServerSaveWarningModalProps> = ({
 }) => {
   const [activeViewTab, setActiveViewTab] = useState<'visual' | 'raw'>('visual');
   const [previewMode, setPreviewMode] = useState<'sanitized' | 'raw'>('sanitized');
+  const [customRedactKeys, setCustomRedactKeys] = useState<Set<string>>(new Set());
   const [acceptedResponsibility, setAcceptedResponsibility] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [quotaInfo, setQuotaInfo] = useState<{
+    maxBytes: number;
+    usedBytes: number;
+    remainingBytes: number;
+    usedPercentage: number;
+  }>({
+    maxBytes: 1048576,
+    usedBytes: 0,
+    remainingBytes: 1048576,
+    usedPercentage: 0
+  });
+
+  useEffect(() => {
+    if (isOpen && userId) {
+      fetch(`/api/user/files?userId=${userId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.quota) setQuotaInfo(data.quota);
+        })
+        .catch(() => {});
+    }
+  }, [isOpen, userId]);
   
   // Collapse States (COLLAPSED BY DEFAULT)
   const [isPickerExpanded, setIsPickerExpanded] = useState(false);
@@ -146,48 +171,43 @@ export const ServerSaveWarningModal: React.FC<ServerSaveWarningModalProps> = ({
     }
   }, [isOpen, rawContent]);
 
-  // Parse Environment Key-Values
+  // Parse Environment Key-Values strictly
   function getCombinedEnvEntries(type: string, raw: string): { key: string; val: string }[] {
     const map = new Map<string, string>();
 
-    const trimmed = raw.trim();
-    if (trimmed.startsWith('{')) {
-      try {
-        const json = JSON.parse(trimmed);
-        if (json.values && Array.isArray(json.values)) {
-          json.values.forEach((v: any) => {
-            if (v.key) map.set(v.key, String(v.value || ''));
-          });
-        }
-        if (json.variable && Array.isArray(json.variable)) {
-          json.variable.forEach((v: any) => {
-            if (v.key) map.set(v.key, String(v.value || ''));
-          });
-        }
-      } catch {}
-    }
-
-    if (map.size === 0 && envVariables) {
-      Object.entries(envVariables).forEach(([k, v]) => {
+    if (type === 'env') {
+      // Environment File Save Mode: Parse strictly via master environment parser
+      const { envMap } = parseEnvironmentContent(raw);
+      Object.entries(envMap).forEach(([k, v]) => {
         if (k) map.set(k, String(v || ''));
       });
-    }
 
-    trimmed.split('\n').forEach((line) => {
-      const lineTrimmed = line.trim();
-      if (!lineTrimmed || lineTrimmed.startsWith('#')) return;
-      const eqIdx = line.indexOf('=');
-      if (eqIdx !== -1) {
-        const k = line.substring(0, eqIdx).trim();
-        const v = line.substring(eqIdx + 1).trim();
-        if (k) map.set(k, v);
+      // Fallback to active workspace memory if raw file content was empty
+      if (map.size === 0 && envVariables) {
+        Object.entries(envVariables).forEach(([k, v]) => {
+          if (k) map.set(k, String(v || ''));
+        });
       }
-    });
+    } else {
+      // Collection File Save Mode: Only include active environment variables configured in workspace memory
+      if (envVariables) {
+        Object.entries(envVariables).forEach(([k, v]) => {
+          if (k) map.set(k, String(v || ''));
+        });
+      }
+    }
 
     return Array.from(map.entries()).map(([key, val]) => ({ key, val }));
   }
 
   const envEntries = getCombinedEnvEntries(fileType, rawContent);
+  const [selectedEnvKeys, setSelectedEnvKeys] = useState<Set<string>>(() => new Set(envEntries.map((e) => e.key)));
+
+  useEffect(() => {
+    if (isOpen && envEntries.length > 0) {
+      setSelectedEnvKeys(new Set(envEntries.map((e) => e.key)));
+    }
+  }, [isOpen, rawContent]);
 
   const toggleNodeSelection = (id: string, children?: TreeNode[]) => {
     const next = new Set(selectedNodeIds);
@@ -242,6 +262,7 @@ export const ServerSaveWarningModal: React.FC<ServerSaveWarningModalProps> = ({
         finalContentToSave = JSON.stringify({ name: fileName, nodes: filteredNodes }, null, 2);
       }
 
+      // 1. Save Collection JSON file
       const res = await fetch('/api/user/files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -255,6 +276,26 @@ export const ServerSaveWarningModal: React.FC<ServerSaveWarningModalProps> = ({
       });
 
       const data = await res.json();
+
+      // 2. Save separate .env Environment File if envEntries exist & keys are selected
+      if (envEntries.length > 0 && selectedEnvKeys.size > 0) {
+        const selectedEntries = envEntries.filter((e) => selectedEnvKeys.has(e.key));
+        const envContentStr = selectedEntries.map((e) => `${e.key}=${e.val}`).join('\n');
+        const envFileName = fileName.replace(/\.(json|postman_collection\.json)$/i, '') + '.env';
+
+        await fetch('/api/user/files', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            fileName: envFileName,
+            fileType: 'env',
+            content: envContentStr,
+            allowRawSecrets
+          })
+        });
+      }
+
       setSaving(false);
 
       if (data.success) {
@@ -503,47 +544,130 @@ export const ServerSaveWarningModal: React.FC<ServerSaveWarningModalProps> = ({
 
             {/* ENVIRONMENT VARIABLES TABLE (COLLAPSIBLE & COLLAPSED BY DEFAULT) */}
             <div className="rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden shadow-lg">
-              <div 
-                onClick={() => setIsEnvTableExpanded(!isEnvTableExpanded)}
-                className="flex items-center justify-between p-3.5 bg-slate-900/90 hover:bg-slate-900 cursor-pointer transition-all border-b border-slate-800/80"
-              >
-                <div className="flex items-center space-x-2.5">
+              <div className="flex flex-wrap items-center justify-between p-3.5 bg-slate-900/90 border-b border-slate-800/80 gap-2">
+                <div 
+                  onClick={() => setIsEnvTableExpanded(!isEnvTableExpanded)}
+                  className="flex items-center space-x-2.5 cursor-pointer hover:opacity-80 transition-opacity"
+                >
                   <span className="text-amber-400 font-bold text-xs">{isEnvTableExpanded ? '▼' : '▶'}</span>
                   <Key className="h-4 w-4 text-amber-400" />
                   <h4 className="text-xs font-bold text-white">
-                    Environment Variables & Secret Redaction Table ({envEntries.length} Keys)
+                    Environment Variables & Secret Redaction Table ({selectedEnvKeys.size} / {envEntries.length} Keys Selected)
                   </h4>
                 </div>
-                <span className="text-[10px] text-slate-400 font-mono">
-                  {isEnvTableExpanded ? 'Click to Collapse Table' : 'Click to Expand Table'}
-                </span>
+
+                {/* Environment Table Toolbar (Collapse, Expand, Select All, None) */}
+                <div className="flex items-center space-x-3 text-[11px] font-mono">
+                  <button
+                    type="button"
+                    onClick={() => setIsEnvTableExpanded(false)}
+                    className="inline-flex items-center space-x-1 text-slate-400 hover:text-amber-400 font-medium"
+                    title="Collapse Table"
+                  >
+                    <ChevronsUp className="h-3.5 w-3.5 text-amber-400" />
+                    <span>Collapse</span>
+                  </button>
+
+                  <span className="text-slate-700">|</span>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsEnvTableExpanded(true)}
+                    className="inline-flex items-center space-x-1 text-slate-400 hover:text-indigo-400 font-medium"
+                    title="Expand Table"
+                  >
+                    <ChevronsDown className="h-3.5 w-3.5 text-indigo-400" />
+                    <span>Expand</span>
+                  </button>
+
+                  <span className="text-slate-700">|</span>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEnvKeys(new Set(envEntries.map((e) => e.key)))}
+                    className="text-indigo-400 hover:underline font-bold"
+                  >
+                    Select All
+                  </button>
+
+                  <span className="text-slate-700">|</span>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEnvKeys(new Set())}
+                    className="text-slate-400 hover:underline font-bold"
+                  >
+                    Select None
+                  </button>
+
+                  <span className="text-slate-700">|</span>
+
+                  <button
+                    type="button"
+                    onClick={() => setCustomRedactKeys(new Set(envEntries.map((e) => e.key)))}
+                    className="text-emerald-400 hover:underline font-bold"
+                    title="Force redact all values before saving to server"
+                  >
+                    🔒 Redact All
+                  </button>
+
+                  <span className="text-slate-700">|</span>
+
+                  <button
+                    type="button"
+                    onClick={() => setCustomRedactKeys(new Set())}
+                    className="text-amber-400 hover:underline font-bold"
+                    title="Clear force-redaction overrides"
+                  >
+                    🔓 Reset Redactions
+                  </button>
+                </div>
               </div>
 
               {isEnvTableExpanded && (
-                <div className="p-4 overflow-x-auto max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in">
+                <div className="relative max-h-64 overflow-x-auto overflow-y-auto custom-scrollbar animate-in fade-in rounded-b-2xl border-t border-slate-800">
                   <table className="w-full text-left font-mono text-xs border-collapse">
-                    <thead className="bg-slate-900 text-slate-400 text-[10px] uppercase border-b border-slate-800 sticky top-0 z-10">
+                    <thead className="sticky top-0 z-20 bg-[#0f172a] text-slate-300 text-[10px] uppercase border-b border-slate-700 shadow-md backdrop-blur-md">
                       <tr>
-                        <th className="p-3 w-52 min-w-[200px]">Key Name</th>
-                        <th className="p-3 w-64 min-w-[240px]">Raw Value (Masked)</th>
-                        <th className="p-3 w-64 min-w-[240px]">Server Preview Value</th>
-                        <th className="p-3 w-28 text-right shrink-0">Status</th>
+                        <th className="p-3 w-10 text-center bg-[#0f172a]">Select</th>
+                        <th className="p-3 w-52 min-w-[180px] bg-[#0f172a]">Key Name</th>
+                        <th className="p-3 w-64 min-w-[220px] bg-[#0f172a]">Raw Value (Masked)</th>
+                        <th className="p-3 w-64 min-w-[220px] bg-[#0f172a]">Server Preview Value</th>
+                        <th className="p-3 w-32 text-right shrink-0 bg-[#0f172a]">Redaction Control</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60 bg-slate-950/40">
                       {envEntries.map((entry, idx) => {
                         const isSecretKey = /key|token|secret|pass|auth|jwt|bearer|private|credential|pwd|cert|salt/i.test(entry.key);
-                        const isRedactedInSanitized = isSecretKey || redactedKeys.includes(entry.key);
+                        const isForceRedacted = customRedactKeys.has(entry.key);
+                        const isRedactedInSanitized = isSecretKey || redactedKeys.includes(entry.key) || isForceRedacted;
+                        const isEnvSelected = selectedEnvKeys.has(entry.key);
 
                         return (
                           <tr key={entry.key || idx} className="hover:bg-slate-900/60 transition-all">
-                            <td className="p-3 font-bold text-slate-200 whitespace-nowrap truncate max-w-[200px]" title={entry.key}>
-                              {entry.key}
+                            <td className="p-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = new Set(selectedEnvKeys);
+                                  if (next.has(entry.key)) next.delete(entry.key);
+                                  else next.add(entry.key);
+                                  setSelectedEnvKeys(next);
+                                }}
+                                className="text-amber-400 hover:text-white"
+                              >
+                                {isEnvSelected ? <CheckSquare className="h-4 w-4 text-emerald-400" /> : <Square className="h-4 w-4 text-slate-600" />}
+                              </button>
                             </td>
-                            <td className="p-3 text-slate-400 font-mono whitespace-nowrap truncate max-w-[240px]" title={entry.val}>
-                              {isSecretKey ? '••••••••••••••••' : entry.val}
+                            <td className="p-3 font-bold whitespace-nowrap truncate max-w-[180px]" title={entry.key}>
+                              <span className={isEnvSelected ? 'text-slate-200' : 'text-slate-500 line-through'}>
+                                {entry.key}
+                              </span>
                             </td>
-                            <td className="p-3 font-mono whitespace-nowrap truncate max-w-[240px]">
+                            <td className="p-3 text-slate-400 font-mono whitespace-nowrap truncate max-w-[220px]" title={entry.val}>
+                              {isSecretKey || isForceRedacted ? '••••••••••••••••' : entry.val}
+                            </td>
+                            <td className="p-3 font-mono whitespace-nowrap truncate max-w-[220px]">
                               {previewMode === 'sanitized' && isRedactedInSanitized ? (
                                 <span className="text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded text-[10px]">
                                   [REDACTED_SECRET]
@@ -553,19 +677,24 @@ export const ServerSaveWarningModal: React.FC<ServerSaveWarningModalProps> = ({
                               )}
                             </td>
                             <td className="p-3 text-right whitespace-nowrap shrink-0">
-                              {previewMode === 'sanitized' && isRedactedInSanitized ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                                  🛡️ Redacted
-                                </span>
-                              ) : previewMode === 'raw' && isSecretKey ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
-                                  🔴 Exposed
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
-                                  Standard
-                                </span>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = new Set(customRedactKeys);
+                                  if (next.has(entry.key)) next.delete(entry.key);
+                                  else next.add(entry.key);
+                                  setCustomRedactKeys(next);
+                                }}
+                                className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                                  isRedactedInSanitized 
+                                    ? 'bg-emerald-950 text-emerald-300 border-emerald-800 hover:bg-emerald-900' 
+                                    : 'bg-amber-950/60 text-amber-300 border-amber-800 hover:bg-amber-900'
+                                }`}
+                                title="Click to toggle force redaction on server save"
+                              >
+                                {isRedactedInSanitized ? <Lock className="h-3 w-3 text-emerald-400" /> : <Eye className="h-3 w-3 text-amber-400" />}
+                                <span>{isRedactedInSanitized ? '🛡️ Redact Value' : '🔴 Keep Plaintext'}</span>
+                              </button>
                             </td>
                           </tr>
                         );
@@ -594,6 +723,37 @@ export const ServerSaveWarningModal: React.FC<ServerSaveWarningModalProps> = ({
             </div>
           </div>
         )}
+
+        {/* 1 MB SERVER STORAGE QUOTA METER CARD */}
+        <div className="rounded-2xl border border-indigo-500/40 bg-indigo-950/30 p-4 space-y-2 text-left backdrop-blur-md">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-white flex items-center gap-2">
+              <HardDrive className="h-4 w-4 text-indigo-400" /> Server Storage Quota Meter (Max 1.00 MB Total)
+            </span>
+            <span className="font-mono text-xs font-bold text-indigo-300">
+              {(quotaInfo.usedBytes / 1024).toFixed(1)} KB / 1.00 MB Used
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="h-2.5 w-full rounded-full bg-slate-950 overflow-hidden border border-slate-800">
+            <div 
+              className={`h-full transition-all duration-300 ${
+                quotaInfo.usedPercentage >= 90 ? 'bg-red-500' :
+                quotaInfo.usedPercentage >= 75 ? 'bg-amber-500' :
+                'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500'
+              }`}
+              style={{ width: `${Math.min(100, quotaInfo.usedPercentage)}%` }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-slate-300 font-mono pt-1">
+            <span>Storage Status: {quotaInfo.usedPercentage}% Used</span>
+            <span className={quotaInfo.remainingBytes < 102400 ? 'text-amber-300 font-bold' : 'text-emerald-300 font-bold'}>
+              {(quotaInfo.remainingBytes / 1024).toFixed(1)} KB Remaining Quota
+            </span>
+          </div>
+        </div>
 
         {/* Mandatory Legal Liability Disclaimer */}
         <div className="rounded-2xl border border-amber-900/60 bg-amber-950/30 p-4 space-y-3">

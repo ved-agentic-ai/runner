@@ -119,70 +119,26 @@ export const ReleasePipelineBar: React.FC = () => {
           </div>
         )}
 
-        {/* Right Side: Environment Pipeline Promotion / Rollback Actions */}
-        <div className="flex items-center space-x-2 shrink-0">
-          
+        {/* Right Side: Active Environment Status Pill */}
+        <div className="flex items-center space-x-2 shrink-0 text-xs">
           {releaseEnvironment === 'dev' && (
-            <div className="flex items-center space-x-2">
-              <span className="text-[11px] text-slate-400 italic">Editing in Sandbox</span>
-              <button
-                onClick={handlePushToPreview}
-                className="inline-flex items-center space-x-1.5 rounded-xl bg-purple-600 px-3.5 py-1.5 text-xs font-extrabold text-white shadow-md hover:bg-purple-500 transition-all"
-                title="Copy dev workspace state to Preview staging"
-              >
-                <span>🚀 Push to Preview</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
+            <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-amber-950/60 border border-amber-800/80 text-amber-300 font-bold">
+              <Wrench className="h-3.5 w-3.5 text-amber-400" />
+              <span>Dev Sandbox Mode</span>
+            </span>
           )}
-
           {releaseEnvironment === 'preview' && (
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleRollbackToDev}
-                className="inline-flex items-center space-x-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white"
-                title="Return to DEV environment to make further changes"
-              >
-                <RotateCcw className="h-3 w-3" />
-                <span>Return to DEV</span>
-              </button>
-
-              <button
-                onClick={handlePromoteToLive}
-                className="inline-flex items-center space-x-1.5 rounded-xl bg-emerald-600 px-4 py-1.5 text-xs font-extrabold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-500 transition-all"
-                title="Promote verified preview build to LIVE production"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>✅ Promote to Live Production</span>
-              </button>
-            </div>
+            <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-purple-950/60 border border-purple-800/80 text-purple-300 font-bold">
+              <Eye className="h-3.5 w-3.5 text-purple-400" />
+              <span>Pre-Live Verification</span>
+            </span>
           )}
-
           {releaseEnvironment === 'live' && (
-            <div className="flex items-center space-x-2">
-              <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-950/60 px-3 py-1 rounded-xl border border-emerald-800/80">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Stable Live Release Active
-              </span>
-
-              <button
-                onClick={handleRollbackToPreview}
-                className="inline-flex items-center space-x-1 rounded-xl border border-red-900/60 bg-red-950/40 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-900/60 transition-all"
-                title="Rollback Live environment to Previous Preview staging build"
-              >
-                <RotateCcw className="h-3 w-3 text-red-400" />
-                <span>Rollback Release</span>
-              </button>
-
-              <button
-                onClick={() => setReleaseEnvironment('dev')}
-                className="inline-flex items-center space-x-1 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-300 border border-slate-800 hover:bg-slate-800"
-              >
-                <Wrench className="h-3 w-3 text-amber-400" />
-                <span>Edit in DEV</span>
-              </button>
-            </div>
+            <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 font-bold">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Live Production Active</span>
+            </span>
           )}
-
         </div>
 
       </div>

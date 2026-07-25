@@ -174,8 +174,11 @@ export const useRunnerStore = create<RunnerState>()(
       },
 
       toggleNodeSelection: (nodeId: string) => {
-        const { rootNodes, selectedNodeIds } = get();
-        
+        const { rootNodes, serverRootNodes, activeWorkspaceSource, selectedNodeIds } = get();
+        const activeNodes = (activeWorkspaceSource === 'server' && serverRootNodes.length > 0) || (rootNodes.length === 0 && serverRootNodes.length > 0)
+          ? serverRootNodes
+          : rootNodes;
+
         function findNode(nodes: TreeNode[], id: string): TreeNode | null {
           for (const n of nodes) {
             if (n.id === id) return n;
@@ -187,7 +190,9 @@ export const useRunnerStore = create<RunnerState>()(
           return null;
         }
 
-        const node = findNode(rootNodes, nodeId);
+        let node = findNode(activeNodes, nodeId);
+        if (!node) node = findNode(rootNodes, nodeId);
+        if (!node) node = findNode(serverRootNodes, nodeId);
         if (!node) return;
 
         function getAllSubNodeIds(n: TreeNode): string[] {
@@ -215,7 +220,11 @@ export const useRunnerStore = create<RunnerState>()(
       },
 
       selectAllNodes: () => {
-        const { rootNodes } = get();
+        const { rootNodes, serverRootNodes, activeWorkspaceSource } = get();
+        const activeNodes = (activeWorkspaceSource === 'server' && serverRootNodes.length > 0) || (rootNodes.length === 0 && serverRootNodes.length > 0)
+          ? serverRootNodes
+          : rootNodes;
+
         const allNodeIds: string[] = [];
         function collectAllNodeIds(nodes: TreeNode[]) {
           nodes.forEach((n) => {
@@ -223,7 +232,7 @@ export const useRunnerStore = create<RunnerState>()(
             if (n.children) collectAllNodeIds(n.children);
           });
         }
-        collectAllNodeIds(rootNodes);
+        collectAllNodeIds(activeNodes);
         set({ selectedNodeIds: allNodeIds });
       },
 
