@@ -18,7 +18,8 @@ import {
   CheckSquare,
   Square,
   HardDrive,
-  Search
+  Search,
+  Info
 } from 'lucide-react';
 import { useUserAuthStore } from '@/lib/user-auth-store';
 import { useAdminStore } from '@/lib/admin-store';
@@ -29,11 +30,21 @@ import { TreeNode } from '@/lib/types';
 interface UserWorkspaceSidebarProps {
   onLoadFileToWorkspace: (file: any) => void;
   refreshTrigger?: number;
+  loadedFileId?: string | null;
+  loadedEnvFileId?: string | null;
+  onResetLoadedFileId?: () => void;
+  onResetLoadedEnvFileId?: () => void;
+  onRegisterReopenRef?: (fn: (fileRecord: any) => void) => void;
 }
 
 export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
   onLoadFileToWorkspace,
-  refreshTrigger
+  refreshTrigger,
+  loadedFileId,
+  loadedEnvFileId,
+  onResetLoadedFileId,
+  onResetLoadedEnvFileId,
+  onRegisterReopenRef
 }) => {
   const { user, isAuthenticated } = useUserAuthStore();
   const { serverStoragePaused } = useAdminStore();
@@ -43,8 +54,6 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
   const [loading, setLoading] = useState(false);
   const [collectionsExpanded, setCollectionsExpanded] = useState(true);
   const [envExpanded, setEnvExpanded] = useState(true);
-  const [loadedFileId, setLoadedFileId] = useState<string | null>(null);
-  const [loadedEnvFileId, setLoadedEnvFileId] = useState<string | null>(null);
   
   const [quota, setQuota] = useState<{
     maxBytes: number;
@@ -84,6 +93,24 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
 
   // Inspected Environment Key Details Modal State
   const [inspectedEnvKey, setInspectedEnvKey] = useState<{ fileName: string; key: string; val: string } | null>(null);
+
+  useEffect(() => {
+    if (onRegisterReopenRef) {
+      onRegisterReopenRef((fileRecord: any) => {
+        if (fileRecord) {
+          const origCount = fileRecord.originalSelectedCount ?? fileRecord.selectedCount ?? 0;
+          const origKeys = fileRecord.originalSelectedIdsOrKeys ?? fileRecord.selectedIdsOrKeys ?? [];
+          setPendingLoadConfirm({
+            file: fileRecord,
+            fileType: fileRecord.fileType === 'collection' ? 'collection' : 'env',
+            totalCount: fileRecord.totalCount || 0,
+            selectedCount: origCount,
+            selectedIdsOrKeys: origKeys
+          });
+        }
+      });
+    }
+  }, [onRegisterReopenRef]);
 
   const fetchUserFiles = async () => {
     if (!isAuthenticated || !user) return;
@@ -176,20 +203,19 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
     const q = query.trim().toLowerCase();
     if (!q) return nodes;
 
-    function walk(list: TreeNode[], parentFolderMatched = false): TreeNode[] {
+    function walk(list: TreeNode[]): TreeNode[] {
       const result: TreeNode[] = [];
       list.forEach((node) => {
         if (node.type === 'folder') {
-          const folderMatches = node.name.toLowerCase().includes(q);
-          const childrenMatched = walk(node.children || [], parentFolderMatched || folderMatches);
-          if (childrenMatched.length > 0 || folderMatches) {
-            result.push({ ...node, children: childrenMatched });
+          const sub = walk(node.children || []);
+          if (sub.length > 0) {
+            result.push({ ...node, children: sub });
           }
         } else {
-          const nameMatch = node.name.toLowerCase().includes(q);
-          const methodMatch = node.method?.toLowerCase().includes(q);
-          const urlMatch = node.url?.toLowerCase().includes(q);
-          if (nameMatch || methodMatch || urlMatch || parentFolderMatched) {
+          const nameMatch = node.name ? node.name.toLowerCase().includes(q) : false;
+          const methodMatch = node.method ? node.method.toLowerCase().includes(q) : false;
+          const urlMatch = node.url ? node.url.toLowerCase().includes(q) : false;
+          if (nameMatch || methodMatch || urlMatch) {
             result.push(node);
           }
         }
@@ -350,11 +376,11 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
 
       {/* TREE VIEW: API COLLECTIONS */}
       <div className="space-y-2">
-        <div 
-          onClick={() => setCollectionsExpanded(!collectionsExpanded)}
-          className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-slate-800/80 cursor-pointer hover:bg-slate-900"
-        >
-          <div className="flex items-center space-x-2 text-xs font-bold text-indigo-300">
+        <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:bg-slate-900">
+          <div 
+            onClick={() => setCollectionsExpanded(!collectionsExpanded)}
+            className="flex items-center space-x-2 text-xs font-bold text-indigo-300 cursor-pointer"
+          >
             {collectionsExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             <FileCode className="h-4 w-4 text-indigo-400" />
             <span>
@@ -362,6 +388,31 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
               {collectionSearchQuery.trim() && ` / ${files.filter((f) => f.fileType === 'collection').length}`}
               )
             </span>
+          </div>
+
+          {/* Info Icon with Popover Tooltip */}
+          <div className="relative group">
+            <Info className="h-3.5 w-3.5 text-indigo-400 cursor-pointer hover:text-indigo-300 transition-colors" />
+            <div className="absolute right-0 top-5 z-50 hidden group-hover:block w-72 p-3 rounded-2xl bg-[#0f172a] border border-indigo-500/40 shadow-2xl space-y-2 text-left text-xs font-sans text-slate-200">
+              <div className="font-bold text-indigo-300 border-b border-slate-800 pb-1 flex items-center justify-between">
+                <span>ℹ️ Server Collections Info</span>
+                <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">
+                  Total: {collections.length}
+                </span>
+              </div>
+              <div className="space-y-1 text-[11px] font-mono">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Active Collection File:</span>
+                  <strong className="text-emerald-300 truncate max-w-[130px]">
+                    {files.find((f) => f.id === loadedFileId)?.fileName || 'None'}
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Active Search Filter:</span>
+                  <strong className="text-indigo-300">{collectionSearchQuery ? `"${collectionSearchQuery}"` : 'None'}</strong>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -393,15 +444,10 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                 onClick={() => {
                   setCollectionSearchQuery('');
                   setSelectedSidebarNodeIds({});
-                  setLoadedFileId(null);
-                  useRunnerStore.setState({
-                    serverCollectionName: '',
-                    serverRootNodes: [],
-                    serverFlatEndpointMap: new Map()
-                  });
+                  if (onResetLoadedFileId) onResetLoadedFileId();
                 }}
                 className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-bold text-slate-400 hover:text-white transition-all shrink-0"
-                title="Reset collection search filter, custom selections, and active workspace state"
+                title="Reset collection search filter, selections, and card active status"
               >
                 Reset
               </button>
@@ -416,7 +462,24 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                 const { rootNodes: sidebarTree, allNodeIds, totalEndpoints } = parseSidebarTreeNodes(f.content, f.fileName);
                 const displaySidebarTree = filterSidebarNodes(sidebarTree, collectionSearchQuery);
                 const isTreeExpanded = expandedFileTreeIds[f.id] ?? (collectionSearchQuery.trim().length > 0);
-                const fileSelectedSet = selectedSidebarNodeIds[f.id] || new Set(allNodeIds);
+
+                function getFilteredEndpointIds(nodes: TreeNode[]): string[] {
+                  const ids: string[] = [];
+                  function walk(list: TreeNode[]) {
+                    list.forEach((n) => {
+                      if (n.type === 'endpoint') ids.push(n.id);
+                      if (n.children) walk(n.children);
+                    });
+                  }
+                  walk(nodes);
+                  return ids;
+                }
+                const searchMatchedEndpointIds = getFilteredEndpointIds(displaySidebarTree);
+
+                const manualSet = selectedSidebarNodeIds[f.id];
+                const fileSelectedSet = collectionSearchQuery.trim() 
+                  ? new Set(searchMatchedEndpointIds) 
+                  : (manualSet !== undefined ? manualSet : new Set(allNodeIds));
 
                 function countSidebarStats(nodes: TreeNode[]): { nodes: number; endpoints: number; selectedEndpoints: number } {
                   let nCnt = 0;
@@ -437,7 +500,7 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                 }
 
                 const displayStats = countSidebarStats(sidebarTree);
-                const isCustomizedSelection = displayStats.selectedEndpoints < totalEndpoints;
+                const isCustomizedSelection = fileSelectedSet.size < totalEndpoints;
 
                 return (
                   <div 
@@ -467,21 +530,13 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                           <button
                             type="button"
                             onClick={() => {
-                              if (isCustomizedSelection && displayStats.selectedEndpoints > 0) {
-                                setPendingLoadConfirm({
-                                  file: f,
-                                  fileType: 'collection',
-                                  totalCount: totalEndpoints,
-                                  selectedCount: displayStats.selectedEndpoints,
-                                  selectedIdsOrKeys: Array.from(fileSelectedSet)
-                                });
-                              } else {
-                                onLoadFileToWorkspace({
-                                  ...f,
-                                  selectedNodeIds: Array.from(fileSelectedSet)
-                                });
-                                setLoadedFileId(f.id);
-                              }
+                              setPendingLoadConfirm({
+                                file: f,
+                                fileType: 'collection',
+                                totalCount: totalEndpoints,
+                                selectedCount: displayStats.selectedEndpoints,
+                                selectedIdsOrKeys: Array.from(fileSelectedSet)
+                              });
                             }}
                             className="rounded-lg bg-indigo-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-indigo-500 shadow-sm"
                           >
@@ -506,13 +561,13 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                         {new Date(f.updatedAt).toLocaleDateString()}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        {isCustomizedSelection ? (
+                        {manualSet && manualSet.size > 0 && isCustomizedSelection ? (
                           <span className="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800 font-bold">
                             Selected: {displayStats.selectedEndpoints} / {totalEndpoints} Endpoints
                           </span>
                         ) : collectionSearchQuery.trim() ? (
-                          <span className="font-bold text-amber-300 animate-in fade-in">
-                            Showing {displayStats.nodes} Nodes ({displayStats.endpoints} Endpoints)
+                          <span className="px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 font-bold animate-in fade-in">
+                            🔍 Filter Active: {displayStats.selectedEndpoints} / {totalEndpoints} Endpoints
                           </span>
                         ) : (
                           <span className="font-bold text-slate-300">
@@ -598,11 +653,11 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
 
       {/* TREE VIEW: ENVIRONMENT FILES */}
       <div className="space-y-2 pt-2">
-        <div 
-          onClick={() => setEnvExpanded(!envExpanded)}
-          className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-slate-800/80 cursor-pointer hover:bg-slate-900"
-        >
-          <div className="flex items-center space-x-2 text-xs font-bold text-amber-300">
+        <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:bg-slate-900">
+          <div 
+            onClick={() => setEnvExpanded(!envExpanded)}
+            className="flex items-center space-x-2 text-xs font-bold text-amber-300 cursor-pointer"
+          >
             {envExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             <Key className="h-4 w-4 text-amber-400" />
             <span>
@@ -610,6 +665,31 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
               {envSearchQuery.trim() && ` / ${files.filter((f) => f.fileType === 'env').length}`}
               )
             </span>
+          </div>
+
+          {/* Info Icon with Popover Tooltip */}
+          <div className="relative group">
+            <Info className="h-3.5 w-3.5 text-amber-400 cursor-pointer hover:text-amber-300 transition-colors" />
+            <div className="absolute right-0 top-5 z-50 hidden group-hover:block w-72 p-3 rounded-2xl bg-[#0f172a] border border-amber-500/40 shadow-2xl space-y-2 text-left text-xs font-sans text-slate-200">
+              <div className="font-bold text-amber-300 border-b border-slate-800 pb-1 flex items-center justify-between">
+                <span>ℹ️ Environment Files Info</span>
+                <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">
+                  Total: {envFiles.length}
+                </span>
+              </div>
+              <div className="space-y-1 text-[11px] font-mono">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Active Env File:</span>
+                  <strong className="text-emerald-300 truncate max-w-[130px]">
+                    {files.find((f) => f.id === loadedEnvFileId)?.fileName || 'None'}
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Active Search Filter:</span>
+                  <strong className="text-amber-300">{envSearchQuery ? `"${envSearchQuery}"` : 'None'}</strong>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -641,11 +721,10 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                 onClick={() => {
                   setEnvSearchQuery('');
                   setSelectedSidebarEnvKeys({});
-                  setLoadedEnvFileId(null);
-                  useRunnerStore.setState({ envVariables: {} });
+                  if (onResetLoadedEnvFileId) onResetLoadedEnvFileId();
                 }}
                 className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-bold text-amber-400 hover:text-amber-300 transition-all shrink-0"
-                title="Reset environment search filter, custom key selections, and active workspace env variables"
+                title="Reset environment search filter, custom key selections, and card active status"
               >
                 Reset
               </button>
@@ -680,14 +759,20 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                 }
 
                 const allKeys = rawKeyEntries.map((e) => e.key);
-                const selectedKeySet = selectedSidebarEnvKeys[f.id] || new Set(allKeys);
-                const isCustomEnvSelection = selectedKeySet.size < rawKeyEntries.length;
-
                 const keyEntries = rawKeyEntries.filter((item) => {
                   if (!envSearchQuery.trim()) return true;
                   const q = envSearchQuery.toLowerCase();
                   return item.key.toLowerCase().includes(q) || item.val.toLowerCase().includes(q);
                 });
+                const searchMatchedEnvKeys = keyEntries.map((e) => e.key);
+
+                const hasUserManualEnvSelection = !!selectedSidebarEnvKeys[f.id];
+                const manualEnvSet = selectedSidebarEnvKeys[f.id];
+                const selectedKeySet = envSearchQuery.trim()
+                  ? new Set(searchMatchedEnvKeys)
+                  : (manualEnvSet !== undefined ? manualEnvSet : new Set(allKeys));
+
+                const isCustomEnvSelection = selectedKeySet.size < rawKeyEntries.length;
 
                 const isEnvExpanded = expandedEnvFileIds[f.id] ?? (envSearchQuery.trim().length > 0);
 
@@ -727,10 +812,10 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                     <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-slate-400 pt-0.5 border-t border-slate-800/60">
                       <span className="flex items-center gap-1 text-[10px] font-mono">
                         <Calendar className="h-3 w-3 text-slate-500" />
-                        {isCustomEnvSelection ? (
-                          <strong className="text-amber-300">Selected: {selectedKeySet.size} / {rawKeyEntries.length} Keys</strong>
+                        {hasUserManualEnvSelection && isCustomEnvSelection ? (
+                          <strong className="text-amber-300 font-bold">Selected: {selectedKeySet.size} / {rawKeyEntries.length} Keys</strong>
                         ) : envSearchQuery.trim() ? (
-                          <strong className="text-amber-300">Showing {keyEntries.length} / {rawKeyEntries.length} Keys</strong>
+                          <strong className="text-amber-300 font-bold animate-in fade-in">🔍 Filter Active: {selectedKeySet.size} / {rawKeyEntries.length} Keys</strong>
                         ) : (
                           <span className="text-slate-500">{rawKeyEntries.length} Keys</span>
                         )}
@@ -744,21 +829,13 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            if (isCustomEnvSelection && selectedKeySet.size > 0) {
-                              setPendingLoadConfirm({
-                                file: f,
-                                fileType: 'env',
-                                totalCount: rawKeyEntries.length,
-                                selectedCount: selectedKeySet.size,
-                                selectedIdsOrKeys: Array.from(selectedKeySet)
-                              });
-                            } else {
-                              onLoadFileToWorkspace({
-                                ...f,
-                                selectedEnvKeys: Array.from(selectedKeySet)
-                              });
-                              setLoadedEnvFileId(f.id);
-                            }
+                            setPendingLoadConfirm({
+                              file: f,
+                              fileType: 'env',
+                              totalCount: rawKeyEntries.length,
+                              selectedCount: selectedKeySet.size,
+                              selectedIdsOrKeys: Array.from(selectedKeySet)
+                            });
                           }}
                           className="px-2.5 py-1 rounded-lg font-bold text-xs bg-amber-600 text-white hover:bg-amber-500 transition-all shadow-sm"
                         >
@@ -1000,15 +1077,25 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                     if (pendingLoadConfirm.fileType === 'collection') {
                       onLoadFileToWorkspace({
                         ...pendingLoadConfirm.file,
+                        fromCustomConfirm: true,
+                        totalCount: pendingLoadConfirm.totalCount,
+                        selectedCount: pendingLoadConfirm.totalCount,
+                        selectedIdsOrKeys: [],
+                        originalSelectedCount: pendingLoadConfirm.selectedCount,
+                        originalSelectedIdsOrKeys: pendingLoadConfirm.selectedIdsOrKeys,
                         selectedNodeIds: undefined
                       });
-                      setLoadedFileId(pendingLoadConfirm.file.id);
                     } else {
                       onLoadFileToWorkspace({
                         ...pendingLoadConfirm.file,
+                        fromCustomConfirm: true,
+                        totalCount: pendingLoadConfirm.totalCount,
+                        selectedCount: pendingLoadConfirm.totalCount,
+                        selectedIdsOrKeys: [],
+                        originalSelectedCount: pendingLoadConfirm.selectedCount,
+                        originalSelectedIdsOrKeys: pendingLoadConfirm.selectedIdsOrKeys,
                         selectedEnvKeys: undefined
                       });
-                      setLoadedEnvFileId(pendingLoadConfirm.file.id);
                     }
                     setPendingLoadConfirm(null);
                   }}
@@ -1023,15 +1110,25 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                     if (pendingLoadConfirm.fileType === 'collection') {
                       onLoadFileToWorkspace({
                         ...pendingLoadConfirm.file,
+                        fromCustomConfirm: true,
+                        totalCount: pendingLoadConfirm.totalCount,
+                        selectedCount: pendingLoadConfirm.selectedCount,
+                        selectedIdsOrKeys: pendingLoadConfirm.selectedIdsOrKeys,
+                        originalSelectedCount: pendingLoadConfirm.selectedCount,
+                        originalSelectedIdsOrKeys: pendingLoadConfirm.selectedIdsOrKeys,
                         selectedNodeIds: pendingLoadConfirm.selectedIdsOrKeys
                       });
-                      setLoadedFileId(pendingLoadConfirm.file.id);
                     } else {
                       onLoadFileToWorkspace({
                         ...pendingLoadConfirm.file,
+                        fromCustomConfirm: true,
+                        totalCount: pendingLoadConfirm.totalCount,
+                        selectedCount: pendingLoadConfirm.selectedCount,
+                        selectedIdsOrKeys: pendingLoadConfirm.selectedIdsOrKeys,
+                        originalSelectedCount: pendingLoadConfirm.selectedCount,
+                        originalSelectedIdsOrKeys: pendingLoadConfirm.selectedIdsOrKeys,
                         selectedEnvKeys: pendingLoadConfirm.selectedIdsOrKeys
                       });
-                      setLoadedEnvFileId(pendingLoadConfirm.file.id);
                     }
                     setPendingLoadConfirm(null);
                   }}

@@ -302,37 +302,40 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap lg:flex-nowrap items-center gap-2 shrink-0">
           <button
+            type="button"
             onClick={onSaveToServer}
             disabled={isWorkspaceEmpty}
             title={isWorkspaceEmpty ? 'Workspace is empty. Load or upload a Postman collection first.' : 'Save collection to server'}
-            className={`inline-flex items-center space-x-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all shadow-md ${
+            className={`h-9 inline-flex items-center justify-center space-x-1.5 rounded-xl border px-3.5 text-xs font-bold transition-all shadow-md shrink-0 ${
               isWorkspaceEmpty 
                 ? 'border-slate-800 bg-slate-900/60 text-slate-500 cursor-not-allowed opacity-50' 
-                : 'border-amber-500/40 bg-amber-950/60 text-amber-300 hover:bg-amber-900'
+                : 'border-amber-500/40 bg-amber-950/60 text-amber-300 hover:bg-amber-900/80 hover:border-amber-500'
             }`}
           >
             <FolderDown className={`h-4 w-4 ${isWorkspaceEmpty ? 'text-slate-500' : 'text-amber-400'}`} />
-            <span>💾 Save to Server</span>
+            <span>Save to Server</span>
           </button>
 
           <button
+            type="button"
             onClick={clearResults}
-            className="inline-flex items-center space-x-1.5 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 transition-all"
+            className="h-9 inline-flex items-center justify-center space-x-1.5 rounded-xl border border-slate-800 bg-slate-900/90 px-3.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition-all shadow-md shrink-0"
             title="Reset telemetry counters"
           >
             <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
-            <span>Refresh Results</span>
+            <span>Refresh</span>
           </button>
 
           <button
+            type="button"
             onClick={runSelectedEndpoints}
             disabled={runSummary.status === 'running' || selectedNodeIds.length === 0}
-            className="inline-flex items-center space-x-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-5 py-2 text-xs font-extrabold text-white shadow-lg shadow-indigo-600/30 hover:from-indigo-500 hover:to-pink-500 transition-all disabled:opacity-50"
+            className="h-9 inline-flex items-center justify-center space-x-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-4 text-xs font-extrabold text-white shadow-lg shadow-indigo-600/30 hover:from-indigo-500 hover:to-pink-500 transition-all disabled:opacity-50 shrink-0"
           >
             <Play className="h-4 w-4 fill-white" />
-            <span>{runSummary.status === 'running' ? 'Running Suite...' : 'Run Selected Endpoints'}</span>
+            <span>{runSummary.status === 'running' ? 'Running...' : 'Run Selected'}</span>
           </button>
         </div>
       </div>

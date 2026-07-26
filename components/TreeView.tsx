@@ -17,7 +17,8 @@ import {
   XCircle,
   Laptop,
   Cloud,
-  FileText
+  FileText,
+  Info
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { TreeNode, HttpMethod } from '@/lib/types';
@@ -26,6 +27,7 @@ export const TreeView: React.FC = () => {
   const { 
     rootNodes, 
     serverRootNodes,
+    serverCollectionName,
     activeWorkspaceSource,
     setActiveWorkspaceSource,
     selectedNodeIds, 
@@ -44,6 +46,22 @@ export const TreeView: React.FC = () => {
   const activeNodes = (activeWorkspaceSource === 'server' && serverRootNodes.length > 0) || (rootNodes.length === 0 && serverRootNodes.length > 0) 
     ? serverRootNodes 
     : rootNodes;
+
+  let infoTotalNodesCount = 0;
+  let infoTotalEndpointsCount = 0;
+  let infoSelectedEndpointsCount = 0;
+  const selSet = new Set(selectedNodeIds);
+  function countTreeNodes(list: TreeNode[]) {
+    list.forEach((n) => {
+      infoTotalNodesCount++;
+      if (n.type === 'endpoint') {
+        infoTotalEndpointsCount++;
+        if (selSet.has(n.id)) infoSelectedEndpointsCount++;
+      }
+      if (n.children) countTreeNodes(n.children);
+    });
+  }
+  countTreeNodes(activeNodes);
 
   // Auto-expand all parent ancestor folders leading to selectedEndpointIdForDetail & smooth animated scroll into view
   useEffect(() => {
@@ -405,9 +423,41 @@ export const TreeView: React.FC = () => {
       <div className="space-y-2 pb-3 border-b border-slate-800/80">
         {/* Row 1: Section Title & Controls */}
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-            Collection Hierarchy
-          </h3>
+          <div className="flex items-center space-x-1.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              Collection Hierarchy
+            </h3>
+            {/* Info Icon with Popover Tooltip */}
+            <div className="relative group">
+              <Info className="h-3.5 w-3.5 text-indigo-400 cursor-pointer hover:text-indigo-300 transition-colors" />
+              <div className="absolute left-0 top-5 z-50 hidden group-hover:block w-72 p-3 rounded-2xl bg-[#0f172a] border border-indigo-500/40 shadow-2xl space-y-2 text-left text-xs font-sans text-slate-200">
+                <div className="font-bold text-indigo-300 border-b border-slate-800 pb-1 flex items-center justify-between">
+                  <span>ℹ️ Workspace Status Info</span>
+                  <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">
+                    {activeWorkspaceSource === 'server' ? '☁️ Server Cloud' : '💻 Local File'}
+                  </span>
+                </div>
+                <div className="space-y-1 text-[11px] font-mono">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Active Collection:</span>
+                    <strong className="text-white truncate max-w-[130px]">{serverCollectionName || 'Active Workspace'}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Loaded Endpoints:</span>
+                    <strong className="text-emerald-300">{infoTotalEndpointsCount} Endpoints ({infoTotalNodesCount} Nodes)</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Checked for Run:</span>
+                    <strong className="text-amber-300">{infoSelectedEndpointsCount} Selected</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Active Search Filter:</span>
+                    <strong className="text-indigo-300">{searchQuery ? `"${searchQuery}"` : 'None'}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div className="flex items-center space-x-1.5 text-[11px] font-mono shrink-0">
             {/* 1-Click Collapse All */}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   FileCode, 
@@ -138,6 +138,9 @@ export default function Home() {
 
   // Load Confirmation Dialog state
   const [pendingServerFileToLoad, setPendingServerFileToLoad] = useState<any | null>(null);
+  const [loadedFileId, setLoadedFileId] = useState<string | null>(null);
+  const [loadedEnvFileId, setLoadedEnvFileId] = useState<string | null>(null);
+  const reopenLoadConfirmRef = useRef<((fileRecord: any) => void) | null>(null);
 
   const handleLoadServerFile = (fileRecord: any) => {
     setPendingServerFileToLoad(fileRecord);
@@ -152,8 +155,14 @@ export default function Home() {
         const parsed = JSON.parse(fileRecord.content);
         let { collectionName: loadedName, rootNodes: loadedRoots, flatEndpointMap: loadedMap, allNodeIds: loadedIds } = parseAndNormalizeServerCollection(parsed, fileRecord.fileName);
 
-        // If sidebar selection subset exists (e.g., 6 out of 32 nodes), filter loadedRoots & loadedMap
-        if (fileRecord.selectedNodeIds && Array.isArray(fileRecord.selectedNodeIds) && fileRecord.selectedNodeIds.length > 0) {
+        // If sidebar selection subset exists (e.g., 3 out of 20 nodes), filter loadedRoots & loadedMap
+        const totalInCollection = loadedIds.length;
+        const isSubsetSelection = fileRecord.selectedNodeIds && 
+          Array.isArray(fileRecord.selectedNodeIds) && 
+          fileRecord.selectedNodeIds.length > 0 && 
+          fileRecord.selectedNodeIds.length < totalInCollection;
+
+        if (isSubsetSelection) {
           const selectedSet = new Set(fileRecord.selectedNodeIds);
           function filterNodes(nodes: TreeNode[]): TreeNode[] {
             const filtered: TreeNode[] = [];
@@ -196,6 +205,7 @@ export default function Home() {
             serverFlatEndpointMap: loadedMap,
             flatEndpointMap: loadedMap,
             selectedNodeIds: loadedIds,
+            searchQuery: '',
             activeWorkspaceSource: 'server',
             executionResults: {},
             generatedTestSuites: {},
@@ -212,18 +222,17 @@ export default function Home() {
             }
           });
         } else {
-          // Side-by-side mode: populate server workspace and merge maps
+          // Side-by-side mode: populate server workspace with new collection and set selectedNodeIds
           const currentFlatMap = useRunnerStore.getState().flatEndpointMap;
           const mergedMap = new Map([...Array.from(currentFlatMap.entries()), ...Array.from(loadedMap.entries())]);
-          const currentSelected = useRunnerStore.getState().selectedNodeIds;
-          const mergedSelected = Array.from(new Set([...currentSelected, ...loadedIds]));
 
           useRunnerStore.setState({
             serverCollectionName: loadedName,
             serverRootNodes: loadedRoots,
             serverFlatEndpointMap: loadedMap,
             flatEndpointMap: mergedMap,
-            selectedNodeIds: mergedSelected,
+            selectedNodeIds: loadedIds,
+            searchQuery: '',
             activeWorkspaceSource: 'server',
             executionResults: {},
             generatedTestSuites: {},
@@ -240,11 +249,12 @@ export default function Home() {
             }
           });
         }
+        setLoadedFileId(fileRecord.id);
         setEnvNotification(`✅ Server Collection "${loadedName}" loaded (${loadedMap.size} selected endpoints ready)!`);
         setTimeout(() => setEnvNotification(null), 4000);
         setActiveMainTab('runner');
       } else {
-        // Robust Environment file loading (supports both JSON Postman Env and KEY=VAL formats)
+        // Robust Environment file loading
         let envObj: Record<string, string> = {};
         const trimmedContent = fileRecord.content.trim();
         
@@ -271,7 +281,13 @@ export default function Home() {
           });
         }
 
-        if (fileRecord.selectedEnvKeys && Array.isArray(fileRecord.selectedEnvKeys) && fileRecord.selectedEnvKeys.length > 0) {
+        const totalEnvKeys = Object.keys(envObj).length;
+        const isEnvSubset = fileRecord.selectedEnvKeys && 
+          Array.isArray(fileRecord.selectedEnvKeys) && 
+          fileRecord.selectedEnvKeys.length > 0 && 
+          fileRecord.selectedEnvKeys.length < totalEnvKeys;
+
+        if (isEnvSubset) {
           const selectedKeySet = new Set(fileRecord.selectedEnvKeys);
           const filteredEnv: Record<string, string> = {};
           Object.entries(envObj).forEach(([k, v]) => {
@@ -288,6 +304,7 @@ export default function Home() {
           useRunnerStore.setState({ envVariables: { ...useRunnerStore.getState().envVariables, ...envObj } });
         }
 
+        setLoadedEnvFileId(fileRecord.id);
         setEnvNotification(`✅ Server Environment file "${fileRecord.fileName}" loaded (${Object.keys(envObj).length} keys active in workspace memory)!`);
         setTimeout(() => setEnvNotification(null), 4500);
         setActiveMainTab('runner');
@@ -618,6 +635,11 @@ export default function Home() {
             <UserWorkspaceSidebar
               onLoadFileToWorkspace={handleLoadServerFile}
               refreshTrigger={sidebarRefresh}
+              loadedFileId={loadedFileId}
+              loadedEnvFileId={loadedEnvFileId}
+              onResetLoadedFileId={() => setLoadedFileId(null)}
+              onResetLoadedEnvFileId={() => setLoadedEnvFileId(null)}
+              onRegisterReopenRef={(fn) => { reopenLoadConfirmRef.current = fn; }}
             />
           )}
 
@@ -908,10 +930,25 @@ export default function Home() {
               </>
             )}
 
-            <div className="flex items-center justify-end pt-2 border-t border-slate-800/80">
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
               <button
+                type="button"
+                onClick={() => {
+                  if (pendingServerFileToLoad?.fromCustomConfirm && reopenLoadConfirmRef.current) {
+                    reopenLoadConfirmRef.current(pendingServerFileToLoad);
+                  }
+                  setPendingServerFileToLoad(null);
+                }}
+                className="inline-flex items-center space-x-1.5 rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition-all shadow-sm"
+                title="Return to previous custom selection dialog"
+              >
+                <span>🔙 Back / Modify Selection</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setPendingServerFileToLoad(null)}
-                className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white"
+                className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
               >
                 Cancel
               </button>
