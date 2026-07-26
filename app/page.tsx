@@ -271,6 +271,17 @@ export default function Home() {
           });
         }
 
+        if (fileRecord.selectedEnvKeys && Array.isArray(fileRecord.selectedEnvKeys) && fileRecord.selectedEnvKeys.length > 0) {
+          const selectedKeySet = new Set(fileRecord.selectedEnvKeys);
+          const filteredEnv: Record<string, string> = {};
+          Object.entries(envObj).forEach(([k, v]) => {
+            if (selectedKeySet.has(k)) {
+              filteredEnv[k] = v;
+            }
+          });
+          envObj = filteredEnv;
+        }
+
         if (overrideMode === 'replace') {
           useRunnerStore.setState({ envVariables: envObj });
         } else {

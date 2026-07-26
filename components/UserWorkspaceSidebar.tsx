@@ -44,6 +44,7 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
   const [collectionsExpanded, setCollectionsExpanded] = useState(true);
   const [envExpanded, setEnvExpanded] = useState(true);
   const [loadedFileId, setLoadedFileId] = useState<string | null>(null);
+  const [loadedEnvFileId, setLoadedEnvFileId] = useState<string | null>(null);
   
   const [quota, setQuota] = useState<{
     maxBytes: number;
@@ -65,6 +66,17 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
   const [selectedSidebarNodeIds, setSelectedSidebarNodeIds] = useState<Record<string, Set<string>>>({});
   // Expanded env file preview keys state
   const [expandedEnvFileIds, setExpandedEnvFileIds] = useState<Record<string, boolean>>({});
+  // Per-env-file selection state for env keys
+  const [selectedSidebarEnvKeys, setSelectedSidebarEnvKeys] = useState<Record<string, Set<string>>>({});
+
+  // Custom load confirmation modal state
+  const [pendingLoadConfirm, setPendingLoadConfirm] = useState<{
+    file: any;
+    fileType: 'collection' | 'env';
+    totalCount: number;
+    selectedCount: number;
+    selectedIdsOrKeys: string[];
+  } | null>(null);
 
   // Custom Delete Modal State
   const [fileToDelete, setFileToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -355,25 +367,44 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
 
         {collectionsExpanded && (
           <div className="pl-1 space-y-2 pt-1">
-            {/* Dedicated Collection Search Bar */}
-            <div className="relative mb-2">
-              <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-500" />
-              <input
-                type="text"
-                placeholder="Search endpoints in collections..."
-                value={collectionSearchQuery}
-                onChange={(e) => setCollectionSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-slate-800 bg-slate-900/90 pl-8 pr-7 py-1 text-xs text-slate-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
-              />
-              {collectionSearchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setCollectionSearchQuery('')}
-                  className="absolute right-2.5 top-1.5 text-[11px] font-bold text-slate-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              )}
+            {/* Dedicated Collection Search Bar + Reset */}
+            <div className="flex items-center space-x-1.5 mb-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Search endpoints in collections..."
+                  value={collectionSearchQuery}
+                  onChange={(e) => setCollectionSearchQuery(e.target.value)}
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900/90 pl-8 pr-7 py-1 text-xs text-slate-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
+                />
+                {collectionSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setCollectionSearchQuery('')}
+                    className="absolute right-2.5 top-1.5 text-[11px] font-bold text-slate-400 hover:text-white"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCollectionSearchQuery('');
+                  setSelectedSidebarNodeIds({});
+                  setLoadedFileId(null);
+                  useRunnerStore.setState({
+                    serverCollectionName: '',
+                    serverRootNodes: [],
+                    serverFlatEndpointMap: new Map()
+                  });
+                }}
+                className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-bold text-slate-400 hover:text-white transition-all shrink-0"
+                title="Reset collection search filter, custom selections, and active workspace state"
+              >
+                Reset
+              </button>
             </div>
 
             {collections.length === 0 ? (
@@ -384,24 +415,29 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
               collections.map((f) => {
                 const { rootNodes: sidebarTree, allNodeIds, totalEndpoints } = parseSidebarTreeNodes(f.content, f.fileName);
                 const displaySidebarTree = filterSidebarNodes(sidebarTree, collectionSearchQuery);
-                const isTreeExpanded = collectionSearchQuery.trim().length > 0 ? true : (expandedFileTreeIds[f.id] ?? false);
+                const isTreeExpanded = expandedFileTreeIds[f.id] ?? (collectionSearchQuery.trim().length > 0);
                 const fileSelectedSet = selectedSidebarNodeIds[f.id] || new Set(allNodeIds);
 
-                function countSidebarStats(nodes: TreeNode[]): { nodes: number; endpoints: number } {
+                function countSidebarStats(nodes: TreeNode[]): { nodes: number; endpoints: number; selectedEndpoints: number } {
                   let nCnt = 0;
                   let eCnt = 0;
+                  let selCnt = 0;
                   function walk(list: TreeNode[]) {
                     list.forEach((n) => {
                       nCnt++;
-                      if (n.type === 'endpoint') eCnt++;
+                      if (n.type === 'endpoint') {
+                        eCnt++;
+                        if (fileSelectedSet.has(n.id)) selCnt++;
+                      }
                       if (n.children) walk(n.children);
                     });
                   }
                   walk(nodes);
-                  return { nodes: nCnt, endpoints: eCnt };
+                  return { nodes: nCnt, endpoints: eCnt, selectedEndpoints: selCnt };
                 }
 
-                const displayStats = countSidebarStats(displaySidebarTree);
+                const displayStats = countSidebarStats(sidebarTree);
+                const isCustomizedSelection = displayStats.selectedEndpoints < totalEndpoints;
 
                 return (
                   <div 
@@ -419,7 +455,7 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                         >
                           {isTreeExpanded ? <ChevronDown className="h-4 w-4 text-amber-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
                         </button>
-                        <span className="font-bold text-slate-200 truncate max-w-[160px]" title={f.fileName}>{f.fileName}</span>
+                        <span className="font-bold text-slate-200 truncate max-w-[150px]" title={f.fileName}>{f.fileName}</span>
                       </div>
                       
                       <div className="flex items-center space-x-1.5 shrink-0">
@@ -431,11 +467,21 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                           <button
                             type="button"
                             onClick={() => {
-                              onLoadFileToWorkspace({
-                                ...f,
-                                selectedNodeIds: Array.from(fileSelectedSet)
-                              });
-                              setLoadedFileId(f.id);
+                              if (isCustomizedSelection && displayStats.selectedEndpoints > 0) {
+                                setPendingLoadConfirm({
+                                  file: f,
+                                  fileType: 'collection',
+                                  totalCount: totalEndpoints,
+                                  selectedCount: displayStats.selectedEndpoints,
+                                  selectedIdsOrKeys: Array.from(fileSelectedSet)
+                                });
+                              } else {
+                                onLoadFileToWorkspace({
+                                  ...f,
+                                  selectedNodeIds: Array.from(fileSelectedSet)
+                                });
+                                setLoadedFileId(f.id);
+                              }
                             }}
                             className="rounded-lg bg-indigo-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-indigo-500 shadow-sm"
                           >
@@ -454,20 +500,26 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono border-t border-slate-800/60 pt-2">
+                    <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] text-slate-400 font-mono border-t border-slate-800/60 pt-2">
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3 text-slate-500" />
                         {new Date(f.updatedAt).toLocaleDateString()}
                       </span>
-                      {collectionSearchQuery.trim() ? (
-                        <span className="font-bold text-amber-300 animate-in fade-in">
-                          Showing {displayStats.nodes} / {allNodeIds.length} Nodes ({displayStats.endpoints} / {totalEndpoints} Endpoints)
-                        </span>
-                      ) : (
-                        <span className="font-bold text-slate-300">
-                          {allNodeIds.length} Nodes ({totalEndpoints} Endpoints)
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {isCustomizedSelection ? (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800 font-bold">
+                            Selected: {displayStats.selectedEndpoints} / {totalEndpoints} Endpoints
+                          </span>
+                        ) : collectionSearchQuery.trim() ? (
+                          <span className="font-bold text-amber-300 animate-in fade-in">
+                            Showing {displayStats.nodes} Nodes ({displayStats.endpoints} Endpoints)
+                          </span>
+                        ) : (
+                          <span className="font-bold text-slate-300">
+                            {allNodeIds.length} Nodes ({totalEndpoints} Endpoints)
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {isTreeExpanded && (
@@ -563,25 +615,40 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
 
         {envExpanded && (
           <div className="pl-1 space-y-2 pt-1">
-            {/* Dedicated Environment Search Bar */}
-            <div className="relative mb-2">
-              <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-amber-500/80" />
-              <input
-                type="text"
-                placeholder="Search env keys or values..."
-                value={envSearchQuery}
-                onChange={(e) => setEnvSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-slate-800 bg-slate-900/90 pl-8 pr-7 py-1 text-xs text-slate-200 placeholder-slate-500 focus:border-amber-500 focus:outline-none"
-              />
-              {envSearchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setEnvSearchQuery('')}
-                  className="absolute right-2.5 top-1.5 text-[11px] font-bold text-slate-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              )}
+            {/* Dedicated Environment Search Bar + Reset */}
+            <div className="flex items-center space-x-1.5 mb-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-amber-500/80" />
+                <input
+                  type="text"
+                  placeholder="Search env keys or values..."
+                  value={envSearchQuery}
+                  onChange={(e) => setEnvSearchQuery(e.target.value)}
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900/90 pl-8 pr-7 py-1 text-xs text-slate-200 placeholder-slate-500 focus:border-amber-500 focus:outline-none"
+                />
+                {envSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setEnvSearchQuery('')}
+                    className="absolute right-2.5 top-1.5 text-[11px] font-bold text-slate-400 hover:text-white"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEnvSearchQuery('');
+                  setSelectedSidebarEnvKeys({});
+                  setLoadedEnvFileId(null);
+                  useRunnerStore.setState({ envVariables: {} });
+                }}
+                className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-bold text-amber-400 hover:text-amber-300 transition-all shrink-0"
+                title="Reset environment search filter, custom key selections, and active workspace env variables"
+              >
+                Reset
+              </button>
             </div>
 
             {envFiles.length === 0 ? (
@@ -590,7 +657,6 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
               </p>
             ) : (
               envFiles.map((f) => {
-                // Parse key-value entries for collapsible preview & inspection
                 const rawKeyEntries: { key: string; val: string }[] = [];
                 const trimmed = (f.content || '').trim();
                 if (trimmed.startsWith('{')) {
@@ -613,13 +679,27 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                   });
                 }
 
+                const allKeys = rawKeyEntries.map((e) => e.key);
+                const selectedKeySet = selectedSidebarEnvKeys[f.id] || new Set(allKeys);
+                const isCustomEnvSelection = selectedKeySet.size < rawKeyEntries.length;
+
                 const keyEntries = rawKeyEntries.filter((item) => {
                   if (!envSearchQuery.trim()) return true;
                   const q = envSearchQuery.toLowerCase();
                   return item.key.toLowerCase().includes(q) || item.val.toLowerCase().includes(q);
                 });
 
-                const isEnvExpanded = envSearchQuery.trim().length > 0 ? true : !!expandedEnvFileIds[f.id];
+                const isEnvExpanded = expandedEnvFileIds[f.id] ?? (envSearchQuery.trim().length > 0);
+
+                const toggleEnvKey = (keyName: string) => {
+                  const currentSet = new Set(selectedSidebarEnvKeys[f.id] || allKeys);
+                  if (currentSet.has(keyName)) {
+                    currentSet.delete(keyName);
+                  } else {
+                    currentSet.add(keyName);
+                  }
+                  setSelectedSidebarEnvKeys((prev) => ({ ...prev, [f.id]: new Set(currentSet) }));
+                };
 
                 return (
                   <div 
@@ -635,6 +715,7 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                         <span className="truncate">{f.fileName}</span>
                       </div>
                       <button
+                        type="button"
                         onClick={() => setFileToDelete({ id: f.id, name: f.fileName })}
                         className="text-slate-500 hover:text-red-400 p-0.5"
                         title="Delete env file"
@@ -643,31 +724,73 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                       </button>
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5 border-t border-slate-800/60">
+                    <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-slate-400 pt-0.5 border-t border-slate-800/60">
                       <span className="flex items-center gap-1 text-[10px] font-mono">
                         <Calendar className="h-3 w-3 text-slate-500" />
-                        {envSearchQuery.trim() ? (
+                        {isCustomEnvSelection ? (
+                          <strong className="text-amber-300">Selected: {selectedKeySet.size} / {rawKeyEntries.length} Keys</strong>
+                        ) : envSearchQuery.trim() ? (
                           <strong className="text-amber-300">Showing {keyEntries.length} / {rawKeyEntries.length} Keys</strong>
                         ) : (
                           <span className="text-slate-500">{rawKeyEntries.length} Keys</span>
                         )}
                       </span>
-                      <button
-                        onClick={() => onLoadFileToWorkspace(f)}
-                        className="px-2.5 py-1 rounded-lg font-bold text-xs bg-amber-600 text-white hover:bg-amber-500 transition-all shadow-sm"
-                      >
-                        Load Env
-                      </button>
+
+                      {loadedEnvFileId === f.id ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800 font-mono">
+                          Active
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isCustomEnvSelection && selectedKeySet.size > 0) {
+                              setPendingLoadConfirm({
+                                file: f,
+                                fileType: 'env',
+                                totalCount: rawKeyEntries.length,
+                                selectedCount: selectedKeySet.size,
+                                selectedIdsOrKeys: Array.from(selectedKeySet)
+                              });
+                            } else {
+                              onLoadFileToWorkspace({
+                                ...f,
+                                selectedEnvKeys: Array.from(selectedKeySet)
+                              });
+                              setLoadedEnvFileId(f.id);
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-lg font-bold text-xs bg-amber-600 text-white hover:bg-amber-500 transition-all shadow-sm"
+                        >
+                          Load Env
+                        </button>
+                      )}
                     </div>
 
-                    {/* COLLAPSIBLE PREVIEW OF ENV KEYS */}
+                    {/* COLLAPSIBLE PREVIEW OF ENV KEYS WITH SELECTION CHECKBOXES */}
                     {isEnvExpanded && (
                       <div className="pt-2 border-t border-slate-800/80 space-y-1 animate-in fade-in">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] uppercase font-bold text-amber-400 block tracking-wider font-mono">
+                        <div className="flex items-center justify-between text-[10px] font-mono">
+                          <span className="uppercase font-bold text-amber-400 block tracking-wider">
                             Contained Keys ({keyEntries.length}):
                           </span>
-                          <span className="text-[9px] text-slate-500 italic">Click key to inspect full value</span>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSidebarEnvKeys((prev) => ({ ...prev, [f.id]: new Set(allKeys) }))}
+                              className="text-indigo-400 hover:underline font-bold"
+                            >
+                              All
+                            </button>
+                            <span className="text-slate-600">|</span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSidebarEnvKeys((prev) => ({ ...prev, [f.id]: new Set() }))}
+                              className="text-slate-400 hover:underline font-bold"
+                            >
+                              None
+                            </button>
+                          </div>
                         </div>
                         <div className="max-h-48 overflow-y-auto overflow-x-auto custom-scrollbar bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-1">
                           {keyEntries.length === 0 ? (
@@ -677,15 +800,34 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
                           ) : (
                             keyEntries.map((entry, idx) => {
                               const isSecretKey = /key|token|secret|pass|auth|jwt|bearer|private|credential|pwd|cert|salt/i.test(entry.key);
+                              const isChecked = selectedKeySet.has(entry.key);
+
                               return (
                                 <div 
                                   key={idx} 
-                                  onClick={() => setInspectedEnvKey({ fileName: f.fileName, key: entry.key, val: entry.val })}
-                                  className="flex items-center justify-between text-[11px] text-slate-300 font-mono p-1 rounded-lg hover:bg-slate-900 cursor-pointer border border-transparent hover:border-slate-800 transition-all"
-                                  title="Click to view full un-truncated value"
+                                  className="flex items-center justify-between text-[11px] text-slate-300 font-mono p-1 rounded-lg hover:bg-slate-900 border border-transparent hover:border-slate-800 transition-all select-none"
                                 >
-                                  <span className="font-bold text-slate-200 break-all pr-2">🔑 {entry.key}</span>
-                                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-sans shrink-0 ${isSecretKey ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-slate-900 text-slate-400 border border-slate-800'}`}>
+                                  <div className="flex items-center space-x-1.5 min-w-0 pr-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleEnvKey(entry.key)}
+                                      className="text-amber-400 shrink-0 p-0.5"
+                                    >
+                                      {isChecked ? <CheckSquare className="h-3.5 w-3.5 text-emerald-400" /> : <Square className="h-3.5 w-3.5 text-slate-600" />}
+                                    </button>
+                                    <span 
+                                      onClick={() => setInspectedEnvKey({ fileName: f.fileName, key: entry.key, val: entry.val })}
+                                      className={`font-bold cursor-pointer truncate ${isChecked ? 'text-slate-200 hover:text-amber-300' : 'text-slate-500 line-through'}`}
+                                      title="Click to view full value"
+                                    >
+                                      🔑 {entry.key}
+                                    </span>
+                                  </div>
+
+                                  <span 
+                                    onClick={() => setInspectedEnvKey({ fileName: f.fileName, key: entry.key, val: entry.val })}
+                                    className={`text-[9px] px-1.5 py-0.5 rounded font-sans shrink-0 cursor-pointer ${isSecretKey ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-slate-900 text-slate-400 border border-slate-800'}`}
+                                  >
                                     {isSecretKey ? '🔒 Secret' : 'Config'}
                                   </span>
                                 </div>
@@ -798,6 +940,106 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
               >
                 Close Inspector
               </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* CUSTOM LOAD CONFIRMATION INTERACTIVE MODAL PORTAL */}
+      {pendingLoadConfirm && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-indigo-500/40 bg-[#0f172a] p-6 shadow-2xl space-y-4 text-left">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
+                  <FileCode className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-white">
+                    Load {pendingLoadConfirm.fileType === 'collection' ? 'Custom Selected Endpoints' : 'Custom Selected Variables'}
+                  </h4>
+                  <p className="text-[11px] text-slate-400">Interactive Load Selection</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPendingLoadConfirm(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs text-slate-300">
+              <p>
+                You have custom-selected <strong className="text-amber-300 font-mono font-extrabold">{pendingLoadConfirm.selectedCount}</strong> out of <strong className="text-slate-200 font-mono">{pendingLoadConfirm.totalCount}</strong> {pendingLoadConfirm.fileType === 'collection' ? 'endpoints' : 'variables'} from:
+              </p>
+              <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 font-mono font-bold text-indigo-300 break-all">
+                📄 {pendingLoadConfirm.file.fileName}
+              </div>
+              <p className="text-[11px] text-slate-400">
+                How would you like to load this file into your workspace memory?
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setPendingLoadConfirm(null)}
+                className="w-full sm:w-auto inline-flex items-center justify-center space-x-1.5 rounded-xl border border-slate-800 bg-slate-900/90 px-3.5 py-2 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-all shrink-0"
+                title="Return to Server Explorer to adjust your selected checkboxes"
+              >
+                <span>🔙 Back / Modify Selection</span>
+              </button>
+
+              <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (pendingLoadConfirm.fileType === 'collection') {
+                      onLoadFileToWorkspace({
+                        ...pendingLoadConfirm.file,
+                        selectedNodeIds: undefined
+                      });
+                      setLoadedFileId(pendingLoadConfirm.file.id);
+                    } else {
+                      onLoadFileToWorkspace({
+                        ...pendingLoadConfirm.file,
+                        selectedEnvKeys: undefined
+                      });
+                      setLoadedEnvFileId(pendingLoadConfirm.file.id);
+                    }
+                    setPendingLoadConfirm(null);
+                  }}
+                  className="rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 transition-all"
+                >
+                  Load All ({pendingLoadConfirm.totalCount})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (pendingLoadConfirm.fileType === 'collection') {
+                      onLoadFileToWorkspace({
+                        ...pendingLoadConfirm.file,
+                        selectedNodeIds: pendingLoadConfirm.selectedIdsOrKeys
+                      });
+                      setLoadedFileId(pendingLoadConfirm.file.id);
+                    } else {
+                      onLoadFileToWorkspace({
+                        ...pendingLoadConfirm.file,
+                        selectedEnvKeys: pendingLoadConfirm.selectedIdsOrKeys
+                      });
+                      setLoadedEnvFileId(pendingLoadConfirm.file.id);
+                    }
+                    setPendingLoadConfirm(null);
+                  }}
+                  className="rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 px-4 py-2 text-xs font-extrabold text-white shadow-lg shadow-indigo-600/30 hover:from-amber-400 hover:to-indigo-500 transition-all"
+                >
+                  ⚡ Load Selected Only ({pendingLoadConfirm.selectedCount})
+                </button>
+              </div>
             </div>
           </div>
         </div>,
