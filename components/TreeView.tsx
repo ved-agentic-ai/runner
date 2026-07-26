@@ -480,16 +480,6 @@ export const TreeView: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-1.5 text-[11px] font-mono shrink-0">
-            {/* Scroll To Top Button */}
-            <button
-              type="button"
-              onClick={handleScrollToTop}
-              className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-indigo-950/80 text-indigo-300 border border-indigo-800/80 hover:bg-indigo-900 font-bold transition-all mr-1 shadow-sm"
-              title="Scroll to Top of Collection Tree"
-            >
-              <ArrowUp className="h-3 w-3 text-indigo-400" />
-              <span>Top</span>
-            </button>
 
             <button
               type="button"

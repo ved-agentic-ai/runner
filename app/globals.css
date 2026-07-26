@@ -1,231 +1,396 @@
 @import "tailwindcss";
 
+/* ============================================================
+   CUSTOM SCROLLBAR — Works across all themes
+   ============================================================ */
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(15, 23, 42, 0.4);
+    background: transparent;
     border-radius: 8px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(99, 102, 241, 0.4);
+    background: rgba(99, 102, 241, 0.35);
     border-radius: 8px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(99, 102, 241, 0.8);
+    background: rgba(99, 102, 241, 0.7);
   }
 }
 
-:root {
-  --bg-app: #0b0f19;
-  --bg-card: #0f172a;
-  --bg-header: #070b14;
-  --border-color: #1e293b;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
+/* ============================================================
+   GLOBAL BODY BASE
+   ============================================================ */
+body {
+  font-family: var(--font-geist-sans), 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  background-color: #0b0f19;
+  color: #f8fafc;
 }
 
-/* ==========================================================================
-   THEME 1: OBSIDIAN CYBER (DEFAULT DARK CYBERPUNK)
-   ========================================================================== */
-html[data-theme="dark"],
-.theme-dark {
-  --bg-app: #0b0f19;
-  --bg-card: #0f172a;
-  --bg-header: #070b14;
-  --border-color: #1e293b;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-}
+/* ============================================================
+   THEME 1: OBSIDIAN CYBER (DEFAULT DARK — no data-theme needed)
+   ============================================================ */
 
-/* ==========================================================================
+/* ============================================================
    THEME 2: MIDNIGHT SAPPHIRE (ROYAL NAVY & CYAN)
-   ========================================================================== */
-html[data-theme="midnight"],
-.theme-midnight {
-  --bg-app: #040a17;
-  --bg-card: #0b1736;
-  --bg-header: #060e24;
-  --border-color: #1e3a8a;
-  --text-primary: #f0f9ff;
-  --text-secondary: #93c5fd;
-}
-
+   ============================================================ */
 html[data-theme="midnight"] body {
-  background-color: #040a17 !important;
-  color: #f0f9ff !important;
+  background-color: #040a17;
+  color: #e0f2fe;
 }
-
-html[data-theme="midnight"] header,
-html[data-theme="midnight"] nav {
-  background-color: #060e24 !important;
-  border-color: #1e3a8a !important;
-}
-
+/* Shift all dark backgrounds to midnight navy */
 html[data-theme="midnight"] .bg-slate-950,
+html[data-theme="midnight"] .bg-\[\#0b0f19\] {
+  background-color: #060e24 !important;
+}
 html[data-theme="midnight"] .bg-slate-900,
-html[data-theme="midnight"] .bg-\[\#0b0f19\],
-html[data-theme="midnight"] .bg-\[\#0f172a\] {
+html[data-theme="midnight"] .bg-slate-900\/80,
+html[data-theme="midnight"] .bg-slate-900\/60,
+html[data-theme="midnight"] .bg-slate-900\/40,
+html[data-theme="midnight"] .bg-slate-900\/90 {
   background-color: #0b1736 !important;
-  border-color: #1e3a8a !important;
 }
-
+html[data-theme="midnight"] .bg-slate-950\/80,
+html[data-theme="midnight"] .bg-slate-950\/60,
+html[data-theme="midnight"] .bg-slate-950\/70,
+html[data-theme="midnight"] .bg-slate-950\/40,
+html[data-theme="midnight"] .bg-\[\#0f172a\] {
+  background-color: #08132a !important;
+}
+/* Borders */
 html[data-theme="midnight"] .border-slate-800,
+html[data-theme="midnight"] .border-slate-800\/80,
+html[data-theme="midnight"] .border-slate-800\/60 {
+  border-color: #1e3a6e !important;
+}
 html[data-theme="midnight"] .border-slate-900 {
-  border-color: #1e3a8a !important;
+  border-color: #1c2f5e !important;
+}
+/* Text tone shift to soft ice blue */
+html[data-theme="midnight"] .text-slate-400,
+html[data-theme="midnight"] .text-slate-500 {
+  color: #7eb4e2 !important;
+}
+html[data-theme="midnight"] .text-slate-300 {
+  color: #bfdbfe !important;
+}
+html[data-theme="midnight"] .text-slate-200 {
+  color: #dbeafe !important;
+}
+html[data-theme="midnight"] .text-slate-600 {
+  color: #4a7ab5 !important;
+}
+/* Header */
+html[data-theme="midnight"] header {
+  background-color: #040e20 !important;
+  border-color: #1e3a6e !important;
 }
 
-/* ==========================================================================
-   THEME 3: EMERALD MATRIX (CYBER NEON GREEN & TEAL)
-   ========================================================================== */
-html[data-theme="emerald"],
-.theme-emerald {
-  --bg-app: #02140e;
-  --bg-card: #062c20;
-  --bg-header: #031c15;
-  --border-color: #059669;
-  --text-primary: #ecfdf5;
-  --text-secondary: #6ee7b7;
-}
-
+/* ============================================================
+   THEME 3: EMERALD MATRIX (CYBERPUNK NEON GREEN)
+   ============================================================ */
 html[data-theme="emerald"] body {
-  background-color: #02140e !important;
-  color: #ecfdf5 !important;
+  background-color: #021a10;
+  color: #d1fae5;
 }
-
-html[data-theme="emerald"] header,
-html[data-theme="emerald"] nav {
-  background-color: #031c15 !important;
-  border-color: #047857 !important;
-}
-
 html[data-theme="emerald"] .bg-slate-950,
+html[data-theme="emerald"] .bg-\[\#0b0f19\] {
+  background-color: #021a10 !important;
+}
 html[data-theme="emerald"] .bg-slate-900,
-html[data-theme="emerald"] .bg-\[\#0b0f19\],
-html[data-theme="emerald"] .bg-\[\#0f172a\] {
+html[data-theme="emerald"] .bg-slate-900\/80,
+html[data-theme="emerald"] .bg-slate-900\/60,
+html[data-theme="emerald"] .bg-slate-900\/40,
+html[data-theme="emerald"] .bg-slate-900\/90 {
   background-color: #062c20 !important;
-  border-color: #047857 !important;
 }
-
+html[data-theme="emerald"] .bg-slate-950\/80,
+html[data-theme="emerald"] .bg-slate-950\/60,
+html[data-theme="emerald"] .bg-slate-950\/70,
+html[data-theme="emerald"] .bg-slate-950\/40,
+html[data-theme="emerald"] .bg-\[\#0f172a\] {
+  background-color: #03180d !important;
+}
+/* Borders */
 html[data-theme="emerald"] .border-slate-800,
+html[data-theme="emerald"] .border-slate-800\/80,
+html[data-theme="emerald"] .border-slate-800\/60 {
+  border-color: #065f46 !important;
+}
 html[data-theme="emerald"] .border-slate-900 {
-  border-color: #047857 !important;
+  border-color: #064e3b !important;
+}
+/* Text */
+html[data-theme="emerald"] .text-slate-400,
+html[data-theme="emerald"] .text-slate-500 {
+  color: #6ee7b7 !important;
+}
+html[data-theme="emerald"] .text-slate-300 {
+  color: #a7f3d0 !important;
+}
+html[data-theme="emerald"] .text-slate-200 {
+  color: #d1fae5 !important;
+}
+html[data-theme="emerald"] .text-slate-600 {
+  color: #34d399 !important;
+}
+/* Header */
+html[data-theme="emerald"] header {
+  background-color: #021409 !important;
+  border-color: #065f46 !important;
+}
+/* Accents - shift indigo to emerald for UI elements */
+html[data-theme="emerald"] .text-indigo-400 {
+  color: #34d399 !important;
+}
+html[data-theme="emerald"] .text-indigo-300 {
+  color: #6ee7b7 !important;
+}
+html[data-theme="emerald"] .bg-indigo-950\/80,
+html[data-theme="emerald"] .bg-indigo-950\/60 {
+  background-color: rgba(6, 46, 32, 0.8) !important;
+}
+html[data-theme="emerald"] .border-indigo-800\/80 {
+  border-color: #065f46 !important;
 }
 
-/* ==========================================================================
-   THEME 4: LIGHT EXECUTIVE PRO (SOFT EYE-FRIENDLY ENTERPRISE LIGHT MODE)
-   ========================================================================== */
-html[data-theme="light"],
-.light-theme {
-  --bg-app: #f8fafc;
-  --bg-card: #ffffff;
-  --bg-header: #ffffff;
-  --border-color: #e2e8f0;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-}
-
+/* ============================================================
+   THEME 4: LIGHT EXECUTIVE PRO — Inspired by Linear, Vercel & GitHub
+   Eye-friendly warm white with crisp contrast and vivid accents
+   ============================================================ */
 html[data-theme="light"] body {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
+  background-color: #f0f4f8;
+  color: #111827;
 }
 
-/* Header & Navbars in Light Mode */
-html[data-theme="light"] header,
-html[data-theme="light"] nav {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-}
-
-/* Cards & Surfaces in Light Mode */
+/* --- Surfaces & Cards --- */
 html[data-theme="light"] .bg-slate-950,
+html[data-theme="light"] .bg-\[\#0b0f19\] {
+  background-color: #f8fafc !important;
+  color: #111827 !important;
+}
 html[data-theme="light"] .bg-slate-900,
-html[data-theme="light"] .bg-\[\#0b0f19\],
-html[data-theme="light"] .bg-\[\#0f172a\] {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  color: #0f172a !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02);
-}
-
-html[data-theme="light"] .bg-slate-950\/80,
 html[data-theme="light"] .bg-slate-900\/80,
-html[data-theme="light"] .bg-slate-900\/90,
+html[data-theme="light"] .bg-slate-900\/60,
+html[data-theme="light"] .bg-slate-900\/90 {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+}
+html[data-theme="light"] .bg-slate-900\/40 {
+  background-color: #f1f5f9 !important;
+}
+html[data-theme="light"] .bg-slate-950\/80,
 html[data-theme="light"] .bg-slate-950\/60,
-html[data-theme="light"] .bg-slate-900\/60 {
-  background-color: #f8fafc !important;
-  border-color: #e2e8f0 !important;
+html[data-theme="light"] .bg-slate-950\/70,
+html[data-theme="light"] .bg-slate-950\/40,
+html[data-theme="light"] .bg-\[\#0f172a\] {
+  background-color: #f1f5f9 !important;
+  color: #111827 !important;
 }
 
-/* Borders in Light Mode */
+/* --- Borders --- */
 html[data-theme="light"] .border-slate-800,
-html[data-theme="light"] .border-slate-900,
-html[data-theme="light"] .border-slate-800\/80 {
+html[data-theme="light"] .border-slate-800\/80,
+html[data-theme="light"] .border-slate-800\/60 {
   border-color: #e2e8f0 !important;
 }
-
-/* Typography in Light Mode - High Contrast Charcoal */
-html[data-theme="light"] h1,
-html[data-theme="light"] h2,
-html[data-theme="light"] h3,
-html[data-theme="light"] h4 {
-  color: #0f172a !important;
-}
-
-html[data-theme="light"] .text-slate-400,
-html[data-theme="light"] .text-slate-300,
-html[data-theme="light"] .text-slate-500 {
-  color: #475569 !important;
-}
-
-/* Inputs & Form Fields in Light Mode */
-html[data-theme="light"] input,
-html[data-theme="light"] select,
-html[data-theme="light"] textarea {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
+html[data-theme="light"] .border-slate-900 {
   border-color: #cbd5e1 !important;
 }
 
-/* Code & Pre Blocks in Light Mode - VS Code Light Eye-Friendly Dark Slate Box */
+/* --- Header & Navigation --- */
+html[data-theme="light"] header {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* --- Typography: sharp charcoal on white --- */
+html[data-theme="light"] h1,
+html[data-theme="light"] h2,
+html[data-theme="light"] h3,
+html[data-theme="light"] h4,
+html[data-theme="light"] h5 {
+  color: #0f172a !important;
+}
+html[data-theme="light"] .text-white {
+  color: #0f172a !important;
+}
+/* Preserve white text on colored buttons only */
+html[data-theme="light"] button.text-white,
+html[data-theme="light"] [class*="bg-indigo-6"] .text-white,
+html[data-theme="light"] [class*="bg-indigo-5"] .text-white,
+html[data-theme="light"] [class*="from-indigo"] .text-white,
+html[data-theme="light"] [class*="from-purple"] .text-white {
+  color: #ffffff !important;
+}
+html[data-theme="light"] .text-slate-200 {
+  color: #1e293b !important;
+}
+html[data-theme="light"] .text-slate-300 {
+  color: #334155 !important;
+}
+html[data-theme="light"] .text-slate-400 {
+  color: #64748b !important;
+}
+html[data-theme="light"] .text-slate-500 {
+  color: #94a3b8 !important;
+}
+html[data-theme="light"] .text-slate-600 {
+  color: #94a3b8 !important;
+}
+html[data-theme="light"] .text-slate-700 {
+  color: #cbd5e1 !important;
+}
+
+/* --- Form Inputs --- */
+html[data-theme="light"] input[type="text"],
+html[data-theme="light"] input[type="email"],
+html[data-theme="light"] input[type="password"],
+html[data-theme="light"] input[type="search"],
+html[data-theme="light"] select,
+html[data-theme="light"] textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* --- Code & Pre Blocks --- */
 html[data-theme="light"] pre,
 html[data-theme="light"] code {
-  background-color: #0f172a !important;
-  color: #38bdf8 !important;
+  background-color: #1e293b !important;
+  color: #7dd3fc !important;
 }
 
-/* Preserve White Text inside Solid Colored Action Buttons & Badges */
-html[data-theme="light"] button[class*="bg-indigo-600"],
-html[data-theme="light"] button[class*="bg-amber-600"],
-html[data-theme="light"] button[class*="bg-purple-600"],
-html[data-theme="light"] button[class*="bg-emerald-600"],
+/* --- Solid accent buttons: keep their colors, just ensure crisp white label --- */
+html[data-theme="light"] button[class*="bg-indigo-6"],
+html[data-theme="light"] button[class*="bg-purple-6"],
+html[data-theme="light"] button[class*="bg-amber-6"],
+html[data-theme="light"] button[class*="bg-emerald-6"],
 html[data-theme="light"] button[class*="from-indigo"],
-html[data-theme="light"] button[class*="from-amber"],
 html[data-theme="light"] button[class*="from-purple"],
-html[data-theme="light"] .bg-indigo-600,
-html[data-theme="light"] .bg-amber-600,
-html[data-theme="light"] .bg-purple-600,
-html[data-theme="light"] .bg-emerald-600 {
+html[data-theme="light"] button[class*="from-amber"] {
   color: #ffffff !important;
 }
 
-html[data-theme="light"] button[class*="bg-indigo-600"] *,
-html[data-theme="light"] button[class*="bg-amber-600"] *,
-html[data-theme="light"] button[class*="bg-purple-600"] *,
-html[data-theme="light"] button[class*="bg-emerald-600"] *,
-html[data-theme="light"] button[class*="from-indigo"] *,
-html[data-theme="light"] button[class*="from-amber"] *,
-html[data-theme="light"] button[class*="from-purple"] * {
-  color: #ffffff !important;
+/* --- Method badges: preserve colors --- */
+html[data-theme="light"] .bg-emerald-950,
+html[data-theme="light"] .bg-emerald-950\/80,
+html[data-theme="light"] .bg-emerald-950\/60 {
+  background-color: #d1fae5 !important;
+  border-color: #059669 !important;
+}
+html[data-theme="light"] .text-emerald-400 {
+  color: #047857 !important;
+}
+html[data-theme="light"] .bg-indigo-950,
+html[data-theme="light"] .bg-indigo-950\/80,
+html[data-theme="light"] .bg-indigo-950\/60 {
+  background-color: #e0e7ff !important;
+  border-color: #6366f1 !important;
+}
+html[data-theme="light"] .text-indigo-400 {
+  color: #4f46e5 !important;
+}
+html[data-theme="light"] .text-indigo-300 {
+  color: #6366f1 !important;
+}
+html[data-theme="light"] .bg-red-950,
+html[data-theme="light"] .bg-red-950\/60 {
+  background-color: #fee2e2 !important;
+  border-color: #dc2626 !important;
+}
+html[data-theme="light"] .text-red-400 {
+  color: #dc2626 !important;
+}
+html[data-theme="light"] .bg-amber-950,
+html[data-theme="light"] .bg-amber-950\/80,
+html[data-theme="light"] .bg-amber-950\/60 {
+  background-color: #fef3c7 !important;
+  border-color: #d97706 !important;
+}
+html[data-theme="light"] .text-amber-300 {
+  color: #b45309 !important;
+}
+html[data-theme="light"] .text-amber-400 {
+  color: #d97706 !important;
+}
+html[data-theme="light"] .bg-purple-950,
+html[data-theme="light"] .bg-purple-950\/60 {
+  background-color: #f5f3ff !important;
+  border-color: #7c3aed !important;
+}
+html[data-theme="light"] .text-purple-400 {
+  color: #7c3aed !important;
+}
+html[data-theme="light"] .text-cyan-400 {
+  color: #0891b2 !important;
 }
 
-body {
-  background-color: var(--bg-app);
-  color: var(--text-primary);
-  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
-  overflow-x: hidden;
-  transition: background-color 0.25s ease, color 0.25s ease;
+/* Status pill overrides for light theme */
+html[data-theme="light"] .bg-slate-950\/90 {
+  background-color: #f1f5f9 !important;
+}
+
+/* Backdrop blur overlays */
+html[data-theme="light"] .backdrop-blur-md,
+html[data-theme="light"] .backdrop-blur-sm {
+  backdrop-filter: blur(12px);
+}
+
+/* Gradient backgrounds in light: soft muted versions */
+html[data-theme="light"] .bg-gradient-to-br.from-indigo-950\/30 {
+  background: linear-gradient(135deg, #eef2ff 0%, #f1f5f9 100%) !important;
+}
+
+/* Shadow adjustments in light mode */
+html[data-theme="light"] .shadow-xl,
+html[data-theme="light"] .shadow-2xl {
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08), 0 1px 4px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Table alternating rows */
+html[data-theme="light"] table tr {
+  border-color: #f1f5f9;
+}
+html[data-theme="light"] table tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+html[data-theme="light"] table thead {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+}
+
+/* --- Custom scrollbar colors in light mode --- */
+html[data-theme="light"] .custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+html[data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+html[data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Hover states in light */
+html[data-theme="light"] .hover\:bg-slate-800:hover {
+  background-color: #f1f5f9 !important;
+}
+html[data-theme="light"] .hover\:bg-slate-800\/50:hover {
+  background-color: #f8fafc !important;
+}
+html[data-theme="light"] .hover\:text-white:hover {
+  color: #0f172a !important;
+}
+html[data-theme="light"] .hover\:bg-slate-800\/80:hover {
+  background-color: #f1f5f9 !important;
 }

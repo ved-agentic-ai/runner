@@ -245,10 +245,13 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
   }
 
   const handleEndpointClick = (node: TreeNode) => {
-    // Ensure node is registered in Zustand store flatEndpointMap so EndpointDetailSheet can open it cleanly
+    // Ensure node is registered in both Zustand store flatEndpointMaps so EndpointWorkbench & DetailSheet open cleanly
     const state = useRunnerStore.getState();
-    if (!state.flatEndpointMap.has(node.id)) {
+    if (state.flatEndpointMap && typeof state.flatEndpointMap.set === 'function') {
       state.flatEndpointMap.set(node.id, node);
+    }
+    if (state.serverFlatEndpointMap && typeof state.serverFlatEndpointMap.set === 'function') {
+      state.serverFlatEndpointMap.set(node.id, node);
     }
     setSelectedEndpointIdForDetail(node.id);
   };
@@ -353,16 +356,6 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
           <h3 className="font-bold text-xs text-white">Server Workspace Explorer</h3>
         </div>
         <div className="flex items-center space-x-1.5 font-mono text-[11px]">
-          {/* Scroll To Top Button */}
-          <button
-            type="button"
-            onClick={handleScrollToTop}
-            className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-indigo-950/80 text-indigo-300 border border-indigo-800/80 hover:bg-indigo-900 font-bold transition-all shadow-sm"
-            title="Scroll to Top of Server Explorer"
-          >
-            <ArrowUp className="h-3 w-3 text-indigo-400" />
-            <span>Top</span>
-          </button>
 
           <button
             type="button"

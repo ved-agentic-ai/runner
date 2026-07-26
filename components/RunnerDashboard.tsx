@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { 
   Play, 
   RotateCcw, 
@@ -104,6 +104,18 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
   // Sorting State
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Floating FAB scroll-to-top state for results pane
+  const resultsScrollRef = useRef<HTMLDivElement>(null);
+  const [showResultsFAB, setShowResultsFAB] = useState(false);
+  const handleResultsScroll = useCallback(() => {
+    if (resultsScrollRef.current) {
+      setShowResultsFAB(resultsScrollRef.current.scrollTop > 80);
+    }
+  }, []);
+  const scrollResultsToTop = useCallback(() => {
+    resultsScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const toggleGroupCollapse = (groupKey: string) => {
     setCollapsedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
@@ -510,7 +522,12 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
 
         {/* Execution Results Data Table */}
         {!resultsPanelCollapsed && (
-          <div className="mt-3 max-h-[500px] overflow-x-auto overflow-y-auto custom-scrollbar border border-slate-800/60 rounded-xl">
+          <div className="relative mt-3">
+            <div 
+              ref={resultsScrollRef}
+              onScroll={handleResultsScroll}
+              className="max-h-[500px] overflow-x-auto overflow-y-auto custom-scrollbar border border-slate-800/60 rounded-xl"
+            >
             <table className="w-full text-left text-xs text-slate-300 border-collapse">
               <thead className="border-b border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-slate-950/90 sticky top-0 z-10 select-none">
                 <tr>
@@ -670,6 +687,17 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
                 )}
               </tbody>
             </table>
+            </div>
+            {/* Floating FAB scroll-to-top for results pane */}
+            {showResultsFAB && (
+              <button
+                onClick={scrollResultsToTop}
+                className="absolute bottom-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 shadow-lg shadow-indigo-600/40 hover:bg-indigo-500 transition-all"
+                title="Back to top"
+              >
+                <ArrowUp className="h-4 w-4 text-white" />
+              </button>
+            )}
           </div>
         )}
       </div>

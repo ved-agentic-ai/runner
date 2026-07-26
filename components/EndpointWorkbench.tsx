@@ -137,13 +137,122 @@ export const EndpointWorkbench: React.FC = () => {
   };
 
   const handleSendSingle = async () => {
+    if (!selectedEndpointIdForDetail || !endpointNode) return;
     setRunning(true);
-    
-    // Trigger run single endpoint
-    await useRunnerStore.getState().runSelectedEndpoints();
-    setRunning(false);
+    const startMs = Date.now();
 
-    // Auto-fit telemetry pane side by side as requested by user
+    try {
+      const { envVariables } = useRunnerStore.getState();
+
+      // Resolve URL with env variables
+      let resolvedUrl = url || endpointNode.url || '';
+      // Append query params
+      const enabledParams = params.filter((p) => p.enabled && p.key.trim());
+      if (enabledParams.length > 0) {
+        const qs = enabledParams.map((p) => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`).join('&');
+        resolvedUrl = `${resolvedUrl}${resolvedUrl.includes('?') ? '&' : '?'}${qs}`;
+      }
+      Object.entries(envVariables).forEach(([k, v]) => {
+        resolvedUrl = resolvedUrl.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), v);
+      });
+
+      // Build headers
+      const activeHeaders: Record<string, string> = {};
+      headers.filter((h) => h.enabled && h.key.trim()).forEach((h) => {
+        let val = h.value;
+        Object.entries(envVariables).forEach(([k, v]) => {
+          val = val.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), v);
+        });
+        activeHeaders[h.key.trim()] = val;
+      });
+
+      // Add auth header
+      if (authType === 'bearer' && authToken) {
+        let resolvedToken = authToken;
+        Object.entries(envVariables).forEach(([k, v]) => {
+          resolvedToken = resolvedToken.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), v);
+        });
+        activeHeaders['Authorization'] = `Bearer ${resolvedToken}`;
+      } else if (authType === 'apikey' && authToken) {
+        activeHeaders['X-API-Key'] = authToken;
+      }
+
+      // Resolve body
+      let resolvedBody = bodyText;
+      Object.entries(envVariables).forEach(([k, v]) => {
+        resolvedBody = resolvedBody.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), v);
+      });
+
+      const res = await fetch('/api/proxy-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: resolvedUrl,
+          method: method || endpointNode.method || 'GET',
+          headers: activeHeaders,
+          body: resolvedBody
+        })
+      });
+
+      const data = await res.json();
+      const endMs = Date.now();
+      const isSuccess = (data.status || res.status) >= 200 && (data.status || res.status) < 300;
+
+      useRunnerStore.setState((state) => ({
+        executionResults: {
+          ...state.executionResults,
+          [selectedEndpointIdForDetail]: {
+            endpointId: selectedEndpointIdForDetail,
+            name: endpointNode.name,
+            method: method || endpointNode.method || 'GET',
+            url: endpointNode.url || '',
+            resolvedUrl,
+            statusCode: data.status || res.status,
+            status: isSuccess ? 'passed' : 'failed',
+            responseTimeMs: endMs - startMs,
+            responseHeaders: data.headers || {},
+            responseBody: typeof data.data === 'object' ? JSON.stringify(data.data, null, 2) : String(data.data || ''),
+            requestHeaders: activeHeaders,
+            requestBody: resolvedBody,
+            executedAt: new Date().toISOString(),
+            assertionResults: testSuite ? testSuite.testCases.map((tc: any) => ({
+              id: tc.id,
+              description: tc.description,
+              status: isSuccess ? 'pass' : 'fail',
+              expected: tc.expectedValue !== undefined ? String(tc.expectedValue) : '200 OK',
+              actual: `HTTP ${data.status || res.status}`
+            })) : []
+          }
+        }
+      }));
+
+    } catch (err: any) {
+      const endMs = Date.now();
+      useRunnerStore.setState((state) => ({
+        executionResults: {
+          ...state.executionResults,
+          [selectedEndpointIdForDetail]: {
+            endpointId: selectedEndpointIdForDetail,
+            name: endpointNode.name,
+            method: method || endpointNode.method || 'GET',
+            url: endpointNode.url || '',
+            resolvedUrl: url || endpointNode.url || '',
+            statusCode: 0,
+            status: 'failed',
+            responseTimeMs: endMs - startMs,
+            responseHeaders: {},
+            responseBody: `Request failed: ${err.message}`,
+            requestHeaders: {},
+            requestBody: bodyText,
+            executedAt: new Date().toISOString(),
+            assertionResults: []
+          }
+        }
+      }));
+    }
+
+    setRunning(false);
+    // Auto-exit maximized tree view to show telemetry side by side
     if (maximizedPane === 'tree') {
       setMaximizedPane(null);
     }
