@@ -305,6 +305,18 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
         <div className="flex flex-wrap lg:flex-nowrap items-center gap-2 shrink-0">
           <button
             type="button"
+            onClick={() => useRunnerStore.getState().toggleMaximizePane('telemetry')}
+            className={`h-9 px-2.5 inline-flex items-center justify-center space-x-1 rounded-xl border transition-all shadow-md shrink-0 ${
+              useRunnerStore.getState().maximizedPane === 'telemetry'
+                ? 'border-amber-500 bg-amber-950/60 text-amber-300 shadow-md shadow-amber-500/20'
+                : 'border-slate-800 bg-slate-900 text-slate-400 hover:text-white hover:border-slate-700'
+            }`}
+            title={useRunnerStore.getState().maximizedPane === 'telemetry' ? 'Minimize Telemetry (Restore 3-Pane View)' : 'Maximize Telemetry (Focus View)'}
+          >
+            {useRunnerStore.getState().maximizedPane === 'telemetry' ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
             onClick={onSaveToServer}
             disabled={isWorkspaceEmpty}
             title={isWorkspaceEmpty ? 'Workspace is empty. Load or upload a Postman collection first.' : 'Save collection to server'}

@@ -44,6 +44,15 @@ interface RunnerState {
   searchQuery: string;
   filterStatus: 'all' | 'passed' | 'failed' | 'running';
 
+  // Pane Focus / Maximize State: 'sidebar' | 'tree' | 'telemetry' | null
+  maximizedPane: 'sidebar' | 'tree' | 'telemetry' | null;
+  setMaximizedPane: (pane: 'sidebar' | 'tree' | 'telemetry' | null) => void;
+  toggleMaximizePane: (pane: 'sidebar' | 'tree' | 'telemetry') => void;
+
+  // Theme Functionality: 'dark' | 'midnight' | 'emerald' | 'light'
+  theme: 'dark' | 'midnight' | 'emerald' | 'light';
+  setTheme: (theme: 'dark' | 'midnight' | 'emerald' | 'light') => void;
+
   // Actions
   loadCollection: (collectionJson: PostmanCollection, envJson?: PostmanEnvironment) => void;
   loadDemoCollection: () => void;
@@ -73,6 +82,13 @@ export const useRunnerStore = create<RunnerState>()(
       serverFlatEndpointMap: new Map(),
       activeWorkspaceSource: 'local',
       setActiveWorkspaceSource: (source) => set({ activeWorkspaceSource: source }),
+
+      maximizedPane: null,
+      setMaximizedPane: (pane) => set({ maximizedPane: pane }),
+      toggleMaximizePane: (pane) => set((state) => ({ maximizedPane: state.maximizedPane === pane ? null : pane })),
+
+      theme: 'dark',
+      setTheme: (theme) => set({ theme }),
 
       envVariables: {},
       selectedNodeIds: [],

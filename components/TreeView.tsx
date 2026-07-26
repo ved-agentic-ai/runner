@@ -18,7 +18,10 @@ import {
   Laptop,
   Cloud,
   FileText,
-  Info
+  Info,
+  Maximize2,
+  Minimize2,
+  ArrowUp
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { TreeNode, HttpMethod } from '@/lib/types';
@@ -38,8 +41,25 @@ export const TreeView: React.FC = () => {
     setSearchQuery,
     executionResults,
     selectedEndpointIdForDetail,
-    setSelectedEndpointIdForDetail
+    setSelectedEndpointIdForDetail,
+    maximizedPane,
+    toggleMaximizePane
   } = useRunnerStore();
+
+  const treeScrollRef = React.useRef<HTMLDivElement>(null);
+  const [showTreeTopFab, setShowTreeTopFab] = useState(false);
+
+  const handleTreeScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (e.currentTarget.scrollTop > 80) {
+      setShowTreeTopFab(true);
+    } else {
+      setShowTreeTopFab(false);
+    }
+  };
+
+  const handleScrollToTop = () => {
+    treeScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
 
@@ -460,6 +480,30 @@ export const TreeView: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-1.5 text-[11px] font-mono shrink-0">
+            {/* Scroll To Top Button */}
+            <button
+              type="button"
+              onClick={handleScrollToTop}
+              className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-indigo-950/80 text-indigo-300 border border-indigo-800/80 hover:bg-indigo-900 font-bold transition-all mr-1 shadow-sm"
+              title="Scroll to Top of Collection Tree"
+            >
+              <ArrowUp className="h-3 w-3 text-indigo-400" />
+              <span>Top</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => toggleMaximizePane('tree')}
+              className={`p-1 rounded-lg border transition-all mr-1 ${
+                maximizedPane === 'tree'
+                  ? 'border-amber-500 bg-amber-950/60 text-amber-300 shadow-md shadow-amber-500/20'
+                  : 'border-slate-800 bg-slate-900 text-slate-400 hover:text-white hover:border-slate-700'
+              }`}
+              title={maximizedPane === 'tree' ? 'Minimize Collection Hierarchy (Restore 3-Pane View)' : 'Maximize Collection Hierarchy (Focus View)'}
+            >
+              {maximizedPane === 'tree' ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            </button>
+
             {/* 1-Click Collapse All */}
             <button
               type="button"
@@ -533,7 +577,11 @@ export const TreeView: React.FC = () => {
       </div>
 
       {/* Tree Content Area with Horizontal & Vertical Scrolling */}
-      <div className="flex-1 overflow-y-auto overflow-x-auto pr-1 space-y-0.5 custom-scrollbar min-w-0">
+      <div 
+        ref={treeScrollRef} 
+        onScroll={handleTreeScroll}
+        className="flex-1 overflow-y-auto overflow-x-auto pr-1 space-y-0.5 custom-scrollbar min-w-0 relative"
+      >
         {activeNodes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500 space-y-2">
             <Send className="h-8 w-8 text-slate-700 stroke-1" />
@@ -553,6 +601,18 @@ export const TreeView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Floating Scroll-to-Top FAB Button */}
+      {showTreeTopFab && (
+        <button
+          type="button"
+          onClick={handleScrollToTop}
+          className="absolute bottom-4 right-4 z-50 p-2.5 rounded-full bg-indigo-600 text-white shadow-2xl hover:bg-indigo-500 transition-all border border-indigo-400 animate-in fade-in zoom-in duration-200"
+          title="Scroll to top"
+        >
+          <ArrowUp className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 };

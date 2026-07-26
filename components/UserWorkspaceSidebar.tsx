@@ -19,7 +19,10 @@ import {
   Square,
   HardDrive,
   Search,
-  Info
+  Info,
+  Maximize2,
+  Minimize2,
+  ArrowUp
 } from 'lucide-react';
 import { useUserAuthStore } from '@/lib/user-auth-store';
 import { useAdminStore } from '@/lib/admin-store';
@@ -49,6 +52,21 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
   const { user, isAuthenticated } = useUserAuthStore();
   const { serverStoragePaused } = useAdminStore();
   const setSelectedEndpointIdForDetail = useRunnerStore((s) => s.setSelectedEndpointIdForDetail);
+
+  const sidebarScrollRef = React.useRef<HTMLDivElement>(null);
+  const [showSidebarTopFab, setShowSidebarTopFab] = useState(false);
+
+  const handleSidebarScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (e.currentTarget.scrollTop > 80) {
+      setShowSidebarTopFab(true);
+    } else {
+      setShowSidebarTopFab(false);
+    }
+  };
+
+  const handleScrollToTop = () => {
+    sidebarScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -326,22 +344,50 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
   }
 
   return (
-    <div className="w-full lg:w-[380px] xl:w-[420px] shrink-0 rounded-3xl border border-slate-800 bg-slate-950 p-4 space-y-4 shadow-xl">
+    <div className="w-full max-w-full h-[750px] max-h-[80vh] flex flex-col rounded-3xl border border-slate-800 bg-slate-950 p-4 space-y-4 shadow-xl overflow-hidden">
       
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0">
         <div className="flex items-center space-x-2">
           <Folder className="h-4 w-4 text-indigo-400" />
           <h3 className="font-bold text-xs text-white">Server Workspace Explorer</h3>
         </div>
-        <button
-          onClick={fetchUserFiles}
-          className="p-1 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-white transition-all"
-          title="Refresh server files"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center space-x-1.5 font-mono text-[11px]">
+          {/* Scroll To Top Button */}
+          <button
+            type="button"
+            onClick={handleScrollToTop}
+            className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg bg-indigo-950/80 text-indigo-300 border border-indigo-800/80 hover:bg-indigo-900 font-bold transition-all shadow-sm"
+            title="Scroll to Top of Server Explorer"
+          >
+            <ArrowUp className="h-3 w-3 text-indigo-400" />
+            <span>Top</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => useRunnerStore.getState().toggleMaximizePane('sidebar')}
+            className={`p-1 rounded-lg border transition-all ${
+              useRunnerStore.getState().maximizedPane === 'sidebar'
+                ? 'border-amber-500 bg-amber-950/60 text-amber-300 shadow-md shadow-amber-500/20'
+                : 'border-slate-800 bg-slate-900 text-slate-400 hover:text-white hover:border-slate-700'
+            }`}
+            title={useRunnerStore.getState().maximizedPane === 'sidebar' ? 'Minimize Server Explorer (Restore 3-Pane View)' : 'Maximize Server Explorer (Focus View)'}
+          >
+            {useRunnerStore.getState().maximizedPane === 'sidebar' ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            type="button"
+            onClick={fetchUserFiles}
+            className="p-1 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-white transition-all"
+            title="Refresh server files"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
+
+      <div ref={sidebarScrollRef} onScroll={handleSidebarScroll} className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-1 relative">
 
       {/* 1 MB SERVER STORAGE QUOTA METER CARD */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3 space-y-2 text-left">
@@ -1142,6 +1188,20 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
         </div>,
         document.body
       )}
+
+      {/* Floating Scroll-to-Top FAB Button */}
+      {showSidebarTopFab && (
+        <button
+          type="button"
+          onClick={handleScrollToTop}
+          className="absolute bottom-4 right-4 z-50 p-2.5 rounded-full bg-indigo-600 text-white shadow-2xl hover:bg-indigo-500 transition-all border border-indigo-400 animate-in fade-in zoom-in duration-200"
+          title="Scroll to top"
+        >
+          <ArrowUp className="h-4 w-4" />
+        </button>
+      )}
+
+      </div>
 
     </div>
   );
