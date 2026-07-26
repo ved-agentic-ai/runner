@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Play, 
   Send, 
@@ -56,10 +56,26 @@ export const EndpointWorkbench: React.FC = () => {
   const [copiedResponse, setCopiedResponse] = useState(false);
   const workbenchScrollRef = useRef<HTMLDivElement>(null);
 
-  // Endpoint Node & Result (resolves from local flatEndpointMap or serverFlatEndpointMap)
-  const endpointNode = selectedEndpointIdForDetail 
-    ? (flatEndpointMap.get(selectedEndpointIdForDetail) || serverFlatEndpointMap.get(selectedEndpointIdForDetail)) 
-    : undefined;
+  // Safe helper to fetch endpoint node from either flatMap (Map or Record)
+  const endpointNode = useMemo(() => {
+    if (!selectedEndpointIdForDetail) return undefined;
+    
+    if (flatEndpointMap && typeof (flatEndpointMap as any).get === 'function') {
+      const node = (flatEndpointMap as Map<string, any>).get(selectedEndpointIdForDetail);
+      if (node) return node;
+    } else if (flatEndpointMap && (flatEndpointMap as any)[selectedEndpointIdForDetail]) {
+      return (flatEndpointMap as any)[selectedEndpointIdForDetail];
+    }
+
+    if (serverFlatEndpointMap && typeof (serverFlatEndpointMap as any).get === 'function') {
+      const node = (serverFlatEndpointMap as Map<string, any>).get(selectedEndpointIdForDetail);
+      if (node) return node;
+    } else if (serverFlatEndpointMap && (serverFlatEndpointMap as any)[selectedEndpointIdForDetail]) {
+      return (serverFlatEndpointMap as any)[selectedEndpointIdForDetail];
+    }
+
+    return undefined;
+  }, [selectedEndpointIdForDetail, flatEndpointMap, serverFlatEndpointMap]);
   const result = selectedEndpointIdForDetail ? executionResults[selectedEndpointIdForDetail] : undefined;
   const testSuite = selectedEndpointIdForDetail ? generatedTestSuites[selectedEndpointIdForDetail] : undefined;
 
