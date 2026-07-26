@@ -403,21 +403,11 @@ export const TreeView: React.FC = () => {
 
       {/* Search & Collapse Bar Header */}
       <div className="space-y-2 pb-3 border-b border-slate-800/80">
+        {/* Row 1: Section Title & Controls */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center space-x-2 min-w-0">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-300 shrink-0">
-              Collection Hierarchy
-            </span>
-            {searchQuery.trim() ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-800/80 font-mono text-[10px] font-bold whitespace-nowrap animate-in fade-in truncate">
-                🔍 {matchedEndpointsCount} matches ({selectedMatchedEndpointsCount} selected)
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800/80 font-mono text-[10px] font-bold whitespace-nowrap shrink-0">
-                ☑️ {selectedEndpointsInTreeCount} / {totalEndpointsCount} selected
-              </span>
-            )}
-          </div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            Collection Hierarchy
+          </h3>
 
           <div className="flex items-center space-x-1.5 text-[11px] font-mono shrink-0">
             {/* 1-Click Collapse All */}
@@ -464,6 +454,19 @@ export const TreeView: React.FC = () => {
               None
             </button>
           </div>
+        </div>
+
+        {/* Row 2: Dynamic Status / Search Badge */}
+        <div>
+          {searchQuery.trim() ? (
+            <div className="inline-flex items-center px-2.5 py-1 rounded-xl bg-amber-950/80 text-amber-300 border border-amber-800/80 font-mono text-[11px] font-bold shadow-sm animate-in fade-in">
+              🔍 {matchedEndpointsCount} search matches ({selectedMatchedEndpointsCount} selected)
+            </div>
+          ) : (
+            <div className="inline-flex items-center px-2.5 py-1 rounded-xl bg-indigo-950/80 text-indigo-300 border border-indigo-800/80 font-mono text-[11px] font-bold shadow-sm">
+              ☑️ {selectedEndpointsInTreeCount} / {totalEndpointsCount} endpoints selected for run
+            </div>
+          )}
         </div>
       </div>
 
