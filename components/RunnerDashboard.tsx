@@ -24,7 +24,6 @@ import {
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { TreeNode } from '@/lib/types';
-import { EndpointDetailSheet } from './EndpointDetailSheet';
 
 interface RunnerDashboardProps {
   onSaveToServer?: () => void;
@@ -46,7 +45,7 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
     searchQuery,
     filterStatus,
     setFilterStatus,
-    setSelectedEndpointIdForDetail
+    setInspectorEndpointId
   } = useRunnerStore();
 
   const activeNodes = (activeWorkspaceSource === 'server' && serverRootNodes.length > 0) || (rootNodes.length === 0 && serverRootNodes.length > 0) 
@@ -223,7 +222,7 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
     return (
       <tr 
         key={res.endpointId} 
-        onClick={() => setSelectedEndpointIdForDetail(res.endpointId)}
+        onClick={() => setInspectorEndpointId(res.endpointId)}
         className="hover:bg-slate-800/50 cursor-pointer transition-colors group"
       >
         <td className="py-2.5 px-3">
@@ -289,7 +288,7 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setSelectedEndpointIdForDetail(res.endpointId);
+              setInspectorEndpointId(res.endpointId);
             }}
             className="rounded-lg bg-slate-800 p-1.5 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all"
             title="Inspect Response & Assertions"
@@ -702,8 +701,6 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
         )}
       </div>
 
-      {/* POSTMAN-STYLE INTERACTIVE ENDPOINT INSPECTOR DRAWER / MODAL */}
-      <EndpointDetailSheet />
     </div>
   );
 };

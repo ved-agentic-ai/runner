@@ -39,6 +39,9 @@ interface RunnerState {
   executionResults: Record<string, EndpointExecutionResult>;
   runSummary: RunSummary;
   selectedEndpointIdForDetail: string | null;
+  // inspectorEndpointId: used ONLY for the right-side drawer inspector (results table row click)
+  // This is separate from selectedEndpointIdForDetail which drives the inline workbench
+  inspectorEndpointId: string | null;
   geminiApiKey: string;
   isGeneratingAiTests: boolean;
   searchQuery: string;
@@ -63,6 +66,7 @@ interface RunnerState {
   setSearchQuery: (query: string) => void;
   setFilterStatus: (status: 'all' | 'passed' | 'failed' | 'running') => void;
   setSelectedEndpointIdForDetail: (id: string | null) => void;
+  setInspectorEndpointId: (id: string | null) => void;
   generateAiTestsForSelected: () => Promise<void>;
   runSelectedEndpoints: () => Promise<void>;
   clearResults: () => void;
@@ -106,6 +110,7 @@ export const useRunnerStore = create<RunnerState>()(
         status: 'idle',
       },
       selectedEndpointIdForDetail: null,
+      inspectorEndpointId: null,
       geminiApiKey: '',
       isGeneratingAiTests: false,
       searchQuery: '',
@@ -263,6 +268,7 @@ export const useRunnerStore = create<RunnerState>()(
       setSearchQuery: (query: string) => set({ searchQuery: query }),
       setFilterStatus: (status) => set({ filterStatus: status }),
       setSelectedEndpointIdForDetail: (id) => set({ selectedEndpointIdForDetail: id }),
+      setInspectorEndpointId: (id) => set({ inspectorEndpointId: id }),
 
       generateAiTestsForSelected: async () => {
         const { flatEndpointMap, geminiApiKey } = get();
@@ -530,8 +536,37 @@ export const useRunnerStore = create<RunnerState>()(
       name: 'runner_main_store_v2',
       // Exclude non-serializable Map objects from localStorage to prevent JSON errors
       partialize: (state) => {
-        const { flatEndpointMap, isGeneratingAiTests, ...rest } = state;
+        const { flatEndpointMap, serverFlatEndpointMap, isGeneratingAiTests, ...rest } = state;
         return rest as any;
+      },
+      // Rebuild flat Maps from tree nodes after rehydration from localStorage
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+
+        // Helper: flatten tree nodes into a Map
+        function flattenNodes(nodes: TreeNode[], map: Map<string, TreeNode>) {
+          nodes.forEach((node) => {
+            map.set(node.id, node);
+            if (node.children) flattenNodes(node.children, map);
+          });
+        }
+
+        // Rebuild flatEndpointMap from rootNodes
+        const newFlatMap = new Map<string, TreeNode>();
+        if (state.rootNodes?.length) {
+          flattenNodes(state.rootNodes, newFlatMap);
+        }
+
+        // Rebuild serverFlatEndpointMap from serverRootNodes
+        const newServerFlatMap = new Map<string, TreeNode>();
+        if (state.serverRootNodes?.length) {
+          flattenNodes(state.serverRootNodes, newServerFlatMap);
+        }
+
+        useRunnerStore.setState({
+          flatEndpointMap: newFlatMap,
+          serverFlatEndpointMap: newServerFlatMap,
+        });
       }
     }
   )

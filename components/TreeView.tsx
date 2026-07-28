@@ -375,9 +375,28 @@ export const TreeView: React.FC = () => {
             </div>
           ) : (
             <div 
-              onClick={() => setSelectedEndpointIdForDetail(node.id)}
+              onClick={() => {
+                // Register node in both maps so EndpointWorkbench & DetailSheet can find it
+                const storeState = useRunnerStore.getState();
+                if (storeState.flatEndpointMap && typeof (storeState.flatEndpointMap as any).set === 'function') {
+                  (storeState.flatEndpointMap as Map<string, any>).set(node.id, node);
+                }
+                if (storeState.serverFlatEndpointMap && typeof (storeState.serverFlatEndpointMap as any).set === 'function') {
+                  (storeState.serverFlatEndpointMap as Map<string, any>).set(node.id, node);
+                }
+                // Also ensure it's in the flatEndpointMap even if it's a plain object
+                useRunnerStore.setState((state) => {
+                  const map = state.flatEndpointMap;
+                  if (map instanceof Map) {
+                    map.set(node.id, node);
+                    return { flatEndpointMap: map };
+                  }
+                  return {};
+                });
+                setSelectedEndpointIdForDetail(node.id);
+              }}
               className="flex items-center space-x-2 cursor-pointer flex-1 min-w-0"
-              title="Click to view detailed request spec"
+              title="Click to open in Workbench"
             >
               <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-extrabold uppercase shrink-0 ${getMethodBadgeClass(node.method)}`}>
                 {node.method || 'GET'}
@@ -413,7 +432,7 @@ export const TreeView: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full rounded-2xl border border-slate-800 bg-slate-900/80 p-4 backdrop-blur-md shadow-xl">
+    <div className="flex flex-col h-full rounded-2xl border border-slate-800 bg-slate-900/80 p-4 backdrop-blur-md shadow-xl relative">
       
       {/* Dual Workspace Selector Tabs (Local Upload vs Server Cloud) */}
       {serverRootNodes.length > 0 && (
@@ -597,8 +616,8 @@ export const TreeView: React.FC = () => {
         <button
           type="button"
           onClick={handleScrollToTop}
-          className="absolute bottom-4 right-4 z-50 p-2.5 rounded-full bg-indigo-600 text-white shadow-2xl hover:bg-indigo-500 transition-all border border-indigo-400 animate-in fade-in zoom-in duration-200"
-          title="Scroll to top"
+          className="absolute bottom-5 right-5 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white shadow-2xl shadow-indigo-600/40 hover:bg-indigo-500 transition-all border border-indigo-400/60 animate-in fade-in zoom-in duration-200"
+          title="Back to top"
         >
           <ArrowUp className="h-4 w-4" />
         </button>

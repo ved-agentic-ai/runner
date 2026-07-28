@@ -347,7 +347,7 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
   }
 
   return (
-    <div className="w-full max-w-full h-[750px] max-h-[80vh] flex flex-col rounded-3xl border border-slate-800 bg-slate-950 p-4 space-y-4 shadow-xl overflow-hidden">
+    <div className="w-full max-w-full h-[750px] max-h-[80vh] flex flex-col rounded-3xl border border-slate-800 bg-slate-950 p-4 space-y-4 shadow-xl overflow-hidden relative">
       
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0">
@@ -1182,19 +1182,19 @@ export const UserWorkspaceSidebar: React.FC<UserWorkspaceSidebarProps> = ({
         document.body
       )}
 
-      {/* Floating Scroll-to-Top FAB Button */}
+      </div>
+
+      {/* Floating Scroll-to-Top FAB — positioned relative to outer container, visible above overflow */}
       {showSidebarTopFab && (
         <button
           type="button"
           onClick={handleScrollToTop}
-          className="absolute bottom-4 right-4 z-50 p-2.5 rounded-full bg-indigo-600 text-white shadow-2xl hover:bg-indigo-500 transition-all border border-indigo-400 animate-in fade-in zoom-in duration-200"
-          title="Scroll to top"
+          className="absolute bottom-5 right-5 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white shadow-2xl shadow-indigo-600/40 hover:bg-indigo-500 transition-all border border-indigo-400/60 animate-in fade-in zoom-in duration-200"
+          title="Back to top"
         >
           <ArrowUp className="h-4 w-4" />
         </button>
       )}
-
-      </div>
 
     </div>
   );

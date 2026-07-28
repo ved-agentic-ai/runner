@@ -109,6 +109,7 @@ export interface EndpointTestSuite {
   generatedBy: 'gemini_ai' | 'smart_heuristic';
   summary: string;
   testCases: TestCaseRule[];
+  userCustomized?: boolean;
 }
 
 // Execution status

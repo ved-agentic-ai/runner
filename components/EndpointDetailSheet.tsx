@@ -29,8 +29,8 @@ interface HeaderItem {
 
 export const EndpointDetailSheet: React.FC = () => {
   const { 
-    selectedEndpointIdForDetail, 
-    setSelectedEndpointIdForDetail, 
+    inspectorEndpointId,
+    setInspectorEndpointId, 
     executionResults, 
     flatEndpointMap,
     generatedTestSuites,
@@ -50,9 +50,9 @@ export const EndpointDetailSheet: React.FC = () => {
     setMounted(true);
   }, []);
 
-  const endpointNode = selectedEndpointIdForDetail ? flatEndpointMap.get(selectedEndpointIdForDetail) : undefined;
-  const result = selectedEndpointIdForDetail ? executionResults[selectedEndpointIdForDetail] : undefined;
-  const testSuite = selectedEndpointIdForDetail ? generatedTestSuites[selectedEndpointIdForDetail] : undefined;
+  const endpointNode = inspectorEndpointId ? flatEndpointMap.get(inspectorEndpointId) : undefined;
+  const result = inspectorEndpointId ? executionResults[inspectorEndpointId] : undefined;
+  const testSuite = inspectorEndpointId ? generatedTestSuites[inspectorEndpointId] : undefined;
 
   // Initialize editable headers & body when selected endpoint changes
   useEffect(() => {
@@ -83,9 +83,9 @@ export const EndpointDetailSheet: React.FC = () => {
 
     const bodyStr = result?.requestBody || (typeof endpointNode.request?.body?.raw === 'string' ? endpointNode.request.body.raw : '');
     setCustomBody(bodyStr);
-  }, [selectedEndpointIdForDetail, endpointNode]);
+  }, [inspectorEndpointId, endpointNode]);
 
-  if (!selectedEndpointIdForDetail || !mounted || !endpointNode) return null;
+  if (!inspectorEndpointId || !mounted || !endpointNode) return null;
 
   const formatJson = (str?: string) => {
     if (!str) return 'No body payload';
@@ -152,8 +152,8 @@ export const EndpointDetailSheet: React.FC = () => {
       useRunnerStore.setState((state) => ({
         executionResults: {
           ...state.executionResults,
-          [selectedEndpointIdForDetail]: {
-            endpointId: selectedEndpointIdForDetail,
+          [inspectorEndpointId]: {
+            endpointId: inspectorEndpointId,
             name: endpointNode.name,
             method: endpointNode.method || 'GET',
             url: endpointNode.url || '',
@@ -181,8 +181,8 @@ export const EndpointDetailSheet: React.FC = () => {
       useRunnerStore.setState((state) => ({
         executionResults: {
           ...state.executionResults,
-          [selectedEndpointIdForDetail]: {
-            endpointId: selectedEndpointIdForDetail,
+          [inspectorEndpointId]: {
+            endpointId: inspectorEndpointId,
             name: endpointNode.name,
             method: endpointNode.method || 'GET',
             url: endpointNode.url || '',
@@ -205,8 +205,8 @@ export const EndpointDetailSheet: React.FC = () => {
   };
 
   const handleHighlightInTree = () => {
-    useRunnerStore.setState({ selectedNodeIds: [selectedEndpointIdForDetail] });
-    setSelectedEndpointIdForDetail(null);
+    useRunnerStore.setState({ selectedNodeIds: [inspectorEndpointId] });
+    setInspectorEndpointId(null);
   };
 
   const generateCurl = () => {
@@ -273,7 +273,7 @@ export const EndpointDetailSheet: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setSelectedEndpointIdForDetail(null)}
+                onClick={() => setInspectorEndpointId(null)}
                 className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
               >
                 <X className="h-5 w-5" />

@@ -7,7 +7,7 @@
     "adSenseClientId": "ca-pub-2966115619566020",
     "allowMfaReset": false,
     "showStepByStepGuide": true,
-    "showFooter": false,
+    "showFooter": true,
     "showPlatformOverviewBanner": true,
     "showCapabilitiesGrid": true,
     "showTrafficSimulator": true,
@@ -24,6 +24,56 @@
     "githubRepoUrl": "https://github.com/ved-agentic-ai/runner"
   },
   "auditLogs": [
+    {
+      "id": "log_1785146058126_nynw",
+      "timestamp": "2026-07-27T09:54:18.126Z",
+      "action": "Workspace Mode: switched to Full Enterprise",
+      "settingKey": "workspaceMode",
+      "oldValue": "light",
+      "newValue": "full",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1785146057193_6nkh",
+      "timestamp": "2026-07-27T09:54:17.193Z",
+      "action": "Workspace Mode: switched to Light Team View",
+      "settingKey": "workspaceMode",
+      "oldValue": "full",
+      "newValue": "light",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1785053593104_vf0e",
+      "timestamp": "2026-07-26T08:13:13.105Z",
+      "action": "Layout Settings: Enabled Footer widget visibility",
+      "settingKey": "showFooter",
+      "oldValue": "false",
+      "newValue": "true",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1785053589531_ccs7",
+      "timestamp": "2026-07-26T08:13:09.531Z",
+      "action": "Workspace Mode: switched to Full Enterprise",
+      "settingKey": "workspaceMode",
+      "oldValue": "light",
+      "newValue": "full",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1785053588791_qv3r",
+      "timestamp": "2026-07-26T08:13:08.791Z",
+      "action": "Workspace Mode: switched to Light Team View",
+      "settingKey": "workspaceMode",
+      "oldValue": "full",
+      "newValue": "light",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
     {
       "id": "log_1785004611875_p33v",
       "timestamp": "2026-07-25T18:36:51.875Z",

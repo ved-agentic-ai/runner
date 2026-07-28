@@ -66,8 +66,7 @@ export default function Home() {
     runSelectedEndpoints,
     clearResults,
     maximizedPane,
-    toggleMaximizePane,
-    selectedEndpointIdForDetail
+    toggleMaximizePane
   } = useRunnerStore();
 
   const { 
@@ -904,8 +903,8 @@ export default function Home() {
 
                       {/* Right: Endpoint Workbench & Telemetry Dashboard (8 of 12 cols) */}
                       <div className="lg:col-span-8 space-y-6">
-                        {/* Interactive Postman-Grade Endpoint Workbench */}
-                        {selectedEndpointIdForDetail && <EndpointWorkbench />}
+                        {/* Interactive Postman-Grade Endpoint Workbench — always visible */}
+                        <EndpointWorkbench />
                         
                         <RunnerDashboard onSaveToServer={handleSaveWorkspaceTrigger} />
                         {workspaceMode === 'full' && showTrafficSimulator && <LiveTrafficSimulator />}
@@ -1346,6 +1345,9 @@ export default function Home() {
         type={dialogState.type}
         onClose={() => setDialogState({ ...dialogState, isOpen: false })}
       />
+
+      {/* GLOBAL ENDPOINT DETAIL SHEET — renders as a portal drawer from anywhere in the app */}
+      <EndpointDetailSheet />
 
     </div>
   );
