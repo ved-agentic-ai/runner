@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { 
   TreeNode, 
   HttpMethod,
+  TrashItem,
   PostmanCollection, 
   PostmanEnvironment, 
   EndpointTestSuite, 
@@ -74,7 +75,11 @@ interface RunnerState {
   moveNode: (nodeId: string, direction: 'up' | 'down') => void;
   addFolderNode: (parentId: string | null, name: string) => void;
   addEndpointNode: (parentId: string | null, name: string, method: HttpMethod, url: string) => void;
+  trashItems: TrashItem[];
   deleteNode: (nodeId: string) => void;
+  deleteNodeToTrash: (nodeId: string) => void;
+  restoreFromTrash: (trashId: string) => void;
+  emptyTrash: () => void;
   exportCollection: (selectedOnly?: boolean) => void;
   generateAiTestsForSelected: () => Promise<void>;
   runSelectedEndpoints: () => Promise<void>;
@@ -89,6 +94,7 @@ export const useRunnerStore = create<RunnerState>()(
       collectionDescription: '',
       rootNodes: [],
       flatEndpointMap: new Map(),
+      trashItems: [],
 
       serverCollectionName: '',
       serverRootNodes: [],
@@ -501,6 +507,90 @@ export const useRunnerStore = create<RunnerState>()(
           selectedNodeIds: nextSelectedNodeIds,
           selectedEndpointIdForDetail: nextDetailId
         });
+      },
+
+      deleteNodeToTrash: (nodeId: string) => {
+        const { rootNodes, trashItems } = get();
+
+        let targetNode: TreeNode | null = null;
+        let originalParentId: string | null = null;
+        let originalIndex = 0;
+
+        function findAndExtract(nodes: TreeNode[], parentId: string | null): boolean {
+          const idx = nodes.findIndex((n) => n.id === nodeId);
+          if (idx !== -1) {
+            targetNode = nodes[idx];
+            originalParentId = parentId;
+            originalIndex = idx;
+            return true;
+          }
+          for (const item of nodes) {
+            if (item.children && findAndExtract(item.children, item.id)) return true;
+          }
+          return false;
+        }
+
+        const newRoots = [...rootNodes];
+        findAndExtract(newRoots, null);
+
+        if (!targetNode) return;
+
+        const newTrashItem: TrashItem = {
+          id: `trash_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+          node: targetNode,
+          originalParentId,
+          originalIndex,
+          deletedAt: new Date().toISOString(),
+        };
+
+        get().deleteNode(nodeId);
+        set((state) => ({ trashItems: [newTrashItem, ...state.trashItems] }));
+      },
+
+      restoreFromTrash: (trashId: string) => {
+        const { rootNodes, trashItems, flatEndpointMap } = get();
+        const trashEntry = trashItems.find((t) => t.id === trashId);
+        if (!trashEntry) return;
+
+        const { node, originalParentId, originalIndex } = trashEntry;
+        const newRoots = [...rootNodes];
+
+        if (!originalParentId) {
+          const insertIdx = Math.min(originalIndex, newRoots.length);
+          newRoots.splice(insertIdx, 0, node);
+        } else {
+          function insertInParent(nodes: TreeNode[]): boolean {
+            for (const item of nodes) {
+              if (item.id === originalParentId) {
+                if (!item.children) item.children = [];
+                const insertIdx = Math.min(originalIndex, item.children.length);
+                item.children.splice(insertIdx, 0, node);
+                return true;
+              }
+              if (item.children && insertInParent(item.children)) return true;
+            }
+            return false;
+          }
+          if (!insertInParent(newRoots)) {
+            newRoots.push(node);
+          }
+        }
+
+        const newFlatMap = new Map(flatEndpointMap);
+        function reindexMap(nodes: TreeNode[]) {
+          nodes.forEach((n) => {
+            if (n.type === 'endpoint') newFlatMap.set(n.id, n);
+            if (n.children) reindexMap(n.children);
+          });
+        }
+        reindexMap(newRoots);
+
+        const updatedTrash = trashItems.filter((t) => t.id !== trashId);
+        set({ rootNodes: newRoots, flatEndpointMap: newFlatMap, trashItems: updatedTrash });
+      },
+
+      emptyTrash: () => {
+        set({ trashItems: [] });
       },
 
       exportCollection: (selectedOnly = false) => {

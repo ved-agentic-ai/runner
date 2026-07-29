@@ -1,0 +1,13 @@
+{
+  "appId": "com.vkratim.apirunner",
+  "appName": "Vkratim APIRunner",
+  "webDir": "out",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

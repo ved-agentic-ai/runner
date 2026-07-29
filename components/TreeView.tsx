@@ -28,10 +28,14 @@ import {
   Plus,
   Download,
   FolderPlus,
-  Trash2
+  Trash2,
+  RotateCcw,
+  AlertTriangle,
+  Sparkles,
+  Trash
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
-import { TreeNode, HttpMethod } from '@/lib/types';
+import { TreeNode, HttpMethod, TrashItem } from '@/lib/types';
 
 export const TreeView: React.FC = () => {
   const { 
@@ -57,6 +61,10 @@ export const TreeView: React.FC = () => {
     addFolderNode,
     addEndpointNode,
     deleteNode,
+    deleteNodeToTrash,
+    restoreFromTrash,
+    emptyTrash,
+    trashItems,
     exportCollection
   } = useRunnerStore();
 
@@ -64,6 +72,12 @@ export const TreeView: React.FC = () => {
   const [showTreeTopFab, setShowTreeTopFab] = useState(false);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingNodeName, setEditingNodeName] = useState('');
+
+  // Custom Delete Modal State (NO BROWSER ALERT)
+  const [targetNodeToDelete, setTargetNodeToDelete] = useState<TreeNode | null>(null);
+
+  // Trash Bin Modal State
+  const [showTrashModal, setShowTrashModal] = useState(false);
 
   const [showAddFolderModal, setShowAddFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -196,36 +210,6 @@ export const TreeView: React.FC = () => {
     return 'indeterminate';
   };
 
-  const matchedFolderIds = React.useMemo(() => {
-    if (!searchQuery) return new Set<string>();
-    const q = searchQuery.toLowerCase();
-    const folderSet = new Set<string>();
-
-    function matchNode(node: TreeNode, parentFolders: string[] = []): boolean {
-      const selfMatch = node.name.toLowerCase().includes(q) || (node.url && node.url.toLowerCase().includes(q));
-      let childMatch = false;
-
-      const currentPath = node.type === 'folder' ? [...parentFolders, node.id] : parentFolders;
-
-      if (node.children) {
-        node.children.forEach((c) => {
-          if (matchNode(c, currentPath)) childMatch = true;
-        });
-      }
-
-      if (selfMatch || childMatch) {
-        parentFolders.forEach((fid) => folderSet.add(fid));
-        if (node.type === 'folder') folderSet.add(node.id);
-        return true;
-      }
-
-      return false;
-    }
-
-    activeNodes.forEach((n) => matchNode(n));
-    return folderSet;
-  }, [searchQuery, activeNodes]);
-
   const filterTree = (nodes: TreeNode[]): TreeNode[] => {
     if (!searchQuery) return nodes;
     const q = searchQuery.toLowerCase();
@@ -248,15 +232,6 @@ export const TreeView: React.FC = () => {
   };
 
   const displayNodes = filterTree(activeNodes);
-
-  function countEndpoints(nodes: TreeNode[]): number {
-    let count = 0;
-    nodes.forEach((n) => {
-      if (n.type === 'endpoint') count += 1;
-      if (n.children) count += countEndpoints(n.children);
-    });
-    return count;
-  }
 
   const selectedEndpointsInTreeCount = React.useMemo(() => {
     let count = 0;
@@ -449,7 +424,7 @@ export const TreeView: React.FC = () => {
             </div>
           )}
 
-          {/* Action Buttons on Hover (Rename, Clone, Move Up/Down) */}
+          {/* Action Buttons on Hover (Rename, Clone, Move Up/Down, Custom Delete) */}
           {!isEditing && (
             <div className="opacity-0 group-hover/tree-item:opacity-100 flex items-center space-x-1 shrink-0 transition-opacity">
               <button
@@ -488,12 +463,10 @@ export const TreeView: React.FC = () => {
                 type="button"
                 onClick={(e) => { 
                   e.stopPropagation(); 
-                  if (confirm(`Delete "${node.name}"?`)) {
-                    deleteNode(node.id);
-                  }
+                  setTargetNodeToDelete(node); // OPEN CUSTOM STYLED DIALOG (NO BROWSER POPUP)
                 }}
                 className="p-0.5 text-slate-400 hover:text-red-400 transition-colors"
-                title="Delete endpoint or folder"
+                title="Move to Trash Bin"
               >
                 <Trash2 className="h-3 w-3 text-red-400/80 hover:text-red-400" />
               </button>
@@ -556,7 +529,7 @@ export const TreeView: React.FC = () => {
       {/* Search & Collapse Bar Header */}
       <div className="space-y-2.5 pb-3 border-b border-slate-800/80">
         
-        {/* Row 1: Section Title & Maximize Controls */}
+        {/* Row 1: Section Title & Controls */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center space-x-1.5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
@@ -592,6 +565,17 @@ export const TreeView: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-1">
+            {/* Trash Bin Button */}
+            <button
+              type="button"
+              onClick={() => setShowTrashModal(true)}
+              className="inline-flex items-center space-x-1 px-2 py-1 rounded-lg border border-red-900/60 bg-red-950/40 text-red-300 hover:bg-red-900/60 text-[10px] font-bold transition-all mr-1"
+              title="Open Workspace Trash Bin (Recycle Bin)"
+            >
+              <Trash2 className="h-3 w-3 text-red-400" />
+              <span>Trash ({trashItems.length})</span>
+            </button>
+
             <button
               type="button"
               onClick={() => toggleMaximizePane('tree')}
@@ -607,10 +591,9 @@ export const TreeView: React.FC = () => {
           </div>
         </div>
 
-        {/* Row 2: Action Controls Bar (No Text Overflow in 3-Pane View) */}
+        {/* Row 2: Action Controls Bar */}
         <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] font-mono">
           <div className="flex flex-wrap items-center gap-1.5">
-            {/* 1-Click Collapse All */}
             <button
               type="button"
               onClick={collapseAllFolders}
@@ -623,7 +606,6 @@ export const TreeView: React.FC = () => {
             
             <span className="text-slate-700">|</span>
 
-            {/* 1-Click Expand All */}
             <button
               type="button"
               onClick={expandAllFolders}
@@ -655,7 +637,6 @@ export const TreeView: React.FC = () => {
             </button>
           </div>
 
-          {/* Collection Export & Add Buttons */}
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -744,6 +725,126 @@ export const TreeView: React.FC = () => {
         >
           <ArrowUp className="h-4 w-4" />
         </button>
+      )}
+
+      {/* ── CUSTOM DELETE CONFIRMATION MODAL (NO BROWSER ALERT) ────────────────── */}
+      {targetNodeToDelete && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm rounded-2xl p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-[#0f172a] p-6 shadow-2xl space-y-4 text-center">
+            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-red-950/60 border border-red-800 mx-auto">
+              <Trash2 className="h-6 w-6 text-red-400" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-extrabold text-sm text-white">Move to Trash Bin?</h4>
+              <p className="text-xs text-slate-400 leading-relaxed font-mono">
+                Delete <span className="text-amber-300 font-bold">&quot;{targetNodeToDelete.name}&quot;</span>?
+              </p>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                You can easily view and restore it anytime from the <span className="text-indigo-300 font-bold">Trash Bin</span>.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  deleteNodeToTrash(targetNodeToDelete.id);
+                  setTargetNodeToDelete(null);
+                }}
+                className="flex-1 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 py-2 text-xs font-bold text-white hover:from-red-500 hover:to-amber-500 shadow-lg shadow-red-600/30 transition-all"
+              >
+                🗑️ Move to Trash
+              </button>
+              <button
+                type="button"
+                onClick={() => setTargetNodeToDelete(null)}
+                className="flex-1 rounded-xl bg-slate-800 border border-slate-700 py-2 text-xs font-bold text-slate-300 hover:bg-slate-700 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TRASH BIN MODAL (RECYCLE BIN WITH RESTORE) ────────────────────────── */}
+      {showTrashModal && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/85 backdrop-blur-md rounded-2xl p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-[#0b1329] p-5 shadow-2xl space-y-4 text-left flex flex-col max-h-[90%]">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-red-950/80 border border-red-800/80">
+                  <Trash2 className="h-4 w-4 text-red-400" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-white">Workspace Trash Bin</h4>
+                  <p className="text-[11px] text-slate-400">Restore items back to exact folder hierarchy</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTrashModal(false)}
+                className="text-slate-400 hover:text-white px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            {/* Trash Item List */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1 min-h-[220px]">
+              {trashItems.length === 0 ? (
+                <div className="p-10 text-center text-slate-500 font-mono text-xs space-y-2">
+                  <Trash className="h-8 w-8 text-slate-700 mx-auto" />
+                  <p>Trash Bin is empty.</p>
+                  <p className="text-[10px] text-slate-600">Deleted endpoints or folders will appear here.</p>
+                </div>
+              ) : (
+                trashItems.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-900 transition-colors">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {item.node.type === 'folder' ? (
+                        <Folder className="h-4 w-4 text-amber-400 shrink-0" />
+                      ) : (
+                        <span className={`rounded border px-1.5 py-0.5 text-[9px] font-extrabold uppercase shrink-0 ${getMethodBadgeClass(item.node.method)}`}>
+                          {item.node.method || 'GET'}
+                        </span>
+                      )}
+                      <div className="min-w-0">
+                        <h5 className="font-bold text-xs text-slate-200 truncate">{item.node.name}</h5>
+                        <p className="text-[10px] text-slate-500 font-mono truncate">
+                          Deleted: {new Date(item.deletedAt).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => restoreFromTrash(item.id)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-950 border border-indigo-800 text-indigo-300 hover:bg-indigo-900 text-xs font-bold transition-all shrink-0"
+                      title="Restore to exact original collection folder"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 text-indigo-400" />
+                      <span>Restore</span>
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            {trashItems.length > 0 && (
+              <div className="flex justify-between items-center border-t border-slate-800 pt-3">
+                <span className="text-[11px] text-slate-500 font-mono">{trashItems.length} items in trash</span>
+                <button
+                  type="button"
+                  onClick={emptyTrash}
+                  className="px-3 py-1.5 rounded-lg bg-red-950/60 border border-red-800/80 text-red-300 hover:bg-red-900 text-xs font-bold transition-colors"
+                >
+                  Empty Trash
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* ── ADD FOLDER MODAL ────────────────────────────────────────────────── */}

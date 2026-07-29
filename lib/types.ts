@@ -1,5 +1,13 @@
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 
+export interface TrashItem {
+  id: string;
+  node: TreeNode;
+  originalParentId: string | null;
+  originalIndex: number;
+  deletedAt: string;
+}
+
 export interface HeaderKeyValue {
   key: string;
   value: string;
