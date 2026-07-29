@@ -799,7 +799,7 @@ export const TreeView: React.FC = () => {
                 </div>
               ) : (
                 trashItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-900 transition-colors">
+                  <div key={item.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-900 transition-colors animate-in fade-in slide-in-from-bottom-2 duration-200">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       {item.node.type === 'folder' ? (
                         <Folder className="h-4 w-4 text-amber-400 shrink-0" />
@@ -808,11 +808,21 @@ export const TreeView: React.FC = () => {
                           {item.node.method || 'GET'}
                         </span>
                       )}
-                      <div className="min-w-0">
-                        <h5 className="font-bold text-xs text-slate-200 truncate">{item.node.name}</h5>
-                        <p className="text-[10px] text-slate-500 font-mono truncate">
-                          Deleted: {new Date(item.deletedAt).toLocaleTimeString()}
-                        </p>
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h5 className="font-bold text-xs text-slate-200 truncate">{item.node.name}</h5>
+                          <span className="text-[9px] font-mono text-slate-500 uppercase px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800">
+                            {item.node.type}
+                          </span>
+                        </div>
+                        {/* Animated Hierarchy Path Indicator */}
+                        <div className="flex items-center gap-1 text-[10px] font-mono text-indigo-300 bg-slate-950/80 px-2 py-0.5 rounded-lg border border-indigo-900/50 w-fit max-w-full truncate animate-in fade-in slide-in-from-left-2 duration-300">
+                          <Folder className="h-3 w-3 text-amber-400 shrink-0" />
+                          <span className="text-slate-400 font-semibold">Hierarchy:</span>
+                          <span className="truncate text-amber-300 font-bold">
+                            {item.node.path || (item.originalParentId ? `Folder ID: ${item.originalParentId}` : 'Root Collection')}
+                          </span>
+                        </div>
                       </div>
                     </div>
 

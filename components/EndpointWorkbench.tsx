@@ -25,10 +25,11 @@ import {
   Save,
   RotateCcw,
   X,
-  Info
+  Info,
+  Folder
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
-import { HttpMethod, EndpointTestSuite } from '@/lib/types';
+import { HttpMethod, EndpointTestSuite, TreeNode } from '@/lib/types';
 
 interface ParamItem {
   id: string;
@@ -112,7 +113,7 @@ const ValueInputWithVariableHover: React.FC<{
         </div>
       )}
 
-      {/* Theme Matching Mouse Hover Tooltip Card (Safe position: no overflow cutting) */}
+      {/* Theme Matching Mouse Hover Tooltip Card */}
       {hasVar && hovered && !showInlineResolved && (
         <div className={`absolute left-0 ${
           tooltipPosition === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2'
@@ -231,7 +232,10 @@ export const EndpointWorkbench: React.FC = () => {
     serverFlatEndpointMap,
     generatedTestSuites,
     envVariables,
-    updateEndpointName
+    updateEndpointName,
+    rootNodes,
+    serverRootNodes,
+    activeWorkspaceSource
   } = useRunnerStore();
 
   const [activeRequestTab, setActiveRequestTab] = useState<'body' | 'params' | 'headers' | 'auth' | 'assertions'>('body');
@@ -262,6 +266,47 @@ export const EndpointWorkbench: React.FC = () => {
   const [assertionsModified, setAssertionsModified] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [assertionsCollapsed, setAssertionsCollapsed] = useState(false);
+
+  // Active collection tree nodes for breadcrumbs
+  const activeNodes = (activeWorkspaceSource === 'server' && serverRootNodes.length > 0) || (rootNodes.length === 0 && serverRootNodes.length > 0) 
+    ? serverRootNodes 
+    : rootNodes;
+
+  // Breadcrumb Path Computation for Animated Tree Navigation
+  const breadcrumbPath = useMemo(() => {
+    if (!selectedEndpointIdForDetail || activeNodes.length === 0) return [];
+    const path: { id: string; name: string; type: string }[] = [];
+
+    function findPath(nodes: TreeNode[], targetId: string, currentPath: { id: string; name: string; type: string }[] = []): boolean {
+      for (const node of nodes) {
+        const nextPath = [...currentPath, { id: node.id, name: node.name, type: node.type }];
+        if (node.id === targetId) {
+          path.push(...nextPath);
+          return true;
+        }
+        if (node.children && findPath(node.children, targetId, nextPath)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    findPath(activeNodes, selectedEndpointIdForDetail);
+    return path;
+  }, [selectedEndpointIdForDetail, activeNodes]);
+
+  // Jump to Tree & Pulse Highlight Node
+  const handleJumpToTree = () => {
+    if (!selectedEndpointIdForDetail) return;
+    const el = document.getElementById(`tree-node-${selectedEndpointIdForDetail}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('ring-4', 'ring-amber-400', 'animate-pulse');
+      setTimeout(() => {
+        el.classList.remove('ring-4', 'ring-amber-400', 'animate-pulse');
+      }, 2500);
+    }
+  };
 
   // Safe node lookup
   const endpointNode = useMemo(() => {
@@ -652,9 +697,9 @@ export const EndpointWorkbench: React.FC = () => {
       {/* ── WORKBENCH TOP BAR ────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-800/80 bg-slate-900/60 shrink-0">
         
-        {/* Endpoint Name with Inline Editing */}
+        {/* Endpoint Name with Inline Editing & Tree Breadcrumb Navigation */}
         <div className="flex items-center space-x-2.5 min-w-0 flex-1">
-          <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-extrabold border ${methodColors[method] || methodColors.GET}`}>
+          <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-extrabold border shrink-0 ${methodColors[method] || methodColors.GET}`}>
             {method}
           </span>
 
@@ -691,8 +736,33 @@ export const EndpointWorkbench: React.FC = () => {
             </div>
           )}
 
+          {/* Interactive Animated Breadcrumb Tree Navigation Badge */}
+          {breadcrumbPath.length > 0 && (
+            <button
+              type="button"
+              onClick={handleJumpToTree}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900/90 border border-indigo-900/60 hover:border-indigo-500 text-[11px] font-mono text-slate-300 hover:text-white transition-all shadow-sm group/bread cursor-pointer shrink-0"
+              title="Click to jump & highlight this endpoint in Collection Hierarchy tree"
+            >
+              <Folder className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <span className="truncate max-w-[180px] sm:max-w-[240px]">
+                {breadcrumbPath.map((p, i) => (
+                  <span key={p.id} className="inline-flex items-center">
+                    {i > 0 && <span className="text-slate-600 mx-1">/</span>}
+                    <span className={i === breadcrumbPath.length - 1 ? 'font-bold text-amber-300' : 'text-slate-400'}>
+                      {p.name}
+                    </span>
+                  </span>
+                ))}
+              </span>
+              <span className="text-[10px] text-indigo-400 font-bold group-hover/bread:translate-x-0.5 transition-transform ml-1">
+                ↗ Tree
+              </span>
+            </button>
+          )}
+
           {testSuite?.userCustomized && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-950/60 border border-amber-800/60 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-950/60 border border-amber-800/60 px-2 py-0.5 text-[10px] font-bold text-amber-400 shrink-0">
               <Edit3 className="h-2.5 w-2.5" /> User Customized
             </span>
           )}
@@ -1119,7 +1189,7 @@ export const EndpointWorkbench: React.FC = () => {
                 </div>
               )}
 
-              {/* Response Body Block (Collapsible + Floating Top FAB) */}
+              {/* Response Body Block (Collapsible + UNCLIPPED Floating Top FAB) */}
               {singleResult ? (
                 <div className="rounded-2xl border border-slate-800 bg-[#060a12] overflow-hidden relative">
                   <div className="flex items-center justify-between text-xs text-slate-400 px-4 py-2 border-b border-slate-800/80 bg-slate-900/40">
@@ -1142,17 +1212,17 @@ export const EndpointWorkbench: React.FC = () => {
                       <pre 
                         ref={serverOutputScrollRef}
                         onScroll={(e) => setShowServerOutputTopFab(e.currentTarget.scrollTop > 60)}
-                        className="text-xs font-mono text-emerald-300 overflow-x-auto p-4 leading-relaxed whitespace-pre-wrap max-h-96 custom-scrollbar overflow-y-auto"
+                        className="text-xs font-mono text-emerald-300 overflow-x-auto p-4 pb-12 leading-relaxed whitespace-pre-wrap max-h-96 custom-scrollbar overflow-y-auto"
                       >
                         {singleResult.responseBody}
                       </pre>
                       
-                      {/* Floating Top FAB for Server Output */}
+                      {/* Floating Top FAB for Server Output (positioned safely without overlap) */}
                       {showServerOutputTopFab && (
                         <button
                           type="button"
                           onClick={() => serverOutputScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-                          className="absolute bottom-3 right-3 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600/90 text-white shadow-xl hover:bg-indigo-500 transition-all border border-indigo-400/50"
+                          className="absolute bottom-4 right-4 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600/90 text-white shadow-xl hover:bg-indigo-500 transition-all border border-indigo-400/50"
                           title="Scroll server output to top"
                         >
                           <ArrowUp className="h-3.5 w-3.5" />
@@ -1193,7 +1263,7 @@ export const EndpointWorkbench: React.FC = () => {
             </div>
             <h3 className="font-bold text-sm text-white">Save Custom Assertions?</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              You've modified the AI assertions for <span className="text-indigo-300 font-semibold">{endpointNode.name}</span>. Save them as user-customized?
+              You&apos;ve modified the AI assertions for <span className="text-indigo-300 font-semibold">{endpointNode.name}</span>. Save them as user-customized?
             </p>
             <div className="flex gap-2">
               <button
