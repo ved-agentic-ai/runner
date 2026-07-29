@@ -26,7 +26,7 @@ export interface SubscriptionState {
 export const useSubscriptionStore = create<SubscriptionState>()(
   persist(
     (set, get) => ({
-      plan: 'free',
+      plan: 'enterprise',
       billingCycle: 'monthly',
       subscriptionId: null,
       subscribedAt: null,

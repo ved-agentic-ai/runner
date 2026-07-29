@@ -1,7 +1,7 @@
 {
   "config": {
     "workspaceMode": "full",
-    "disclaimerMode": "modal",
+    "disclaimerMode": "tab",
     "stripeSecretKey": "",
     "paypalClientId": "",
     "adSenseClientId": "ca-pub-2966115619566020",
@@ -24,6 +24,36 @@
     "githubRepoUrl": "https://github.com/ved-agentic-ai/runner"
   },
   "auditLogs": [
+    {
+      "id": "log_1785336790131_w6w2",
+      "timestamp": "2026-07-29T14:53:10.131Z",
+      "action": "Legal Disclaimer: set display to Standalone Tab",
+      "settingKey": "disclaimerMode",
+      "oldValue": "modal",
+      "newValue": "tab",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1785336776929_zn6q",
+      "timestamp": "2026-07-29T14:52:56.929Z",
+      "action": "Workspace Mode: switched to Full Enterprise",
+      "settingKey": "workspaceMode",
+      "oldValue": "light",
+      "newValue": "full",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
+    {
+      "id": "log_1785336776241_c05w",
+      "timestamp": "2026-07-29T14:52:56.241Z",
+      "action": "Workspace Mode: switched to Light Team View",
+      "settingKey": "workspaceMode",
+      "oldValue": "full",
+      "newValue": "light",
+      "actor": "Owner (Ved Tripathi / MFA Verified)",
+      "ip": "::1"
+    },
     {
       "id": "log_1785146058126_nynw",
       "timestamp": "2026-07-27T09:54:18.126Z",

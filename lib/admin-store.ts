@@ -17,6 +17,12 @@ export interface AdminSettings {
 
   // Disclaimer Display Mode: 'modal' (on page load) vs 'tab' (embedded section)
   disclaimerMode: 'modal' | 'tab';
+
+  // Anonymous & White-Label Privacy Mode
+  anonymousMode: boolean;
+  hidePlanDetails: boolean;
+  setAnonymousMode: (enabled: boolean) => void;
+  setHidePlanDetails: (enabled: boolean) => void;
   
   // 100% Granular Section & Widget Visibility Toggles
   showStepByStepGuide: boolean;
@@ -118,6 +124,12 @@ export const useAdminStore = create<AdminSettings>()(
       // Default to 'light' (clean public visitor view with architecture/vault tabs hidden)
       workspaceMode: 'light',
       disclaimerMode: 'modal',
+      
+      // Anonymous & White-Label Privacy Default State
+      anonymousMode: true,
+      hidePlanDetails: true,
+      setAnonymousMode: (enabled) => set({ anonymousMode: enabled }),
+      setHidePlanDetails: (enabled) => set({ hidePlanDetails: enabled }),
       
       showStepByStepGuide: true,
       showFooter: false,

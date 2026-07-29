@@ -44,6 +44,10 @@ import { fetchOtpQuotaTelemetry, DEFAULT_OTP_QUOTA, OtpQuotaUsage } from '@/lib/
 
 export const AdminControlPanelModal: React.FC = () => {
   const {
+    anonymousMode,
+    setAnonymousMode,
+    hidePlanDetails,
+    setHidePlanDetails,
     workspaceMode,
     setWorkspaceMode,
     disclaimerMode,
@@ -686,6 +690,50 @@ export const AdminControlPanelModal: React.FC = () => {
                         Removes startup popup dialog and embeds disclaimer as Tab #5 in top workspace bar.
                       </p>
                     </div>
+                  </div>
+                </div>
+
+                {/* Anonymous White-Label & Enterprise Privacy Control */}
+                <div className="rounded-2xl border border-indigo-500/30 bg-indigo-950/20 p-5 space-y-4">
+                  <div className="border-b border-indigo-900/60 pb-3">
+                    <h3 className="font-bold text-sm text-indigo-300 flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-indigo-400" /> Anonymous White-Label & Enterprise Mode
+                    </h3>
+                    <p className="text-slate-400 text-xs mt-0.5">
+                      Hide developer names and plan details to make the application 100% anonymous and white-labeled.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/80 p-3 hover:bg-slate-900">
+                      <div>
+                        <span className="font-bold text-slate-200 text-xs block">🕵️ Anonymous White-Label Mode</span>
+                        <span className="text-[11px] text-slate-400">Hides developer name, author credits, and personal references</span>
+                      </div>
+                      <button
+                        onClick={() => setAnonymousMode(!anonymousMode)}
+                        className={`p-1 text-xs font-bold transition-all ${anonymousMode ? 'text-emerald-400' : 'text-slate-500'}`}
+                      >
+                        {anonymousMode ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6" />}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/80 p-3 hover:bg-slate-900">
+                      <div>
+                        <span className="font-bold text-slate-200 text-xs block">👑 Default Enterprise Mode (Hide Plan Badges)</span>
+                        <span className="text-[11px] text-slate-400">Treats all users as Enterprise Plan subscribers without exposing upgrade pricing</span>
+                      </div>
+                      <button
+                        onClick={() => setHidePlanDetails(!hidePlanDetails)}
+                        className={`p-1 text-xs font-bold transition-all ${hidePlanDetails ? 'text-emerald-400' : 'text-slate-500'}`}
+                      >
+                        {hidePlanDetails ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6" />}
+                      </button>
+                    </div>
+
+                    <p className="text-[10px] font-mono text-slate-500 bg-slate-950 p-2 rounded-lg border border-slate-800">
+                      ℹ️ Note: These settings are saved in your local browser storage (<code className="text-indigo-300">localStorage</code>) and operate independently per device without altering settings for other users.
+                    </p>
                   </div>
                 </div>
 

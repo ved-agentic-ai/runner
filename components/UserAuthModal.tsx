@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { User, LogIn, UserPlus, LogOut, CheckCircle, Lock, Mail, Shield, Sparkles, AlertTriangle, X } from 'lucide-react';
 import { useUserAuthStore } from '@/lib/user-auth-store';
 import { useSubscriptionStore } from '@/lib/subscription-store';
+import { useAdminStore } from '@/lib/admin-store';
 import { useRunnerStore } from '@/lib/store';
 import { ALL_WORLD_COUNTRIES } from '@/lib/countries-data';
 
@@ -30,6 +31,7 @@ export const UserAuthModal: React.FC = () => {
 
   const { user, isAuthenticated, login, logout } = useUserAuthStore();
   const { plan } = useSubscriptionStore();
+  const { anonymousMode, hidePlanDetails } = useAdminStore();
 
   useEffect(() => {
     let interval: any;
@@ -200,14 +202,14 @@ export const UserAuthModal: React.FC = () => {
                       <p className="text-slate-400 text-xs">{user.email}</p>
                     </div>
                     <span className="rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] px-3 py-1 border border-indigo-500/40 font-bold uppercase tracking-wider">
-                      {user.role === 'owner' ? 'Owner Admin' : `${plan.toUpperCase()} SUBSCRIBER`}
+                      {hidePlanDetails || anonymousMode ? 'ENTERPRISE SUBSCRIBER' : (user.role === 'owner' ? 'Owner Admin' : `${plan.toUpperCase()} SUBSCRIBER`)}
                     </span>
                   </div>
 
                   <div className="border-t border-indigo-900/40 pt-3 flex items-center justify-between text-[11px]">
                     <span className="text-slate-400">Active Membership:</span>
                     <span className="font-semibold text-emerald-400 flex items-center gap-1">
-                      <CheckCircle className="h-3.5 w-3.5" /> {plan === 'pro' ? 'SaaS Pro Unlimited' : 'Free Tier'}
+                      <CheckCircle className="h-3.5 w-3.5" /> {hidePlanDetails || anonymousMode ? 'Enterprise Unlimited License' : (plan === 'pro' ? 'SaaS Pro Unlimited' : plan === 'enterprise' ? 'Enterprise Unlimited' : 'Free Tier')}
                     </span>
                   </div>
                 </div>
