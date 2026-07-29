@@ -742,10 +742,10 @@ export const EndpointWorkbench: React.FC = () => {
               type="button"
               onClick={handleJumpToTree}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900/90 border border-indigo-900/60 hover:border-indigo-500 text-[11px] font-mono text-slate-300 hover:text-white transition-all shadow-sm group/bread cursor-pointer shrink-0"
-              title="Click to jump & highlight this endpoint in Collection Hierarchy tree"
+              title={`Hierarchy: ${breadcrumbPath.map(p => p.name).join(' / ')} (Click to jump & highlight in tree)`}
             >
               <Folder className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-              <span className="truncate max-w-[180px] sm:max-w-[240px]">
+              <span className="truncate max-w-[140px] sm:max-w-[240px]">
                 {breadcrumbPath.map((p, i) => (
                   <span key={p.id} className="inline-flex items-center">
                     {i > 0 && <span className="text-slate-600 mx-1">/</span>}
@@ -1201,10 +1201,22 @@ export const EndpointWorkbench: React.FC = () => {
                       <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${serverOutputCollapsed ? '-rotate-90' : ''}`} />
                       <span>Server Output ({singleResult.responseBody?.length || 0} characters)</span>
                     </button>
-                    <button type="button" onClick={handleCopyResponse} className="text-indigo-400 hover:underline flex items-center gap-1 font-mono text-[11px]">
-                      {copiedResponse ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                      <span>{copiedResponse ? 'Copied!' : 'Copy'}</span>
-                    </button>
+                    <div className="flex items-center gap-3">
+                      {showServerOutputTopFab && (
+                        <button 
+                          type="button" 
+                          onClick={() => serverOutputScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} 
+                          className="text-amber-400 hover:text-amber-300 flex items-center gap-1 font-mono text-[11px] font-bold bg-amber-950/60 border border-amber-800/80 px-2 py-0.5 rounded-lg transition-all animate-in fade-in duration-150"
+                        >
+                          <ArrowUp className="h-3 w-3" />
+                          <span>Top</span>
+                        </button>
+                      )}
+                      <button type="button" onClick={handleCopyResponse} className="text-indigo-400 hover:underline flex items-center gap-1 font-mono text-[11px]">
+                        {copiedResponse ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                        <span>{copiedResponse ? 'Copied!' : 'Copy'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   {!serverOutputCollapsed && (
@@ -1212,22 +1224,10 @@ export const EndpointWorkbench: React.FC = () => {
                       <pre 
                         ref={serverOutputScrollRef}
                         onScroll={(e) => setShowServerOutputTopFab(e.currentTarget.scrollTop > 60)}
-                        className="text-xs font-mono text-emerald-300 overflow-x-auto p-4 pb-12 leading-relaxed whitespace-pre-wrap max-h-96 custom-scrollbar overflow-y-auto"
+                        className="text-xs font-mono text-emerald-300 overflow-x-auto p-4 leading-relaxed whitespace-pre-wrap max-h-96 custom-scrollbar overflow-y-auto"
                       >
                         {singleResult.responseBody}
                       </pre>
-                      
-                      {/* Floating Top FAB for Server Output (positioned safely without overlap) */}
-                      {showServerOutputTopFab && (
-                        <button
-                          type="button"
-                          onClick={() => serverOutputScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-                          className="absolute bottom-4 right-4 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600/90 text-white shadow-xl hover:bg-indigo-500 transition-all border border-indigo-400/50"
-                          title="Scroll server output to top"
-                        >
-                          <ArrowUp className="h-3.5 w-3.5" />
-                        </button>
-                      )}
                     </div>
                   )}
                 </div>
