@@ -125,24 +125,39 @@ html[data-theme="emerald"] [class*="bg-[#0"] {
 html[data-theme="emerald"] .border-slate-800,
 html[data-theme="emerald"] .border-slate-800\/80,
 html[data-theme="emerald"] .border-slate-800\/60 {
-  border-color: #065f46 !important;
+  border-color: #059669 !important;
 }
 html[data-theme="emerald"] .border-slate-900 {
-  border-color: #064e3b !important;
+  border-color: #047857 !important;
 }
-html[data-theme="emerald"] .text-slate-400,
-html[data-theme="emerald"] .text-slate-500 {
-  color: #6ee7b7 !important;
+html[data-theme="emerald"] .text-slate-700,
+html[data-theme="emerald"] .text-slate-600,
+html[data-theme="emerald"] .text-slate-500,
+html[data-theme="emerald"] .text-slate-400 {
+  color: #34d399 !important;
 }
 html[data-theme="emerald"] .text-slate-300 {
-  color: #a7f3d0 !important;
+  color: #6ee7b7 !important;
 }
-html[data-theme="emerald"] .text-slate-200 {
-  color: #d1fae5 !important;
+html[data-theme="emerald"] .text-slate-200,
+html[data-theme="emerald"] .text-slate-100 {
+  color: #ecfdf5 !important;
+}
+html[data-theme="emerald"] input,
+html[data-theme="emerald"] select,
+html[data-theme="emerald"] textarea {
+  background-color: #042416 !important;
+  color: #ecfdf5 !important;
+  border-color: #059669 !important;
+}
+html[data-theme="emerald"] input::placeholder,
+html[data-theme="emerald"] textarea::placeholder {
+  color: #10b981 !important;
+  opacity: 0.85 !important;
 }
 html[data-theme="emerald"] header {
   background-color: #021409 !important;
-  border-color: #065f46 !important;
+  border-color: #059669 !important;
 }
 html[data-theme="emerald"] .text-indigo-400 {
   color: #34d399 !important;
@@ -155,10 +170,10 @@ html[data-theme="emerald"] .bg-indigo-950\/60 {
   background-color: rgba(6, 46, 32, 0.8) !important;
 }
 html[data-theme="emerald"] .border-indigo-800\/80 {
-  border-color: #065f46 !important;
+  border-color: #059669 !important;
 }
 html[data-theme="emerald"] .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(52, 211, 153, 0.4);
+  background: rgba(52, 211, 153, 0.5);
 }
 
 /* ============================================================

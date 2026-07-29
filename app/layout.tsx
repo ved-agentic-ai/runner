@@ -41,6 +41,7 @@ export const metadata: Metadata = {
     locale: "en_US",
     type: "website",
   },
+  manifest: "/manifest.json",
   twitter: {
     card: "summary_large_image",
     title: "Vkratim — AI-Powered API Collection Runner",

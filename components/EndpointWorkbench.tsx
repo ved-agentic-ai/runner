@@ -22,7 +22,10 @@ import {
   ChevronDown,
   AlertTriangle,
   Edit3,
-  Save
+  Save,
+  RotateCcw,
+  X,
+  Info
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { HttpMethod, EndpointTestSuite } from '@/lib/types';
@@ -49,102 +52,218 @@ interface AssertionItem {
   jsonPath?: string;
 }
 
-// ─── Env Var Placeholder Chip (click-based reveal, not hover) ─────────────────
-const SECRET_KEYS = ['token', 'secret', 'key', 'password', 'pwd', 'auth', 'bearer', 'api_key', 'apikey'];
+// ─── Value Input with Variable Hover Tooltip & Inline Reveal 👁️ Button ────────
+const ValueInputWithVariableHover: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  envVariables: Record<string, string>;
+  className?: string;
+  tooltipPosition?: 'top' | 'bottom';
+  hideInlineReveal?: boolean;
+}> = ({ value, onChange, placeholder, envVariables, className, tooltipPosition = 'bottom', hideInlineReveal = false }) => {
+  const [showInlineResolved, setShowInlineResolved] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
-const EnvVarChip: React.FC<{ varName: string; envVariables: Record<string, string> }> = ({ varName, envVariables }) => {
-  const [open, setOpen] = useState(false);
-  const [showPlain, setShowPlain] = useState(false);
-  const value = envVariables[varName];
-  const isSecret = SECRET_KEYS.some(k => varName.toLowerCase().includes(k));
-  const hasValue = value !== undefined && value !== '';
-  const displayValue = isSecret && !showPlain ? '••••••••••' : (value || '⚠ not set');
+  const hasVar = Boolean(value && value.includes('{{'));
+  const matches = hasVar ? Array.from(value.matchAll(/\{\{([^}]+)\}\}/g)) : [];
+
+  let resolved = value;
+  let isSecret = false;
+  if (hasVar) {
+    matches.forEach(m => {
+      const k = m[1].trim();
+      if (/token|secret|key|password|pwd|auth|bearer|apikey/i.test(k)) isSecret = true;
+      resolved = resolved.replace(m[0], envVariables[k] !== undefined ? envVariables[k] : m[0]);
+    });
+  }
 
   return (
-    <span className="relative inline-flex items-center gap-0.5" style={{ position: 'relative' }}>
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
-        className="inline-flex items-center gap-1 rounded-md border border-indigo-700/60 bg-indigo-950/50 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-indigo-300 hover:border-indigo-500 hover:bg-indigo-900/60 transition-colors"
-      >
-        <span className="text-indigo-500">{'{{'}  </span>
-        {varName}
-        <span className="text-indigo-500">{' }}'}  </span>
-      </button>
-      {open && (
-        <span
-          className="absolute top-full left-0 mt-1 z-[999] flex items-center gap-2 min-w-max rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-[11px] shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className={`font-mono select-all ${hasValue ? (isSecret && !showPlain ? 'text-amber-400' : 'text-emerald-400') : 'text-red-400'}`}>
-            {displayValue}
-          </span>
-          {hasValue && isSecret && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setShowPlain(v => !v); }}
-              className="text-slate-400 hover:text-white transition-colors"
-              title={showPlain ? 'Hide value' : 'Show plain text'}
-            >
-              {showPlain ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            </button>
-          )}
-          <button type="button" onClick={() => setOpen(false)} className="text-slate-600 hover:text-white ml-1">
-            <X className="h-3 w-3" />
+    <div className="relative flex flex-col gap-1 w-full overflow-visible" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <div className="flex items-center gap-2 w-full">
+        <input
+          type="text"
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          className={className || "flex-1 bg-transparent font-mono text-slate-200 focus:outline-none placeholder:text-slate-700 text-xs py-1"}
+        />
+
+        {hasVar && !hideInlineReveal && (
+          <button
+            type="button"
+            onClick={() => setShowInlineResolved(!showInlineResolved)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-950/60 border border-amber-700/80 text-amber-300 hover:bg-amber-900/80 text-[11px] font-bold transition-all shadow-sm shrink-0"
+            title={showInlineResolved ? "Hide resolved value" : "Reveal resolved value inline"}
+          >
+            {showInlineResolved ? <EyeOff className="h-3.5 w-3.5 text-amber-400" /> : <Eye className="h-3.5 w-3.5 text-amber-400" />}
+            <span>{showInlineResolved ? 'Hide' : 'Reveal'}</span>
           </button>
-        </span>
+        )}
+      </div>
+
+      {/* Inline Revealed Value */}
+      {hasVar && showInlineResolved && (
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/95 border border-indigo-900/60 text-[10px] font-mono animate-in fade-in duration-150">
+          <span className="text-slate-400 font-semibold shrink-0">Resolved:</span>
+          <span className={`break-all font-bold ${isSecret ? 'text-amber-400' : 'text-emerald-400'}`}>
+            {resolved}
+          </span>
+        </div>
       )}
-    </span>
+
+      {/* Theme Matching Mouse Hover Tooltip Card (Safe position: no overflow cutting) */}
+      {hasVar && hovered && !showInlineResolved && (
+        <div className={`absolute left-0 ${
+          tooltipPosition === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2'
+        } z-[99999] p-3 rounded-xl border border-indigo-500/40 bg-slate-900/95 backdrop-blur-md shadow-2xl space-y-2 font-mono text-[11px] min-w-[280px] max-w-md pointer-events-none animate-in fade-in zoom-in-95 duration-150`}>
+          <div className="flex items-center gap-1.5 font-bold text-indigo-300 pb-1.5 border-b border-slate-800/80 text-[10px]">
+            <Sparkles className="h-3.5 w-3.5 text-indigo-400 shrink-0" /> Variable Resolution
+          </div>
+          <div className="space-y-1.5">
+            {matches.map((m, i) => {
+              const k = m[1].trim();
+              const val = envVariables[k];
+              const sec = /token|secret|key|password|pwd|auth|bearer|apikey/i.test(k);
+              return (
+                <div key={i} className="flex justify-between items-start gap-3">
+                  <span className="text-indigo-300 font-bold shrink-0">{`{{${k}}}`}</span>
+                  <span className={`break-all font-semibold text-right ${sec ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {val !== undefined ? (sec ? '•••••••••• (secret)' : val) : 'NOT SET'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
-// ─── Parse env placeholders in a string and render as chips ──────────────────
-const EnvString: React.FC<{ value: string; envVariables: Record<string, string> }> = ({ value, envVariables }) => {
-  const parts = value.split(/({{[^}]+}})/g);
+// ─── Environment Variables Quick Reference Table ─────────────────────────────
+const EnvVarsQuickRef: React.FC<{ envVariables: Record<string, string> }> = ({ envVariables }) => {
+  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+  const [expanded, setExpanded] = useState(false);
+
+  const keys = Object.keys(envVariables);
+  if (keys.length === 0) return null;
+
+  const toggleSecret = (key: string) => {
+    setShowSecrets(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   return (
-    <span className="inline-flex flex-wrap items-center gap-0.5 font-mono text-xs">
-      {parts.map((part, i) => {
-        const match = part.match(/^{{(.+)}}$/);
-        if (match) {
-          return <EnvVarChip key={i} varName={match[1].trim()} envVariables={envVariables} />;
-        }
-        return part ? <span key={i} className="text-slate-300">{part}</span> : null;
-      })}
-    </span>
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/80 overflow-hidden shadow-lg transition-all">
+      <div 
+        className="flex items-center justify-between px-4 py-2.5 bg-slate-900/80 border-b border-slate-800 cursor-pointer hover:bg-slate-900 transition-colors"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-2 font-mono text-xs font-bold text-indigo-300">
+          <Info className="h-4 w-4 text-indigo-400 shrink-0" />
+          <span>Active Environment Variables ({keys.length})</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">Click to {expanded ? 'collapse' : 'expand table'}</span>
+          <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${expanded ? '' : '-rotate-90'}`} />
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-xs text-left border-collapse font-mono">
+            <thead>
+              <tr className="bg-slate-900/60 text-slate-400 border-b border-slate-800 text-[10px] uppercase tracking-wider">
+                <th className="py-2.5 px-4 font-bold text-indigo-400">Variable Key</th>
+                <th className="py-2.5 px-4 font-bold text-slate-300">Resolved Value</th>
+                <th className="py-2.5 px-4 font-bold text-right w-36">Type / Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+              {keys.map((k) => {
+                const val = envVariables[k];
+                const isSecret = /token|secret|key|password|pwd|auth|bearer|apikey/i.test(k);
+                const isPlain = showSecrets[k];
+                const displayVal = isSecret && !isPlain ? '••••••••••••••••' : (val || '(empty)');
+
+                return (
+                  <tr key={k} className="hover:bg-slate-900/40 transition-colors">
+                    <td className="py-2.5 px-4 text-indigo-300 font-bold font-mono whitespace-nowrap">
+                      {`{{${k}}}`}
+                    </td>
+                    <td className="py-2.5 px-4 break-all text-emerald-400 font-mono font-medium select-all">
+                      {displayVal}
+                    </td>
+                    <td className="py-2.5 px-4 text-right whitespace-nowrap">
+                      {isSecret ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleSecret(k)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-950/60 border border-amber-700/80 text-amber-300 hover:bg-amber-900/80 text-[11px] font-bold transition-all shadow-sm"
+                        >
+                          {isPlain ? <EyeOff className="h-3.5 w-3.5 text-amber-400" /> : <Eye className="h-3.5 w-3.5 text-amber-400" />}
+                          <span>{isPlain ? 'Hide' : 'Reveal'}</span>
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 text-[11px] font-bold shadow-sm">
+                          <Code className="h-3.5 w-3.5 text-slate-400" />
+                          <span>Plain Text</span>
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 };
 
-// ─── Main Component ──────────────────────────────────────────────────────────
+// ─── Main Endpoint Workbench ──────────────────────────────────────────────────
 export const EndpointWorkbench: React.FC = () => {
   const {
     selectedEndpointIdForDetail,
     setSelectedEndpointIdForDetail,
     flatEndpointMap,
     serverFlatEndpointMap,
-    executionResults,
     generatedTestSuites,
     envVariables,
+    updateEndpointName
   } = useRunnerStore();
 
-  const [activeRequestTab, setActiveRequestTab] = useState<'params' | 'auth' | 'headers' | 'body' | 'assertions'>('body');
+  const [activeRequestTab, setActiveRequestTab] = useState<'body' | 'params' | 'headers' | 'auth' | 'assertions'>('body');
   const [running, setRunning] = useState(false);
   const [copiedResponse, setCopiedResponse] = useState(false);
   const workbenchScrollRef = useRef<HTMLDivElement>(null);
   const responseRef = useRef<HTMLDivElement>(null);
+  const serverOutputScrollRef = useRef<HTMLPreElement>(null);
   const [showTopFAB, setShowTopFAB] = useState(false);
+  const [showServerOutputTopFab, setShowServerOutputTopFab] = useState(false);
+  const [showResolvedUrl, setShowResolvedUrl] = useState(false);
+
+  // Collapsible Panel States
+  const [responsePayloadCollapsed, setResponsePayloadCollapsed] = useState(false);
+  const [bodyPanelCollapsed, setBodyPanelCollapsed] = useState(false);
+  const [assertionEvalCollapsed, setAssertionEvalCollapsed] = useState(false);
+  const [serverOutputCollapsed, setServerOutputCollapsed] = useState(false);
+
+  // Editable Endpoint Name
   const [editingName, setEditingName] = useState(false);
   const [customName, setCustomName] = useState('');
 
-  // Isolated single-run result (NOT written to the global executionResults)
+  // Single-run isolated result
   const [singleResult, setSingleResult] = useState<any>(null);
 
-  // AI assertions (editable + collapsible)
+  // AI Assertions (editable + collapsible)
   const [customAssertions, setCustomAssertions] = useState<AssertionItem[]>([]);
   const [assertionsModified, setAssertionsModified] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [assertionsCollapsed, setAssertionsCollapsed] = useState(false);
 
-  // Safe lookup across both maps
+  // Safe node lookup
   const endpointNode = useMemo(() => {
     if (!selectedEndpointIdForDetail) return undefined;
     const id = selectedEndpointIdForDetail;
@@ -168,7 +287,7 @@ export const EndpointWorkbench: React.FC = () => {
 
   const testSuite = selectedEndpointIdForDetail ? generatedTestSuites[selectedEndpointIdForDetail] : undefined;
 
-  // Form state
+  // Form State
   const [url, setUrl] = useState('');
   const [method, setMethod] = useState<HttpMethod>('POST');
   const [params, setParams] = useState<ParamItem[]>([
@@ -183,21 +302,84 @@ export const EndpointWorkbench: React.FC = () => {
   ]);
   const [bodyText, setBodyText] = useState('{\n  "businessId": "5561234567",\n  "countryCode": "FI"\n}');
 
-  // Reset form + result when selected endpoint changes
-  useEffect(() => {
+  // Bi-directional sync: Params -> URL
+  const updateParamsAndUrl = (nextParams: ParamItem[]) => {
+    setParams(nextParams);
+    try {
+      const baseUrl = (url || '').split('?')[0];
+      const active = nextParams.filter(p => p.enabled && p.key.trim());
+      if (active.length === 0) {
+        setUrl(baseUrl);
+      } else {
+        const qs = active.map(p => `${encodeURIComponent(p.key.trim())}=${encodeURIComponent(p.value)}`).join('&');
+        setUrl(`${baseUrl}?${qs}`);
+      }
+    } catch (_) {}
+  };
+
+  // Bi-directional sync: URL -> Params
+  const handleUrlChange = (newUrl: string) => {
+    setUrl(newUrl);
+    try {
+      if (newUrl.includes('?')) {
+        const qStr = newUrl.split('?')[1] || '';
+        const pairs = qStr.split('&').filter(Boolean);
+        const parsed: ParamItem[] = pairs.map((pair: string, idx: number) => {
+          const [k, v] = pair.split('=');
+          return {
+            id: `p_${idx}`,
+            enabled: true,
+            key: decodeURIComponent(k || ''),
+            value: decodeURIComponent(v || ''),
+          };
+        });
+        if (parsed.length > 0) {
+          setParams(parsed);
+        }
+      }
+    } catch (_) {}
+  };
+
+  // Computed Resolved URL for clean display
+  const resolvedUrlPreview = useMemo(() => {
+    if (!url) return '';
+    let res = url;
+    Object.entries(envVariables).forEach(([k, v]) => {
+      res = res.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), v);
+    });
+    return res;
+  }, [url, envVariables]);
+
+  // Reset form when selected endpoint changes
+  const initFromNode = useCallback(() => {
     if (!endpointNode) return;
 
     setMethod(endpointNode.method || 'GET');
-    setUrl(endpointNode.url || '');
+    const initialUrl = endpointNode.url || `https://api.internal-service.com/v1/${endpointNode.name}`;
+    setUrl(initialUrl);
+    setCustomName(endpointNode.name);
+    setEditingName(false);
     setSingleResult(null);
     setAssertionsModified(false);
 
-    // Populate body from node
-    if (endpointNode.request?.body?.raw) {
-      setBodyText(endpointNode.request.body.raw);
+    if (initialUrl.includes('?')) {
+      const qStr = initialUrl.split('?')[1] || '';
+      const pairs = qStr.split('&').filter(Boolean);
+      const parsed: ParamItem[] = pairs.map((pair: string, idx: number) => {
+        const [k, v] = pair.split('=');
+        return { id: `p_${idx}`, enabled: true, key: decodeURIComponent(k || ''), value: decodeURIComponent(v || '') };
+      });
+      if (parsed.length > 0) setParams(parsed);
+    } else {
+      setParams([{ id: '1', enabled: true, key: 'mockData', value: 'true' }]);
     }
 
-    // Populate headers from node
+    if (endpointNode.request?.body?.raw) {
+      setBodyText(endpointNode.request.body.raw);
+    } else {
+      setBodyText('{\n  "businessId": "5561234567",\n  "countryCode": "FI"\n}');
+    }
+
     if (endpointNode.request?.header && Array.isArray(endpointNode.request.header)) {
       const nodeHeaders: HeaderItem[] = endpointNode.request.header.map((h: any, i: number) => ({
         id: `h${i}`,
@@ -212,14 +394,19 @@ export const EndpointWorkbench: React.FC = () => {
         nodeHeaders.push({ id: 'hak', enabled: true, key: 'app-key', value: '{{internal-service-app-key}}' });
       }
       setHeaders(nodeHeaders);
+    } else {
+      setHeaders([
+        { id: 'h1', enabled: true, key: 'Content-Type', value: 'application/json' },
+        { id: 'h2', enabled: true, key: 'app-key', value: '{{internal-service-app-key}}' },
+        { id: 'h3', enabled: true, key: 'Accept', value: 'application/json' },
+      ]);
     }
 
-    // Populate assertions from test suite
     if (testSuite?.testCases?.length) {
       setCustomAssertions(testSuite.testCases.map((tc: any) => ({
         id: tc.id,
         description: tc.description || '',
-        type: tc.assertionType || 'status',
+        type: (tc.type || tc.assertionType || 'status') as any,
         expectedValue: tc.expectedValue !== undefined ? String(tc.expectedValue) : '200',
         jsonPath: tc.jsonPath || '',
       })));
@@ -230,7 +417,11 @@ export const EndpointWorkbench: React.FC = () => {
         { id: 'a3', description: 'Content-Type is application/json', type: 'header', expectedValue: 'application/json', jsonPath: 'content-type' },
       ]);
     }
-  }, [selectedEndpointIdForDetail, endpointNode]);
+  }, [selectedEndpointIdForDetail, endpointNode, testSuite]);
+
+  useEffect(() => {
+    initFromNode();
+  }, [initFromNode]);
 
   // Scroll FAB
   const handleWorkbenchScroll = useCallback(() => {
@@ -243,7 +434,15 @@ export const EndpointWorkbench: React.FC = () => {
     try { setBodyText(JSON.stringify(JSON.parse(bodyText), null, 2)); } catch (_) {}
   };
 
-  // ── Close with save-dialog if assertions modified ─────────────────────────
+  // Name Editing Save
+  const handleSaveName = () => {
+    if (customName.trim() && selectedEndpointIdForDetail && customName !== endpointNode?.name) {
+      updateEndpointName(selectedEndpointIdForDetail, customName.trim());
+    }
+    setEditingName(false);
+  };
+
+  // Close Handler with Save Prompt
   const handleClose = () => {
     if (assertionsModified) {
       setShowSaveDialog(true);
@@ -253,13 +452,13 @@ export const EndpointWorkbench: React.FC = () => {
   };
 
   const handleSaveAssertions = () => {
-    if (selectedEndpointIdForDetail) {
+    if (selectedEndpointIdForDetail && endpointNode) {
       const existing = useRunnerStore.getState().generatedTestSuites[selectedEndpointIdForDetail];
       const updated: EndpointTestSuite = {
         endpointId: selectedEndpointIdForDetail,
-        endpointName: endpointNode?.name || '',
-        method: (endpointNode?.method || 'GET') as HttpMethod,
-        url: endpointNode?.url || '',
+        endpointName: customName || endpointNode.name,
+        method: (method || endpointNode.method || 'GET') as HttpMethod,
+        url: url || endpointNode.url || '',
         generatedBy: existing?.generatedBy || 'smart_heuristic',
         summary: existing?.summary || 'User customized assertions',
         userCustomized: true,
@@ -283,7 +482,7 @@ export const EndpointWorkbench: React.FC = () => {
     setSelectedEndpointIdForDetail(null);
   };
 
-  // ── Send Request (isolated, does NOT affect global executionResults) ──────
+  // Execute Request (Single Run Isolated)
   const handleSendSingle = async () => {
     if (!selectedEndpointIdForDetail || !endpointNode) return;
     setRunning(true);
@@ -295,21 +494,18 @@ export const EndpointWorkbench: React.FC = () => {
       const resolveVars = (s: string) =>
         Object.entries(env).reduce((acc, [k, v]) => acc.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), v), s);
 
-      // Build URL + query params
       let resolvedUrl = resolveVars(url || endpointNode.url || '');
       const enabledParams = params.filter((p) => p.enabled && p.key.trim());
-      if (enabledParams.length > 0) {
-        const qs = enabledParams.map((p) => `${encodeURIComponent(p.key)}=${encodeURIComponent(resolveVars(p.value))}`).join('&');
-        resolvedUrl = `${resolvedUrl}${resolvedUrl.includes('?') ? '&' : '?'}${qs}`;
+      if (enabledParams.length > 0 && !resolvedUrl.includes('?')) {
+        const qs = enabledParams.map((p) => `${encodeURIComponent(p.key.trim())}=${encodeURIComponent(resolveVars(p.value))}`).join('&');
+        resolvedUrl = `${resolvedUrl}?${qs}`;
       }
 
-      // Build headers
       const activeHeaders: Record<string, string> = {};
       headers.filter((h) => h.enabled && h.key.trim()).forEach((h) => {
         activeHeaders[h.key.trim()] = resolveVars(h.value);
       });
 
-      // Auth
       if (authType === 'bearer' && authToken) {
         activeHeaders['Authorization'] = `Bearer ${resolveVars(authToken)}`;
       } else if (authType === 'apikey' && authToken) {
@@ -331,43 +527,49 @@ export const EndpointWorkbench: React.FC = () => {
 
       const data = await res.json();
       const endMs = Date.now();
-      const httpStatus = data.status ?? res.status;
+
+      const httpStatus = data.statusCode ?? res.status ?? 200;
       const isSuccess = httpStatus >= 200 && httpStatus < 300;
 
-      // Parse response body correctly (avoid double-JSON.stringify)
-      let responseBodyStr = '';
-      if (data.data !== undefined && data.data !== null) {
-        if (typeof data.data === 'object') {
-          responseBodyStr = JSON.stringify(data.data, null, 2);
-        } else {
-          responseBodyStr = String(data.data);
-        }
-      } else if (data.body !== undefined) {
-        responseBodyStr = typeof data.body === 'object' ? JSON.stringify(data.body, null, 2) : String(data.body);
+      let responseBodyText = data.responseBody ?? data.error ?? '';
+      if (typeof responseBodyText === 'object') {
+        responseBodyText = JSON.stringify(responseBodyText, null, 2);
       }
+      let formattedBody = responseBodyText;
+      try {
+        if (responseBodyText && (responseBodyText.trim().startsWith('{') || responseBodyText.trim().startsWith('['))) {
+          formattedBody = JSON.stringify(JSON.parse(responseBodyText), null, 2);
+        }
+      } catch (_) {}
 
-      // Run assertions against response
       const assertionResults = customAssertions.map((a) => {
         let pass = false;
         if (a.type === 'status') {
           pass = String(httpStatus) === String(a.expectedValue);
         } else if (a.type === 'body') {
-          pass = a.expectedValue ? responseBodyStr.includes(a.expectedValue) : responseBodyStr.length > 0;
+          pass = a.expectedValue ? formattedBody.includes(a.expectedValue) : formattedBody.length > 0;
         } else if (a.type === 'header') {
-          const headerVal = (data.headers || {})[a.jsonPath || ''] || '';
+          const headerVal = (data.responseHeaders || {})[a.jsonPath || ''] || '';
           pass = a.expectedValue ? headerVal.toLowerCase().includes(a.expectedValue.toLowerCase()) : !!headerVal;
         } else {
           pass = isSuccess;
         }
-        return { id: a.id, description: a.description, status: pass ? 'pass' : 'fail', expected: a.expectedValue, actual: a.type === 'status' ? String(httpStatus) : '' };
+        return {
+          id: a.id,
+          description: a.description,
+          status: pass ? ('pass' as const) : ('fail' as const),
+          expected: a.expectedValue,
+          actual: a.type === 'status' ? String(httpStatus) : ''
+        };
       });
 
       setSingleResult({
         statusCode: httpStatus,
+        statusText: data.statusText || (isSuccess ? 'OK' : 'Error'),
         status: isSuccess ? 'passed' : 'failed',
-        responseTimeMs: endMs - startMs,
-        responseHeaders: data.headers || {},
-        responseBody: responseBodyStr,
+        responseTimeMs: data.responseTimeMs || (endMs - startMs),
+        responseHeaders: data.responseHeaders || {},
+        responseBody: formattedBody || '(Empty response body)',
         requestHeaders: activeHeaders,
         requestBody: resolvedBody,
         resolvedUrl,
@@ -378,6 +580,7 @@ export const EndpointWorkbench: React.FC = () => {
     } catch (err: any) {
       setSingleResult({
         statusCode: 0,
+        statusText: 'Network Error',
         status: 'failed',
         responseTimeMs: Date.now() - startMs,
         responseHeaders: {},
@@ -391,7 +594,11 @@ export const EndpointWorkbench: React.FC = () => {
     }
 
     setRunning(false);
-    // ⚠️ DO NOT call setMaximizedPane(null) — keep user in current layout
+
+    // Smooth Scroll to Response Section
+    setTimeout(() => {
+      responseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 150);
   };
 
   const handleCopyResponse = () => {
@@ -408,7 +615,7 @@ export const EndpointWorkbench: React.FC = () => {
     PATCH:  'bg-purple-950/80 text-purple-300 border-purple-800',
   };
 
-  // ── Empty state ────────────────────────────────────────────────────────────
+  // Empty State
   if (!selectedEndpointIdForDetail || !endpointNode) {
     return (
       <div className="flex flex-col rounded-3xl border border-slate-800/60 bg-slate-950/80 shadow-xl overflow-hidden" style={{ minHeight: '460px' }}>
@@ -425,27 +632,14 @@ export const EndpointWorkbench: React.FC = () => {
           <div className="relative flex items-center justify-center mb-2">
             <div className="absolute inset-0 rounded-full bg-indigo-500/10 blur-2xl scale-150" />
             <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-indigo-500/30 bg-indigo-950/40 shadow-lg shadow-indigo-500/10">
-              <Send className="h-8 w-8 text-indigo-400" />
+              <Send className="h-8 w-8 text-indigo-400 stroke-1.5" />
             </div>
           </div>
           <div className="space-y-1.5">
             <h3 className="text-base font-bold text-slate-200">No Endpoint Selected</h3>
             <p className="text-sm text-slate-500 max-w-xs leading-relaxed">
-              Click any endpoint in the <span className="text-indigo-400 font-semibold">Collection Hierarchy</span> or <span className="text-indigo-400 font-semibold">Server Explorer</span> to open it here.
+              Click any endpoint in the <span className="text-indigo-400 font-semibold">Collection Hierarchy</span> or <span className="text-indigo-400 font-semibold">Server Explorer</span> to open it in the interactive workbench.
             </p>
-          </div>
-          <div className="grid grid-cols-3 gap-3 mt-2 w-full max-w-sm">
-            {[
-              { icon: '🌐', label: 'Params', desc: 'Query params' },
-              { icon: '🔐', label: 'Auth', desc: 'Bearer / API key' },
-              { icon: '📦', label: 'Body', desc: 'JSON / raw payload' },
-            ].map(({ icon, label, desc }) => (
-              <div key={label} className="flex flex-col items-center gap-1 rounded-xl border border-slate-800/60 bg-slate-900/40 p-3 text-center">
-                <span className="text-xl">{icon}</span>
-                <span className="text-[11px] font-bold text-slate-400">{label}</span>
-                <span className="text-[10px] text-slate-600">{desc}</span>
-              </div>
-            ))}
           </div>
         </div>
       </div>
@@ -455,18 +649,67 @@ export const EndpointWorkbench: React.FC = () => {
   return (
     <div className="w-full rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl flex flex-col h-[750px] max-h-[82vh] overflow-hidden text-left font-sans relative">
 
-      {/* ── TITLE BAR ───────────────────────────────────────────────────────── */}
+      {/* ── WORKBENCH TOP BAR ────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-800/80 bg-slate-900/60 shrink-0">
-        <div className="flex items-center space-x-2.5 min-w-0">
-          <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-extrabold border ${methodColors[method] || methodColors.GET}`}>{method}</span>
-          <h2 className="font-extrabold text-sm text-white truncate max-w-xs sm:max-w-md">{endpointNode.name}</h2>
+        
+        {/* Endpoint Name with Inline Editing */}
+        <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+          <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-extrabold border ${methodColors[method] || methodColors.GET}`}>
+            {method}
+          </span>
+
+          {editingName ? (
+            <div className="flex items-center gap-2 flex-1 max-w-md">
+              <input
+                type="text"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false); }}
+                className="flex-1 rounded-lg border border-indigo-500 bg-slate-900 px-2.5 py-1 text-xs font-bold text-white focus:outline-none"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={handleSaveName}
+                className="rounded-lg bg-indigo-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-indigo-500"
+              >
+                Save
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 min-w-0 group cursor-pointer" onClick={() => setEditingName(true)}>
+              <h2 className="font-extrabold text-sm text-white truncate max-w-xs sm:max-w-md hover:text-indigo-300 transition-colors">
+                {endpointNode.name}
+              </h2>
+              <button
+                type="button"
+                className="opacity-60 group-hover:opacity-100 text-slate-400 hover:text-indigo-300 p-1"
+                title="Edit endpoint name (syncs to Collection Hierarchy)"
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
           {testSuite?.userCustomized && (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-950/60 border border-amber-800/60 px-2 py-0.5 text-[10px] font-bold text-amber-400">
               <Edit3 className="h-2.5 w-2.5" /> User Customized
             </span>
           )}
         </div>
+
+        {/* Action Controls */}
         <div className="flex items-center space-x-2 shrink-0">
+          <button
+            type="button"
+            onClick={initFromNode}
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-bold transition-all shadow-sm"
+            title="Refresh & reset endpoint form to defaults"
+          >
+            <RotateCcw className="h-3.5 w-3.5 text-indigo-400" />
+            <span>Refresh</span>
+          </button>
+
           <button
             type="button"
             onClick={handleSendSingle}
@@ -476,6 +719,7 @@ export const EndpointWorkbench: React.FC = () => {
             {running ? <Clock className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
             <span>{running ? 'Executing...' : '⚡ Send Request'}</span>
           </button>
+
           <button
             type="button"
             onClick={handleClose}
@@ -486,39 +730,61 @@ export const EndpointWorkbench: React.FC = () => {
         </div>
       </div>
 
-      {/* ── URL BAR ─────────────────────────────────────────────────────────── */}
-      <div className="px-4 py-2.5 bg-slate-950 border-b border-slate-900 flex items-center space-x-2 shrink-0">
-        <select
-          value={method}
-          onChange={(e) => setMethod(e.target.value as HttpMethod)}
-          className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-mono font-bold text-slate-200 focus:border-indigo-500 focus:outline-none"
-        >
-          {['GET','POST','PUT','DELETE','PATCH'].map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
-        <div className="flex-1 relative">
-          <input
-            type="text"
+      {/* ── CLEAN URL BAR WITH BI-DIRECTIONAL PARAMS SYNC ─────────────────────── */}
+      <div className="p-3 bg-slate-950 border-b border-slate-900 space-y-2 shrink-0">
+        <div className="flex items-center space-x-2">
+          <select
+            value={method}
+            onChange={(e) => setMethod(e.target.value as HttpMethod)}
+            className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-mono font-bold text-slate-200 focus:border-indigo-500 focus:outline-none"
+          >
+            {['GET','POST','PUT','DELETE','PATCH'].map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+
+          <ValueInputWithVariableHover
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-1.5 text-xs font-mono text-slate-100 focus:border-indigo-500 focus:outline-none pr-24"
+            onChange={handleUrlChange}
             placeholder="https://api.example.com/v1/resource"
+            envVariables={envVariables}
+            tooltipPosition="bottom"
+            hideInlineReveal={true}
+            className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-mono text-slate-100 focus:border-indigo-500 focus:outline-none cursor-text"
           />
-          {url && url.includes('{{') && (
-            <div className="absolute right-2 top-1/2 -translate-y-1/2">
-              <EnvString value={url} envVariables={envVariables} />
-            </div>
-          )}
         </div>
+
+        {/* Masked/Unmasked Resolved URL Display */}
+        {url && url.includes('{{') && (
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl border border-indigo-900/40 bg-indigo-950/30 text-[11px] font-mono">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className="text-slate-400 font-semibold shrink-0">Resolved URL:</span>
+              <span className="font-semibold break-all text-emerald-400 select-all">
+                {showResolvedUrl ? resolvedUrlPreview : '••••••••••••••••••••••••••••••••••••••••'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowResolvedUrl(!showResolvedUrl)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-950/60 border border-amber-700/80 text-amber-300 hover:bg-amber-900/80 text-[11px] font-bold shrink-0 transition-colors shadow-sm"
+              title={showResolvedUrl ? "Hide resolved URL" : "Show unmasked resolved URL"}
+            >
+              {showResolvedUrl ? <EyeOff className="h-3.5 w-3.5 text-amber-400" /> : <Eye className="h-3.5 w-3.5 text-amber-400" />}
+              <span>{showResolvedUrl ? 'Hide' : 'Reveal URL'}</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* ── SCROLLABLE BODY ─────────────────────────────────────────────────── */}
+      {/* ── WORKBENCH SCROLLABLE BODY ───────────────────────────────────────── */}
       <div
         ref={workbenchScrollRef}
         onScroll={handleWorkbenchScroll}
         className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4"
       >
 
-        {/* REQUEST TAB NAV */}
+        {/* Environment Variables Quick Reference Table */}
+        <EnvVarsQuickRef envVariables={envVariables} />
+
+        {/* REQUEST TAB SELECTION BAR */}
         <div className="border-b border-slate-800 pb-0 flex items-center gap-1 overflow-x-auto">
           {([
             { id: 'body',       label: 'Body',          icon: <FileText className="h-3.5 w-3.5" /> },
@@ -543,40 +809,53 @@ export const EndpointWorkbench: React.FC = () => {
           ))}
         </div>
 
-        {/* ── BODY TAB ──────────────────────────────────────────────────────── */}
+        {/* ── BODY TAB (COLLAPSIBLE) ────────────────────────────────────────── */}
         {activeRequestTab === 'body' && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="font-mono text-[11px] font-semibold">JSON Payload (raw)</span>
+              <button
+                type="button"
+                onClick={() => setBodyPanelCollapsed(!bodyPanelCollapsed)}
+                className="flex items-center gap-1.5 font-mono text-[11px] font-semibold hover:text-white transition-colors"
+              >
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${bodyPanelCollapsed ? '-rotate-90' : ''}`} />
+                <span>JSON Payload (raw)</span>
+              </button>
               <button type="button" onClick={handleBeautifyJson} className="px-2.5 py-1 rounded-lg bg-indigo-950 text-indigo-300 border border-indigo-800 text-[11px] font-bold hover:bg-indigo-900 transition-all">
                 ✨ Beautify JSON
               </button>
             </div>
-            <textarea
-              value={bodyText}
-              onChange={(e) => setBodyText(e.target.value)}
-              rows={8}
-              className="w-full rounded-2xl border border-slate-800 bg-[#090d16] p-3 text-xs font-mono text-slate-100 focus:border-indigo-500 focus:outline-none leading-relaxed resize-y"
-            />
+            {!bodyPanelCollapsed && (
+              <textarea
+                value={bodyText}
+                onChange={(e) => setBodyText(e.target.value)}
+                rows={8}
+                className="w-full rounded-2xl border border-slate-800 bg-[#090d16] p-3 text-xs font-mono text-slate-100 focus:border-indigo-500 focus:outline-none leading-relaxed resize-y animate-in fade-in duration-150"
+              />
+            )}
           </div>
         )}
 
-        {/* ── PARAMS TAB ────────────────────────────────────────────────────── */}
+        {/* ── PARAMS TAB (OVERFLOW VISIBLE + LIVE URL SYNC) ───────────────────── */}
         {activeRequestTab === 'params' && (
           <div className="space-y-3 text-xs">
             <div className="flex items-center justify-between text-slate-400">
               <span className="font-mono font-semibold">Query Parameters</span>
-              <button type="button" onClick={() => setParams([...params, { id: String(Date.now()), enabled: true, key: '', value: '' }])} className="text-xs text-indigo-400 font-bold hover:underline flex items-center gap-1">
+              <button 
+                type="button" 
+                onClick={() => updateParamsAndUrl([...params, { id: String(Date.now()), enabled: true, key: '', value: '' }])} 
+                className="text-xs text-indigo-400 font-bold hover:underline flex items-center gap-1"
+              >
                 <Plus className="h-3 w-3" /> Add Parameter
               </button>
             </div>
-            <div className="rounded-2xl border border-slate-800 overflow-hidden">
+            <div className="rounded-2xl border border-slate-800 overflow-visible relative">
               <table className="w-full text-xs">
                 <thead className="bg-slate-900/80 border-b border-slate-800">
                   <tr>
                     <th className="w-8 py-2 px-2 text-slate-500 font-mono text-[10px] text-left"></th>
                     <th className="py-2 px-3 text-slate-500 font-mono text-[10px] text-left">KEY</th>
-                    <th className="py-2 px-3 text-slate-500 font-mono text-[10px] text-left">VALUE</th>
+                    <th className="py-2 px-3 text-slate-500 font-mono text-[10px] text-left">VALUE (Hover / Reveal 👁️)</th>
                     <th className="w-8"></th>
                   </tr>
                 </thead>
@@ -584,23 +863,22 @@ export const EndpointWorkbench: React.FC = () => {
                   {params.map((p, idx) => (
                     <tr key={p.id} className="border-b border-slate-800/60 hover:bg-slate-900/30">
                       <td className="px-2 py-1.5 text-center">
-                        <input type="checkbox" checked={p.enabled} onChange={(e) => { const u = [...params]; u[idx].enabled = e.target.checked; setParams(u); }} className="rounded" />
+                        <input type="checkbox" checked={p.enabled} onChange={(e) => { const u = [...params]; u[idx].enabled = e.target.checked; updateParamsAndUrl(u); }} className="rounded" />
                       </td>
                       <td className="px-2 py-1">
-                        <input type="text" value={p.key} placeholder="key" onChange={(e) => { const u=[...params]; u[idx].key=e.target.value; setParams(u); }} className="w-full bg-transparent font-mono text-slate-200 focus:outline-none placeholder:text-slate-700" />
+                        <input type="text" value={p.key} placeholder="key" onChange={(e) => { const u=[...params]; u[idx].key=e.target.value; updateParamsAndUrl(u); }} className="w-full bg-transparent font-mono text-slate-200 focus:outline-none placeholder:text-slate-700" />
                       </td>
-                      <td className="px-2 py-1">
-                        {p.value.includes('{{') ? (
-                          <div className="flex items-center gap-1">
-                            <EnvString value={p.value} envVariables={envVariables} />
-                            <input type="text" value={p.value} onChange={(e) => { const u=[...params]; u[idx].value=e.target.value; setParams(u); }} className="w-0 opacity-0 absolute" />
-                          </div>
-                        ) : (
-                          <input type="text" value={p.value} placeholder="value" onChange={(e) => { const u=[...params]; u[idx].value=e.target.value; setParams(u); }} className="w-full bg-transparent font-mono text-slate-200 focus:outline-none placeholder:text-slate-700" />
-                        )}
+                      <td className="px-2 py-1 relative">
+                        <ValueInputWithVariableHover
+                          value={p.value}
+                          onChange={(val) => { const u=[...params]; u[idx].value=val; updateParamsAndUrl(u); }}
+                          placeholder="value"
+                          envVariables={envVariables}
+                          tooltipPosition="bottom"
+                        />
                       </td>
                       <td className="px-2">
-                        <button type="button" onClick={() => setParams(params.filter((_, i) => i !== idx))} className="text-slate-700 hover:text-red-400 transition-colors"><Trash2 className="h-3 w-3" /></button>
+                        <button type="button" onClick={() => updateParamsAndUrl(params.filter((_, i) => i !== idx))} className="text-slate-700 hover:text-red-400 transition-colors"><Trash2 className="h-3 w-3" /></button>
                       </td>
                     </tr>
                   ))}
@@ -610,7 +888,7 @@ export const EndpointWorkbench: React.FC = () => {
           </div>
         )}
 
-        {/* ── HEADERS TAB ───────────────────────────────────────────────────── */}
+        {/* ── HEADERS TAB (OVERFLOW VISIBLE FOR UNCLIPPED HOVER TOOLTIPS) ─────── */}
         {activeRequestTab === 'headers' && (
           <div className="space-y-3 text-xs">
             <div className="flex items-center justify-between text-slate-400">
@@ -619,13 +897,13 @@ export const EndpointWorkbench: React.FC = () => {
                 <Plus className="h-3 w-3" /> Add Header
               </button>
             </div>
-            <div className="rounded-2xl border border-slate-800 overflow-hidden">
+            <div className="rounded-2xl border border-slate-800 overflow-visible relative">
               <table className="w-full text-xs">
                 <thead className="bg-slate-900/80 border-b border-slate-800">
                   <tr>
                     <th className="w-8 py-2 px-2"></th>
                     <th className="py-2 px-3 text-slate-500 font-mono text-[10px] text-left">KEY</th>
-                    <th className="py-2 px-3 text-slate-500 font-mono text-[10px] text-left">VALUE</th>
+                    <th className="py-2 px-3 text-slate-500 font-mono text-[10px] text-left">VALUE (Hover / Reveal 👁️)</th>
                     <th className="w-8"></th>
                   </tr>
                 </thead>
@@ -638,14 +916,14 @@ export const EndpointWorkbench: React.FC = () => {
                       <td className="px-2 py-1">
                         <input type="text" value={h.key} placeholder="Header-Key" onChange={(e) => { const u=[...headers]; u[idx].key=e.target.value; setHeaders(u); }} className="w-full bg-transparent font-mono text-slate-200 focus:outline-none placeholder:text-slate-700" />
                       </td>
-                      <td className="px-2 py-1">
-                        {h.value.includes('{{') ? (
-                          <div className="flex flex-wrap items-center gap-1">
-                            <EnvString value={h.value} envVariables={envVariables} />
-                          </div>
-                        ) : (
-                          <input type="text" value={h.value} placeholder="value" onChange={(e) => { const u=[...headers]; u[idx].value=e.target.value; setHeaders(u); }} className="w-full bg-transparent font-mono text-slate-200 focus:outline-none placeholder:text-slate-700" />
-                        )}
+                      <td className="px-2 py-1 relative">
+                        <ValueInputWithVariableHover
+                          value={h.value}
+                          onChange={(val) => { const u=[...headers]; u[idx].value=val; setHeaders(u); }}
+                          placeholder="value"
+                          envVariables={envVariables}
+                          tooltipPosition="bottom"
+                        />
                       </td>
                       <td className="px-2">
                         <button type="button" onClick={() => setHeaders(headers.filter((_, i) => i !== idx))} className="text-slate-700 hover:text-red-400 transition-colors"><Trash2 className="h-3 w-3" /></button>
@@ -673,37 +951,36 @@ export const EndpointWorkbench: React.FC = () => {
               </div>
             </div>
             {authType !== 'none' && (
-              <div className="space-y-1.5 rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+              <div className="space-y-2 rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
                 <label className="block text-[11px] text-slate-400 font-mono font-semibold">
                   {authType === 'bearer' ? 'Bearer Token' : 'API Key Value'}
                 </label>
-                {authToken.includes('{{') ? (
-                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 p-2">
-                    <EnvString value={authToken} envVariables={envVariables} />
-                    <button type="button" onClick={() => setAuthToken('')} className="text-[10px] text-slate-600 hover:text-red-400 ml-auto">clear</button>
-                  </div>
-                ) : (
-                  <input
-                    type="text"
-                    value={authToken}
-                    onChange={(e) => setAuthToken(e.target.value)}
-                    placeholder={authType === 'bearer' ? '{{bearer_token_secret}} or paste token' : '{{api_key}} or paste key'}
-                    className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-mono text-slate-200 focus:border-indigo-500 focus:outline-none"
-                  />
-                )}
-                <p className="text-[10px] text-slate-600">Use <span className="text-indigo-400 font-mono">{'{{variable_name}}'}</span> to reference environment variables.</p>
+                <ValueInputWithVariableHover
+                  value={authToken}
+                  onChange={setAuthToken}
+                  placeholder={authType === 'bearer' ? '{{bearer_token_secret}} or paste token' : '{{api_key}} or paste key'}
+                  envVariables={envVariables}
+                  tooltipPosition="bottom"
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-mono text-slate-200 focus:border-indigo-500 focus:outline-none cursor-text"
+                />
+                <p className="text-[10px] text-slate-600">Use <span className="text-indigo-400 font-mono">{'{{variable_name}}'}</span> to reference environment variables. Click <span className="text-indigo-400 font-bold">Reveal 👁️</span> or hover to inspect resolution.</p>
               </div>
             )}
           </div>
         )}
 
-        {/* ── AI ASSERTIONS TAB ─────────────────────────────────────────────── */}
+        {/* ── AI ASSERTIONS TAB (COLLAPSIBLE) ────────────────────────────────── */}
         {activeRequestTab === 'assertions' && (
           <div className="space-y-3 text-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+              <button
+                type="button"
+                onClick={() => setAssertionsCollapsed(!assertionsCollapsed)}
+                className="flex items-center gap-2 text-left hover:text-white transition-colors"
+              >
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${assertionsCollapsed ? '-rotate-90' : ''}`} />
                 <Sparkles className="h-4 w-4 text-amber-400" />
-                <span className="font-semibold text-slate-300">AI-Generated Assertions</span>
+                <span className="font-semibold text-slate-200">AI-Generated Test Assertions</span>
                 {assertionsModified && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-950 border border-amber-800 text-amber-400 font-bold">Modified</span>
                 )}
@@ -712,73 +989,66 @@ export const EndpointWorkbench: React.FC = () => {
                     <Edit3 className="h-2.5 w-2.5" /> User Customized
                   </span>
                 )}
-              </div>
+              </button>
+
               <button
                 type="button"
-                onClick={() => { setCustomAssertions([...customAssertions, { id: String(Date.now()), description: '', type: 'status', expectedValue: '200' }]); setAssertionsModified(true); }}
+                onClick={() => {
+                  setCustomAssertions([...customAssertions, { id: String(Date.now()), description: '', type: 'status', expectedValue: '200' }]);
+                  setAssertionsModified(true);
+                  setAssertionsCollapsed(false);
+                }}
                 className="flex items-center gap-1 text-indigo-400 font-bold hover:underline"
               >
                 <Plus className="h-3 w-3" /> Add Assertion
               </button>
             </div>
 
-            <div className="space-y-2">
-              {customAssertions.map((a, idx) => (
-                <div key={a.id} className="rounded-xl border border-slate-800 bg-slate-900/40 p-3 space-y-2 hover:border-slate-700 transition-colors">
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={a.type}
-                      onChange={(e) => { const u=[...customAssertions]; u[idx].type=e.target.value as any; setCustomAssertions(u); setAssertionsModified(true); }}
-                      className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] font-mono text-slate-300"
-                    >
-                      <option value="status">Status Code</option>
-                      <option value="body">Body Contains</option>
-                      <option value="header">Header Value</option>
-                      <option value="custom">Custom</option>
-                    </select>
-                    <input
-                      type="text"
-                      value={a.description}
-                      placeholder="Assertion description..."
-                      onChange={(e) => { const u=[...customAssertions]; u[idx].description=e.target.value; setCustomAssertions(u); setAssertionsModified(true); }}
-                      className="flex-1 bg-transparent font-mono text-slate-300 focus:outline-none placeholder:text-slate-700 text-xs"
-                    />
-                    <button type="button" onClick={() => { setCustomAssertions(customAssertions.filter((_,i)=>i!==idx)); setAssertionsModified(true); }} className="text-slate-700 hover:text-red-400 shrink-0">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2 pl-1">
-                    <span className="text-slate-600 text-[10px] font-mono uppercase">Expected:</span>
-                    <input
-                      type="text"
-                      value={a.expectedValue}
-                      placeholder={a.type === 'status' ? '200' : a.type === 'header' ? 'application/json' : 'text to match'}
-                      onChange={(e) => { const u=[...customAssertions]; u[idx].expectedValue=e.target.value; setCustomAssertions(u); setAssertionsModified(true); }}
-                      className="flex-1 rounded-lg border border-slate-800 bg-slate-900/60 px-2 py-1 text-[11px] font-mono text-slate-300 focus:border-indigo-500 focus:outline-none"
-                    />
-                    {a.type === 'header' && (
+            {!assertionsCollapsed && (
+              <div className="space-y-2">
+                {customAssertions.map((a, idx) => (
+                  <div key={a.id} className="rounded-xl border border-slate-800 bg-slate-900/40 p-3 space-y-2 hover:border-slate-700 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={a.type}
+                        onChange={(e) => { const u=[...customAssertions]; u[idx].type=e.target.value as any; setCustomAssertions(u); setAssertionsModified(true); }}
+                        className="rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] font-mono text-slate-300"
+                      >
+                        <option value="status">Status Code</option>
+                        <option value="body">Body Contains</option>
+                        <option value="header">Header Value</option>
+                        <option value="custom">Custom</option>
+                      </select>
                       <input
                         type="text"
-                        value={a.jsonPath || ''}
-                        placeholder="header name (e.g. content-type)"
-                        onChange={(e) => { const u=[...customAssertions]; u[idx].jsonPath=e.target.value; setCustomAssertions(u); setAssertionsModified(true); }}
-                        className="flex-1 rounded-lg border border-slate-800 bg-slate-900/60 px-2 py-1 text-[11px] font-mono text-slate-400 focus:border-indigo-500 focus:outline-none"
+                        value={a.description}
+                        placeholder="Assertion description..."
+                        onChange={(e) => { const u=[...customAssertions]; u[idx].description=e.target.value; setCustomAssertions(u); setAssertionsModified(true); }}
+                        className="flex-1 bg-transparent font-mono text-slate-300 focus:outline-none placeholder:text-slate-700 text-xs"
                       />
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Assertion results after run */}
-            {singleResult?.assertionResults?.length > 0 && (
-              <div className="mt-3 rounded-xl border border-slate-800 overflow-hidden">
-                <div className="bg-slate-900/60 px-3 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">Assertion Results</div>
-                {singleResult.assertionResults.map((ar: any) => (
-                  <div key={ar.id} className="flex items-center gap-3 px-3 py-2 border-b border-slate-800/60 last:border-0 text-xs">
-                    {ar.status === 'pass' ? <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" /> : <XCircle className="h-4 w-4 text-red-400 shrink-0" />}
-                    <span className="flex-1 text-slate-300 font-mono">{ar.description}</span>
-                    <span className={`text-[10px] font-bold ${ar.status === 'pass' ? 'text-emerald-400' : 'text-red-400'}`}>{ar.status.toUpperCase()}</span>
+                      <button type="button" onClick={() => { setCustomAssertions(customAssertions.filter((_,i)=>i!==idx)); setAssertionsModified(true); }} className="text-slate-700 hover:text-red-400 shrink-0">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 pl-1">
+                      <span className="text-slate-600 text-[10px] font-mono uppercase">Expected:</span>
+                      <input
+                        type="text"
+                        value={a.expectedValue}
+                        placeholder={a.type === 'status' ? '200' : a.type === 'header' ? 'application/json' : 'text to match'}
+                        onChange={(e) => { const u=[...customAssertions]; u[idx].expectedValue=e.target.value; setCustomAssertions(u); setAssertionsModified(true); }}
+                        className="flex-1 rounded-lg border border-slate-800 bg-slate-900/60 px-2 py-1 text-[11px] font-mono text-slate-300 focus:border-indigo-500 focus:outline-none"
+                      />
+                      {a.type === 'header' && (
+                        <input
+                          type="text"
+                          value={a.jsonPath || ''}
+                          placeholder="header name (e.g. content-type)"
+                          onChange={(e) => { const u=[...customAssertions]; u[idx].jsonPath=e.target.value; setCustomAssertions(u); setAssertionsModified(true); }}
+                          className="flex-1 rounded-lg border border-slate-800 bg-slate-900/60 px-2 py-1 text-[11px] font-mono text-slate-400 focus:border-indigo-500 focus:outline-none"
+                        />
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -786,10 +1056,22 @@ export const EndpointWorkbench: React.FC = () => {
           </div>
         )}
 
-        {/* ── RESPONSE SECTION ──────────────────────────────────────────────── */}
-        <div className="pt-2 border-t border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-300">Response</h3>
+        {/* ── RESPONSE SECTION (COLLAPSIBLE) ──────────────────────────────────── */}
+        <div ref={responseRef} className="pt-4 border-t border-slate-800 space-y-3">
+          <div 
+            className="flex items-center justify-between cursor-pointer group"
+            onClick={() => setResponsePayloadCollapsed(!responsePayloadCollapsed)}
+          >
+            <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-2 group-hover:text-indigo-300 transition-colors">
+              <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${responsePayloadCollapsed ? '-rotate-90' : ''}`} />
+              <span>Response Payload</span>
+              {singleResult && (
+                <span className="text-[11px] font-normal text-slate-500">
+                  (Live HTTP Execution)
+                </span>
+              )}
+            </h3>
+
             {singleResult && (
               <div className="flex items-center space-x-3 text-xs font-mono">
                 <span className={`px-2.5 py-1 rounded-lg font-extrabold border ${
@@ -799,38 +1081,91 @@ export const EndpointWorkbench: React.FC = () => {
                     ? 'bg-slate-900 text-slate-500 border-slate-800'
                     : 'bg-red-950 text-red-300 border-red-800'
                 }`}>
-                  {singleResult.statusCode || 'ERR'}&nbsp;
-                  {singleResult.statusCode >= 200 && singleResult.statusCode < 300 ? 'OK'
-                    : singleResult.statusCode >= 400 ? 'Error'
-                    : singleResult.statusCode > 0 ? 'Redirect'
-                    : 'Failed'}
+                  {singleResult.statusCode || 200}&nbsp;{singleResult.statusText || 'OK'}
                 </span>
+
                 <span className="text-indigo-400 font-bold flex items-center gap-1">
                   <Clock className="h-3 w-3" /> {singleResult.responseTimeMs} ms
-                </span>
-                <span className="text-slate-500">
-                  {singleResult.responseBody?.length || 0} chars
                 </span>
               </div>
             )}
           </div>
 
-          {singleResult ? (
-            <div className="rounded-2xl border border-slate-800 bg-[#060a12] overflow-hidden">
-              <div className="flex items-center justify-between text-xs text-slate-400 px-4 py-2 border-b border-slate-800/80 bg-slate-900/40">
-                <span className="font-mono">Response Body</span>
-                <button type="button" onClick={handleCopyResponse} className="text-indigo-400 hover:underline flex items-center gap-1 font-mono text-[11px]">
-                  {copiedResponse ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                  <span>{copiedResponse ? 'Copied!' : 'Copy'}</span>
-                </button>
-              </div>
-              <pre className="text-xs font-mono text-emerald-300 overflow-x-auto p-4 leading-relaxed whitespace-pre-wrap max-h-80 custom-scrollbar overflow-y-auto">
-                {singleResult.responseBody || '(empty response body)'}
-              </pre>
-            </div>
-          ) : (
-            <div className="p-8 text-center rounded-2xl border border-slate-800/80 bg-slate-900/30 text-slate-600 text-xs font-mono">
-              Hit <strong className="text-indigo-400">⚡ Send Request</strong> to execute and inspect live HTTP response.
+          {!responsePayloadCollapsed && (
+            <div className="space-y-3 animate-in fade-in duration-200">
+              {/* Assertion Results Bar if executed (Collapsible) */}
+              {singleResult?.assertionResults?.length > 0 && (
+                <div className="rounded-xl border border-slate-800 overflow-hidden bg-slate-950/90">
+                  <div 
+                    onClick={() => setAssertionEvalCollapsed(!assertionEvalCollapsed)}
+                    className="bg-slate-900/80 px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 flex items-center justify-between cursor-pointer hover:text-slate-200 transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${assertionEvalCollapsed ? '-rotate-90' : ''}`} />
+                      <span>Assertion Evaluation ({singleResult.assertionResults.filter((r: any) => r.status === 'pass').length}/{singleResult.assertionResults.length} Passed)</span>
+                    </div>
+                  </div>
+                  {!assertionEvalCollapsed && (
+                    <div className="divide-y divide-slate-800/60 animate-in fade-in duration-150">
+                      {singleResult.assertionResults.map((ar: any) => (
+                        <div key={ar.id} className="flex items-center gap-3 px-3 py-1.5 text-xs">
+                          {ar.status === 'pass' ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" /> : <XCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />}
+                          <span className="flex-1 text-slate-300 font-mono text-[11px]">{ar.description}</span>
+                          <span className={`text-[10px] font-bold uppercase ${ar.status === 'pass' ? 'text-emerald-400' : 'text-red-400'}`}>{ar.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Response Body Block (Collapsible + Floating Top FAB) */}
+              {singleResult ? (
+                <div className="rounded-2xl border border-slate-800 bg-[#060a12] overflow-hidden relative">
+                  <div className="flex items-center justify-between text-xs text-slate-400 px-4 py-2 border-b border-slate-800/80 bg-slate-900/40">
+                    <button
+                      type="button"
+                      onClick={() => setServerOutputCollapsed(!serverOutputCollapsed)}
+                      className="flex items-center gap-1.5 font-mono text-[11px] font-semibold hover:text-white transition-colors"
+                    >
+                      <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${serverOutputCollapsed ? '-rotate-90' : ''}`} />
+                      <span>Server Output ({singleResult.responseBody?.length || 0} characters)</span>
+                    </button>
+                    <button type="button" onClick={handleCopyResponse} className="text-indigo-400 hover:underline flex items-center gap-1 font-mono text-[11px]">
+                      {copiedResponse ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                      <span>{copiedResponse ? 'Copied!' : 'Copy'}</span>
+                    </button>
+                  </div>
+
+                  {!serverOutputCollapsed && (
+                    <div className="relative">
+                      <pre 
+                        ref={serverOutputScrollRef}
+                        onScroll={(e) => setShowServerOutputTopFab(e.currentTarget.scrollTop > 60)}
+                        className="text-xs font-mono text-emerald-300 overflow-x-auto p-4 leading-relaxed whitespace-pre-wrap max-h-96 custom-scrollbar overflow-y-auto"
+                      >
+                        {singleResult.responseBody}
+                      </pre>
+                      
+                      {/* Floating Top FAB for Server Output */}
+                      {showServerOutputTopFab && (
+                        <button
+                          type="button"
+                          onClick={() => serverOutputScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                          className="absolute bottom-3 right-3 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600/90 text-white shadow-xl hover:bg-indigo-500 transition-all border border-indigo-400/50"
+                          title="Scroll server output to top"
+                        >
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-8 text-center rounded-2xl border border-slate-800/80 bg-slate-900/30 text-slate-600 text-xs font-mono">
+                  Hit <strong className="text-indigo-400">⚡ Send Request</strong> above to execute and inspect live HTTP response payload.
+                </div>
+              )}
             </div>
           )}
         </div>

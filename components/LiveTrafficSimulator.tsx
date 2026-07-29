@@ -1,12 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Activity, 
   Cpu, 
   Globe, 
   Lock, 
-  Server
+  Server,
+  ChevronDown,
+  ArrowUp,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 
@@ -26,6 +30,26 @@ export const LiveTrafficSimulator: React.FC = () => {
   const { executionResults } = useRunnerStore();
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isSimulating] = useState(true);
+
+  // Collapse / Expand Controls
+  const [simulatorExpanded, setSimulatorExpanded] = useState(true);
+  const [feedExpanded, setFeedExpanded] = useState(true);
+
+  // Scroll FAB Ref
+  const feedScrollRef = useRef<HTMLDivElement>(null);
+  const [showFeedTopFab, setShowFeedTopFab] = useState(false);
+
+  const handleFeedScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (e.currentTarget.scrollTop > 60) {
+      setShowFeedTopFab(true);
+    } else {
+      setShowFeedTopFab(false);
+    }
+  };
+
+  const handleScrollFeedToTop = () => {
+    feedScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Sync execution results into live traffic logs
   useEffect(() => {
@@ -57,7 +81,7 @@ export const LiveTrafficSimulator: React.FC = () => {
           latencyMs: 140,
         });
       }
-      setLogs(realLogs.slice(0, 8));
+      setLogs(realLogs.slice(0, 12));
     }
   }, [executionResults]);
 
@@ -113,16 +137,19 @@ export const LiveTrafficSimulator: React.FC = () => {
   }, [executionResults, isSimulating]);
 
   return (
-    <div className="w-full rounded-2xl border border-slate-800 bg-slate-900/80 p-5 backdrop-blur-md shadow-xl flex flex-col space-y-4">
+    <div className="w-full rounded-2xl border border-slate-800 bg-slate-900/80 p-5 backdrop-blur-md shadow-xl flex flex-col space-y-4 relative">
       
-      {/* Header */}
+      {/* ── SIMULATOR PANEL HEADER WITH MAX/MIN TOGGLE ──────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-800/80 gap-2">
-        <div className="flex items-center space-x-2.5">
+        <div 
+          className="flex items-center space-x-2.5 cursor-pointer group"
+          onClick={() => setSimulatorExpanded(!simulatorExpanded)}
+        >
           <div className="relative flex h-3 w-3">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
           </div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 group-hover:text-indigo-300 transition-colors flex items-center gap-2">
             <Activity className="h-4 w-4 text-indigo-400" />
             Live Request Traffic & Routing Simulator
           </h3>
@@ -135,92 +162,136 @@ export const LiveTrafficSimulator: React.FC = () => {
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-950/80 px-2.5 py-0.5 text-emerald-300 border border-emerald-800/60 font-medium">
             <Globe className="h-3 w-3 text-emerald-400" /> Route B: Local Proxy &rarr; Target API
           </span>
+
+          <button
+            type="button"
+            onClick={() => setSimulatorExpanded(!simulatorExpanded)}
+            className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+            title={simulatorExpanded ? "Collapse simulator" : "Expand simulator"}
+          >
+            {simulatorExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          </button>
         </div>
       </div>
 
-      {/* Visual Telemetry Stream Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        
-        {/* Route A Card: LLM Test Generation Path */}
-        <div className="rounded-xl border border-purple-900/50 bg-purple-950/10 p-3.5 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-xs font-bold text-purple-300">
-              <Cpu className="h-4 w-4 text-purple-400" />
-              <span>Route A: AI Test Script Generation</span>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-950/90 border border-emerald-700/60 px-2 py-0.5 text-[9px] font-bold text-emerald-400 uppercase">
-              <Lock className="h-2.5 w-2.5" /> 100% Masked
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400">
-            Transmits structural endpoints only to LLM. Secret tokens like passwords & API keys are masked locally.
-          </p>
-          <div className="rounded-lg border border-purple-900/60 bg-slate-950 p-2.5 text-[11px] font-mono text-purple-300 truncate">
-            Payload: <span className="text-slate-400">{"{\"headers\": {\"Auth\": \"{{REDACTED_SECRET}}\"}}"}</span>
-          </div>
-        </div>
-
-        {/* Route B Card: Target API Execution Path */}
-        <div className="rounded-xl border border-emerald-900/50 bg-emerald-950/10 p-3.5 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-xs font-bold text-emerald-300">
-              <Globe className="h-4 w-4 text-emerald-400" />
-              <span>Route B: Target API Runner Proxy</span>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-950/90 border border-indigo-700/60 px-2 py-0.5 text-[9px] font-bold text-indigo-300 uppercase">
-              <Server className="h-2.5 w-2.5" /> Local Host Proxy
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400">
-            Executes HTTP calls from localhost proxy. Secrets are substituted locally at runtime and sent directly to target server.
-          </p>
-          <div className="rounded-lg border border-emerald-900/60 bg-slate-950 p-2.5 text-[11px] font-mono text-emerald-300 truncate">
-            Target Host: <span className="text-slate-200">https://jsonplaceholder.typicode.com</span>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Live Stream Table */}
-      <div className="rounded-xl border border-slate-800 bg-slate-950 overflow-hidden">
-        <div className="px-3.5 py-2 border-b border-slate-800 bg-slate-900/60 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-          <span>Live Traffic Feed Stream</span>
-          <span className="text-slate-500 font-mono text-[10px]">{logs.length} Recent Packets</span>
-        </div>
-
-        <div className="divide-y divide-slate-800/60 text-xs max-h-48 overflow-y-auto custom-scrollbar">
-          {logs.map((log) => (
-            <div key={log.id} className="p-2.5 flex items-center justify-between hover:bg-slate-900/40 transition-colors font-mono">
-              <div className="flex items-center space-x-2.5 min-w-0 flex-1 pr-2">
-                <span className="text-[10px] text-slate-500 shrink-0">{log.timestamp}</span>
-                
-                {log.type === 'llm_generation' ? (
-                  <span className="rounded bg-purple-950 px-1.5 py-0.5 text-[9px] font-bold text-purple-300 border border-purple-800/60 shrink-0">
-                    AI LLM
-                  </span>
-                ) : (
-                  <span className="rounded bg-emerald-950 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300 border border-emerald-800/60 shrink-0">
-                    {log.method || 'API'}
-                  </span>
-                )}
-
-                <span className="text-slate-200 truncate min-w-0 font-medium">
-                  {log.destination}
-                </span>
+      {/* Visual Telemetry Stream Grid (Collapsible) */}
+      {simulatorExpanded && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-in fade-in duration-200">
+          
+          {/* Route A Card: LLM Test Generation Path */}
+          <div className="rounded-xl border border-purple-900/50 bg-purple-950/10 p-3.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-xs font-bold text-purple-300">
+                <Cpu className="h-4 w-4 text-purple-400" />
+                <span>Route A: AI Test Script Generation</span>
               </div>
-
-              <div className="flex items-center space-x-3 shrink-0 text-[11px]">
-                {log.isSecretMasked && (
-                  <span className="inline-flex items-center gap-1 text-emerald-400 font-sans text-[10px]">
-                    <Lock className="h-3 w-3" /> Masked
-                  </span>
-                )}
-                <span className="text-slate-400">{log.latencyMs}ms</span>
-                <span className="text-emerald-400 font-semibold">{log.status}</span>
-              </div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-950/90 border border-emerald-700/60 px-2 py-0.5 text-[9px] font-bold text-emerald-400 uppercase">
+                <Lock className="h-2.5 w-2.5" /> 100% Masked
+              </span>
             </div>
-          ))}
+            <p className="text-[11px] text-slate-400">
+              Transmits structural endpoints only to LLM. Secret tokens like passwords & API keys are masked locally.
+            </p>
+            <div className="rounded-lg border border-purple-900/60 bg-slate-950 p-2.5 text-[11px] font-mono text-purple-300 truncate">
+              Payload: <span className="text-slate-400">{"{\"headers\": {\"Auth\": \"{{REDACTED_SECRET}}\"}}"}</span>
+            </div>
+          </div>
+
+          {/* Route B Card: Target API Execution Path */}
+          <div className="rounded-xl border border-emerald-900/50 bg-emerald-950/10 p-3.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-xs font-bold text-emerald-300">
+                <Globe className="h-4 w-4 text-emerald-400" />
+                <span>Route B: Target API Runner Proxy</span>
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-950/90 border border-indigo-700/60 px-2 py-0.5 text-[9px] font-bold text-indigo-300 uppercase">
+                <Server className="h-2.5 w-2.5" /> Local Host Proxy
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Executes HTTP calls from localhost proxy. Secrets are substituted locally at runtime and sent directly to target server.
+            </p>
+            <div className="rounded-lg border border-emerald-900/60 bg-slate-950 p-2.5 text-[11px] font-mono text-emerald-300 truncate">
+              Target Host: <span className="text-slate-200">https://jsonplaceholder.typicode.com</span>
+            </div>
+          </div>
+
         </div>
+      )}
+
+      {/* ── LIVE STREAM TRAFFIC FEED PANEL WITH MAX/MIN & FLOATING TOP FAB ─────── */}
+      <div className="rounded-xl border border-slate-800 bg-slate-950 overflow-hidden relative">
+        <div 
+          className="px-3.5 py-2 border-b border-slate-800 bg-slate-900/60 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between cursor-pointer hover:bg-slate-900 transition-colors"
+          onClick={() => setFeedExpanded(!feedExpanded)}
+        >
+          <div className="flex items-center gap-2">
+            <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${feedExpanded ? '' : '-rotate-90'}`} />
+            <span>Live Traffic Feed Stream</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 font-mono text-[10px]">{logs.length} Recent Packets</span>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setFeedExpanded(!feedExpanded); }}
+              className="p-0.5 rounded text-slate-400 hover:text-white"
+            >
+              {feedExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+        </div>
+
+        {feedExpanded && (
+          <div 
+            ref={feedScrollRef}
+            onScroll={handleFeedScroll}
+            className="divide-y divide-slate-800/60 text-xs max-h-56 overflow-y-auto custom-scrollbar relative"
+          >
+            {logs.map((log) => (
+              <div key={log.id} className="p-2.5 flex items-center justify-between hover:bg-slate-900/40 transition-colors font-mono">
+                <div className="flex items-center space-x-2.5 min-w-0 flex-1 pr-2">
+                  <span className="text-[10px] text-slate-500 shrink-0">{log.timestamp}</span>
+                  
+                  {log.type === 'llm_generation' ? (
+                    <span className="rounded bg-purple-950 px-1.5 py-0.5 text-[9px] font-bold text-purple-300 border border-purple-800/60 shrink-0">
+                      AI LLM
+                    </span>
+                  ) : (
+                    <span className="rounded bg-emerald-950 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300 border border-emerald-800/60 shrink-0">
+                      {log.method || 'API'}
+                    </span>
+                  )}
+
+                  <span className="text-slate-200 truncate min-w-0 font-medium">
+                    {log.destination}
+                  </span>
+                </div>
+
+                <div className="flex items-center space-x-3 shrink-0 text-[11px]">
+                  {log.isSecretMasked && (
+                    <span className="inline-flex items-center gap-1 text-emerald-400 font-sans text-[10px]">
+                      <Lock className="h-3 w-3" /> Masked
+                    </span>
+                  )}
+                  <span className="text-slate-400">{log.latencyMs}ms</span>
+                  <span className="text-emerald-400 font-semibold">{log.status}</span>
+                </div>
+              </div>
+            ))}
+
+            {/* Floating Top FAB for Live Stream Feed */}
+            {showFeedTopFab && (
+              <button
+                type="button"
+                onClick={handleScrollFeedToTop}
+                className="sticky bottom-3 right-3 ml-auto mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xl hover:bg-indigo-500 transition-all border border-indigo-400/60 z-30"
+                title="Scroll feed to top"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
     </div>

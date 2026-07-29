@@ -21,7 +21,14 @@ import {
   Info,
   Maximize2,
   Minimize2,
-  ArrowUp
+  ArrowUp,
+  ArrowDown,
+  Edit3,
+  Copy,
+  Plus,
+  Download,
+  FolderPlus,
+  Trash2
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { TreeNode, HttpMethod } from '@/lib/types';
@@ -43,11 +50,28 @@ export const TreeView: React.FC = () => {
     selectedEndpointIdForDetail,
     setSelectedEndpointIdForDetail,
     maximizedPane,
-    toggleMaximizePane
+    toggleMaximizePane,
+    updateEndpointName,
+    duplicateNode,
+    moveNode,
+    addFolderNode,
+    addEndpointNode,
+    deleteNode,
+    exportCollection
   } = useRunnerStore();
 
   const treeScrollRef = React.useRef<HTMLDivElement>(null);
   const [showTreeTopFab, setShowTreeTopFab] = useState(false);
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [editingNodeName, setEditingNodeName] = useState('');
+
+  const [showAddFolderModal, setShowAddFolderModal] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+
+  const [showAddEpModal, setShowAddEpModal] = useState(false);
+  const [newEpName, setNewEpName] = useState('');
+  const [newEpMethod, setNewEpMethod] = useState<HttpMethod>('GET');
+  const [newEpUrl, setNewEpUrl] = useState('https://api.example.com/v1/resource');
 
   const handleTreeScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (e.currentTarget.scrollTop > 80) {
@@ -83,7 +107,7 @@ export const TreeView: React.FC = () => {
   }
   countTreeNodes(activeNodes);
 
-  // Auto-expand all parent ancestor folders leading to selectedEndpointIdForDetail & smooth animated scroll into view
+  // Auto-expand all parent ancestor folders leading to selectedEndpointIdForDetail
   useEffect(() => {
     if (!selectedEndpointIdForDetail || activeNodes.length === 0) return;
 
@@ -111,130 +135,119 @@ export const TreeView: React.FC = () => {
     if (Object.keys(ancestorsToExpand).length > 0) {
       setExpandedFolders((prev) => ({ ...prev, ...ancestorsToExpand }));
     }
-
-    // Smooth animated scroll to highlighted node element
-    setTimeout(() => {
-      const targetElement = document.getElementById(`tree-node-${selectedEndpointIdForDetail}`);
-      if (targetElement) {
-        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 150);
   }, [selectedEndpointIdForDetail, activeNodes]);
 
-  // 1-Click Collapse All
-  const collapseAllFolders = () => {
-    const nextState: Record<string, boolean> = {};
-    function setAllFalse(nodes: TreeNode[]) {
-      nodes.forEach((n) => {
-        if (n.type === 'folder') {
-          nextState[n.id] = false;
-          if (n.children) setAllFalse(n.children);
-        }
-      });
-    }
-    setAllFalse(activeNodes);
-    setExpandedFolders(nextState);
+  const toggleExpand = (id: string) => {
+    setExpandedFolders((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }));
   };
 
-  // 1-Click Expand All
   const expandAllFolders = () => {
-    const nextState: Record<string, boolean> = {};
-    function setAllTrue(nodes: TreeNode[]) {
+    const allExpanded: Record<string, boolean> = {};
+    function walk(nodes: TreeNode[]) {
       nodes.forEach((n) => {
         if (n.type === 'folder') {
-          nextState[n.id] = true;
-          if (n.children) setAllTrue(n.children);
+          allExpanded[n.id] = true;
+          if (n.children) walk(n.children);
         }
       });
     }
-    setAllTrue(activeNodes);
-    setExpandedFolders(nextState);
+    walk(activeNodes);
+    setExpandedFolders(allExpanded);
   };
 
-  const toggleExpand = (folderId: string) => {
-    setExpandedFolders((prev) => ({
-      ...prev,
-      [folderId]: !(prev[folderId] ?? true), // Default open if un-tracked
-    }));
+  const collapseAllFolders = () => {
+    const allCollapsed: Record<string, boolean> = {};
+    function walk(nodes: TreeNode[]) {
+      nodes.forEach((n) => {
+        if (n.type === 'folder') {
+          allCollapsed[n.id] = false;
+          if (n.children) walk(n.children);
+        }
+      });
+    }
+    walk(activeNodes);
+    setExpandedFolders(allCollapsed);
   };
 
   const getNodeCheckState = (node: TreeNode): 'checked' | 'unchecked' | 'indeterminate' => {
+    const selectedSet = new Set(selectedNodeIds);
+
     if (node.type === 'endpoint') {
-      return selectedNodeIds.includes(node.id) ? 'checked' : 'unchecked';
+      return selectedSet.has(node.id) ? 'checked' : 'unchecked';
     }
 
     if (!node.children || node.children.length === 0) {
-      return selectedNodeIds.includes(node.id) ? 'checked' : 'unchecked';
+      return selectedSet.has(node.id) ? 'checked' : 'unchecked';
     }
 
     let checkedCount = 0;
-    let totalCount = node.children.length;
+    let uncheckedCount = 0;
+    let indeterminateCount = 0;
 
     node.children.forEach((child) => {
-      const childState = getNodeCheckState(child);
-      if (childState === 'checked') checkedCount++;
-      else if (childState === 'indeterminate') checkedCount += 0.5;
+      const st = getNodeCheckState(child);
+      if (st === 'checked') checkedCount++;
+      else if (st === 'unchecked') uncheckedCount++;
+      else indeterminateCount++;
     });
 
-    if (checkedCount === totalCount) return 'checked';
-    if (checkedCount > 0) return 'indeterminate';
-    return 'unchecked';
+    if (checkedCount === node.children.length) return 'checked';
+    if (uncheckedCount === node.children.length) return 'unchecked';
+    return 'indeterminate';
   };
 
-  const getMethodBadgeClass = (method?: HttpMethod) => {
-    switch (method) {
-      case 'GET': return 'bg-emerald-950/80 text-emerald-400 border-emerald-800/60';
-      case 'POST': return 'bg-indigo-950/80 text-indigo-400 border-indigo-800/60';
-      case 'PUT': return 'bg-amber-950/80 text-amber-400 border-amber-800/60';
-      case 'DELETE': return 'bg-red-950/80 text-red-400 border-red-800/60';
-      case 'PATCH': return 'bg-purple-950/80 text-purple-400 border-purple-800/60';
-      default: return 'bg-slate-800 text-slate-300 border-slate-700';
+  const matchedFolderIds = React.useMemo(() => {
+    if (!searchQuery) return new Set<string>();
+    const q = searchQuery.toLowerCase();
+    const folderSet = new Set<string>();
+
+    function matchNode(node: TreeNode, parentFolders: string[] = []): boolean {
+      const selfMatch = node.name.toLowerCase().includes(q) || (node.url && node.url.toLowerCase().includes(q));
+      let childMatch = false;
+
+      const currentPath = node.type === 'folder' ? [...parentFolders, node.id] : parentFolders;
+
+      if (node.children) {
+        node.children.forEach((c) => {
+          if (matchNode(c, currentPath)) childMatch = true;
+        });
+      }
+
+      if (selfMatch || childMatch) {
+        parentFolders.forEach((fid) => folderSet.add(fid));
+        if (node.type === 'folder') folderSet.add(node.id);
+        return true;
+      }
+
+      return false;
     }
-  };
 
-  // Recursive tree filtering for both folder-level search and endpoint-level matching
-  function filterNodesRecursively(
-    nodes: TreeNode[],
-    query: string
-  ): { filtered: TreeNode[]; matchedFolderIds: Set<string> } {
-    const q = query.trim().toLowerCase();
-    if (!q) return { filtered: nodes, matchedFolderIds: new Set() };
+    activeNodes.forEach((n) => matchNode(n));
+    return folderSet;
+  }, [searchQuery, activeNodes]);
 
-    const matchedFolderIds = new Set<string>();
+  const filterTree = (nodes: TreeNode[]): TreeNode[] => {
+    if (!searchQuery) return nodes;
+    const q = searchQuery.toLowerCase();
 
-    function walk(list: TreeNode[], parentFolderNameMatched = false): TreeNode[] {
-      const result: TreeNode[] = [];
+    return nodes
+      .map((node) => {
+        const selfMatch = node.name.toLowerCase().includes(q) || (node.url && node.url.toLowerCase().includes(q));
+        const filteredChildren = node.children ? filterTree(node.children) : undefined;
+        const hasMatchingChildren = filteredChildren && filteredChildren.length > 0;
 
-      list.forEach((node) => {
-        if (node.type === 'folder') {
-          const folderNameMatches = node.name.toLowerCase().includes(q);
-          const childrenMatched = walk(node.children || [], parentFolderNameMatched || folderNameMatches);
-
-          if (childrenMatched.length > 0 || folderNameMatches) {
-            matchedFolderIds.add(node.id);
-            result.push({
-              ...node,
-              children: childrenMatched
-            });
-          }
-        } else {
-          const nameMatch = node.name.toLowerCase().includes(q);
-          const methodMatch = node.method?.toLowerCase().includes(q);
-          const urlMatch = node.url?.toLowerCase().includes(q);
-
-          if (nameMatch || methodMatch || urlMatch || parentFolderNameMatched) {
-            result.push(node);
-          }
+        if (selfMatch || hasMatchingChildren) {
+          return {
+            ...node,
+            children: filteredChildren,
+          };
         }
-      });
+        return null;
+      })
+      .filter(Boolean) as TreeNode[];
+  };
 
-      return result;
-    }
-
-    return { filtered: walk(nodes), matchedFolderIds };
-  }
-
-  const { filtered: displayNodes, matchedFolderIds } = filterNodesRecursively(activeNodes, searchQuery);
+  const displayNodes = filterTree(activeNodes);
 
   function countEndpoints(nodes: TreeNode[]): number {
     let count = 0;
@@ -245,10 +258,7 @@ export const TreeView: React.FC = () => {
     return count;
   }
 
-  const matchedEndpointsCount = countEndpoints(displayNodes);
-  const totalEndpointsCount = countEndpoints(activeNodes);
-
-  function countSelectedEndpointsInTree(nodes: TreeNode[]): number {
+  const selectedEndpointsInTreeCount = React.useMemo(() => {
     let count = 0;
     const selectedSet = new Set(selectedNodeIds);
     function walk(list: TreeNode[]) {
@@ -259,12 +269,9 @@ export const TreeView: React.FC = () => {
         if (n.children) walk(n.children);
       });
     }
-    walk(nodes);
+    walk(activeNodes);
     return count;
-  }
-
-  const selectedEndpointsInTreeCount = countSelectedEndpointsInTree(activeNodes);
-  const selectedMatchedEndpointsCount = countSelectedEndpointsInTree(displayNodes);
+  }, [activeNodes, selectedNodeIds]);
 
   const handleSelectAll = () => {
     if (searchQuery.trim()) {
@@ -300,14 +307,28 @@ export const TreeView: React.FC = () => {
     }
   };
 
-  // Auto-expand matched folders when searching
-  useEffect(() => {
-    if (searchQuery && matchedFolderIds.size > 0) {
-      const toExpand: Record<string, boolean> = {};
-      matchedFolderIds.forEach((id) => { toExpand[id] = true; });
-      setExpandedFolders((prev) => ({ ...prev, ...toExpand }));
+  const handleStartRename = (node: TreeNode) => {
+    setEditingNodeId(node.id);
+    setEditingNodeName(node.name);
+  };
+
+  const handleSaveRename = (nodeId: string) => {
+    if (editingNodeName.trim()) {
+      updateEndpointName(nodeId, editingNodeName.trim());
     }
-  }, [searchQuery, matchedFolderIds.size]);
+    setEditingNodeId(null);
+  };
+
+  const getMethodBadgeClass = (m?: HttpMethod) => {
+    switch (m) {
+      case 'GET': return 'bg-emerald-950/80 border-emerald-800 text-emerald-400';
+      case 'POST': return 'bg-amber-950/80 border-amber-800 text-amber-400';
+      case 'PUT': return 'bg-indigo-950/80 border-indigo-800 text-indigo-400';
+      case 'DELETE': return 'bg-red-950/80 border-red-800 text-red-400';
+      case 'PATCH': return 'bg-purple-950/80 border-purple-800 text-purple-400';
+      default: return 'bg-slate-900 border-slate-800 text-slate-400';
+    }
+  };
 
   const renderNode = (node: TreeNode, depth = 0) => {
     const isFolder = node.type === 'folder';
@@ -315,16 +336,17 @@ export const TreeView: React.FC = () => {
     const checkState = getNodeCheckState(node);
     const result = executionResults[node.id];
     const isSelectedDetail = selectedEndpointIdForDetail === node.id;
+    const isEditing = editingNodeId === node.id;
 
     return (
-      <div key={node.id} id={`tree-node-${node.id}`} className="select-none font-mono text-xs transition-all duration-200">
+      <div key={node.id} id={`tree-node-${node.id}`} className="select-none font-mono text-xs transition-all duration-200 group/tree-item">
         <div 
-          className={`flex items-center space-x-2 rounded-xl px-2.5 py-1.5 transition-all ${
+          className={`flex items-center space-x-1.5 rounded-xl px-2 py-1.5 transition-all ${
             isSelectedDetail 
-              ? 'bg-amber-950/80 border-2 border-amber-400 text-white shadow-lg ring-2 ring-amber-400/50 animate-pulse' 
+              ? 'bg-amber-950/80 border-2 border-amber-400 text-white shadow-lg ring-2 ring-amber-400/50' 
               : 'hover:bg-slate-800/50 text-slate-300'
           }`}
-          style={{ paddingLeft: `${Math.max(0.5, depth * 1.2)}rem` }}
+          style={{ paddingLeft: `${Math.max(0.3, depth * 0.9)}rem` }}
         >
           {/* Collapse Chevron / Folder Toggle */}
           {isFolder ? (
@@ -333,13 +355,13 @@ export const TreeView: React.FC = () => {
               className="p-0.5 text-slate-400 hover:text-amber-400 transition-colors"
             >
               {isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-amber-400" />
+                <ChevronDown className="h-3.5 w-3.5 text-amber-400" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-slate-400" />
+                <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
               )}
             </button>
           ) : (
-            <span className="w-4 shrink-0" />
+            <span className="w-3.5 shrink-0" />
           )}
 
           {/* Selection Checkbox */}
@@ -348,74 +370,147 @@ export const TreeView: React.FC = () => {
             className="p-0.5 text-slate-400 hover:text-emerald-400 transition-colors shrink-0"
           >
             {checkState === 'checked' && (
-              <div className="flex h-4 w-4 items-center justify-center rounded bg-emerald-500 text-slate-950 font-bold">
-                <Check className="h-3 w-3 stroke-[3]" />
+              <div className="flex h-3.5 w-3.5 items-center justify-center rounded bg-emerald-500 text-slate-950 font-bold">
+                <Check className="h-2.5 w-2.5 stroke-[3]" />
               </div>
             )}
             {checkState === 'indeterminate' && (
-              <MinusSquare className="h-4 w-4 text-emerald-400" />
+              <MinusSquare className="h-3.5 w-3.5 text-emerald-400" />
             )}
             {checkState === 'unchecked' && (
-              <Square className="h-4 w-4 text-slate-600" />
+              <Square className="h-3.5 w-3.5 text-slate-600" />
             )}
           </button>
 
           {/* Node Icon & Method Badge */}
-          {isFolder ? (
+          {isEditing ? (
+            <div className="flex items-center gap-1 flex-1 min-w-0">
+              <input
+                type="text"
+                value={editingNodeName}
+                onChange={(e) => setEditingNodeName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveRename(node.id); if (e.key === 'Escape') setEditingNodeId(null); }}
+                className="flex-1 rounded border border-indigo-500 bg-slate-900 px-2 py-0.5 text-xs text-white focus:outline-none"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => handleSaveRename(node.id)}
+                className="px-2 py-0.5 rounded bg-indigo-600 text-[10px] font-bold text-white hover:bg-indigo-500"
+              >
+                Save
+              </button>
+            </div>
+          ) : isFolder ? (
             <div 
               onClick={() => toggleExpand(node.id)}
-              className="flex items-center space-x-2 cursor-pointer flex-1 min-w-0"
+              className="flex items-center space-x-1.5 cursor-pointer flex-1 min-w-0"
             >
               {isExpanded ? (
-                <FolderOpen className="h-4 w-4 text-amber-400 shrink-0" />
+                <FolderOpen className="h-3.5 w-3.5 text-amber-400 shrink-0" />
               ) : (
-                <Folder className="h-4 w-4 text-amber-500/80 shrink-0" />
+                <Folder className="h-3.5 w-3.5 text-amber-500/80 shrink-0" />
               )}
               <span className="font-semibold text-slate-200 truncate">{node.name}</span>
             </div>
           ) : (
             <div 
               onClick={() => {
-                // Register node in both maps so EndpointWorkbench & DetailSheet can find it
                 const storeState = useRunnerStore.getState();
-                if (storeState.flatEndpointMap && typeof (storeState.flatEndpointMap as any).set === 'function') {
-                  (storeState.flatEndpointMap as Map<string, any>).set(node.id, node);
+
+                if (storeState.flatEndpointMap instanceof Map) {
+                  storeState.flatEndpointMap.set(node.id, node);
+                } else if (storeState.flatEndpointMap) {
+                  (storeState.flatEndpointMap as any)[node.id] = node;
                 }
-                if (storeState.serverFlatEndpointMap && typeof (storeState.serverFlatEndpointMap as any).set === 'function') {
-                  (storeState.serverFlatEndpointMap as Map<string, any>).set(node.id, node);
+
+                if (storeState.serverFlatEndpointMap instanceof Map) {
+                  storeState.serverFlatEndpointMap.set(node.id, node);
+                } else if (storeState.serverFlatEndpointMap) {
+                  (storeState.serverFlatEndpointMap as any)[node.id] = node;
                 }
-                // Also ensure it's in the flatEndpointMap even if it's a plain object
-                useRunnerStore.setState((state) => {
-                  const map = state.flatEndpointMap;
-                  if (map instanceof Map) {
-                    map.set(node.id, node);
-                    return { flatEndpointMap: map };
-                  }
-                  return {};
-                });
-                setSelectedEndpointIdForDetail(node.id);
+
+                if (storeState.selectedEndpointIdForDetail === node.id) {
+                  useRunnerStore.setState({ selectedEndpointIdForDetail: null });
+                  setTimeout(() => {
+                    useRunnerStore.setState({ selectedEndpointIdForDetail: node.id });
+                  }, 20);
+                } else {
+                  setSelectedEndpointIdForDetail(node.id);
+                }
               }}
-              className="flex items-center space-x-2 cursor-pointer flex-1 min-w-0"
+              className="flex items-center space-x-1.5 cursor-pointer flex-1 min-w-0"
               title="Click to open in Workbench"
             >
-              <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-extrabold uppercase shrink-0 ${getMethodBadgeClass(node.method)}`}>
+              <span className={`rounded border px-1 py-0.5 text-[9px] font-extrabold uppercase shrink-0 ${getMethodBadgeClass(node.method)}`}>
                 {node.method || 'GET'}
               </span>
               <span className="text-slate-300 truncate hover:text-white transition-colors">{node.name}</span>
             </div>
           )}
 
+          {/* Action Buttons on Hover (Rename, Clone, Move Up/Down) */}
+          {!isEditing && (
+            <div className="opacity-0 group-hover/tree-item:opacity-100 flex items-center space-x-1 shrink-0 transition-opacity">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handleStartRename(node); }}
+                className="p-0.5 text-slate-400 hover:text-indigo-300 transition-colors"
+                title="Rename endpoint"
+              >
+                <Edit3 className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); duplicateNode(node.id); }}
+                className="p-0.5 text-slate-400 hover:text-emerald-300 transition-colors"
+                title="Duplicate / Clone endpoint"
+              >
+                <Copy className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); moveNode(node.id, 'up'); }}
+                className="p-0.5 text-slate-400 hover:text-amber-300 transition-colors"
+                title="Move up"
+              >
+                <ArrowUp className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); moveNode(node.id, 'down'); }}
+                className="p-0.5 text-slate-400 hover:text-amber-300 transition-colors"
+                title="Move down"
+              >
+                <ArrowDown className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (confirm(`Delete "${node.name}"?`)) {
+                    deleteNode(node.id);
+                  }
+                }}
+                className="p-0.5 text-slate-400 hover:text-red-400 transition-colors"
+                title="Delete endpoint or folder"
+              >
+                <Trash2 className="h-3 w-3 text-red-400/80 hover:text-red-400" />
+              </button>
+            </div>
+          )}
+
           {/* Execution Result Status Badge */}
           {result && (
-            <div className="shrink-0 ml-auto pl-2">
+            <div className="shrink-0 ml-auto pl-1">
               {result.status === 'passed' && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/60">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Pass
+                <span className="inline-flex items-center gap-1 text-[9px] text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded-full border border-emerald-800/60">
+                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-400" /> Pass
                 </span>
               )}
               {result.status === 'failed' && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-red-400 font-semibold bg-red-950/60 px-2 py-0.5 rounded-full border border-red-800/60">
-                  <XCircle className="h-3 w-3 text-red-400" /> Fail
+                <span className="inline-flex items-center gap-1 text-[9px] text-red-400 font-semibold bg-red-950/60 px-1.5 py-0.5 rounded-full border border-red-800/60">
+                  <XCircle className="h-2.5 w-2.5 text-red-400" /> Fail
                 </span>
               )}
             </div>
@@ -434,7 +529,7 @@ export const TreeView: React.FC = () => {
   return (
     <div className="flex flex-col h-full rounded-2xl border border-slate-800 bg-slate-900/80 p-4 backdrop-blur-md shadow-xl relative">
       
-      {/* Dual Workspace Selector Tabs (Local Upload vs Server Cloud) */}
+      {/* Dual Workspace Selector Tabs */}
       {serverRootNodes.length > 0 && (
         <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-950 p-1 border border-slate-800 mb-3">
           <button
@@ -459,13 +554,15 @@ export const TreeView: React.FC = () => {
       )}
 
       {/* Search & Collapse Bar Header */}
-      <div className="space-y-2 pb-3 border-b border-slate-800/80">
-        {/* Row 1: Section Title & Controls */}
+      <div className="space-y-2.5 pb-3 border-b border-slate-800/80">
+        
+        {/* Row 1: Section Title & Maximize Controls */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center space-x-1.5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
               Collection Hierarchy
             </h3>
+
             {/* Info Icon with Popover Tooltip */}
             <div className="relative group">
               <Info className="h-3.5 w-3.5 text-indigo-400 cursor-pointer hover:text-indigo-300 transition-colors" />
@@ -489,21 +586,16 @@ export const TreeView: React.FC = () => {
                     <span className="text-slate-400">Checked for Run:</span>
                     <strong className="text-amber-300">{infoSelectedEndpointsCount} Selected</strong>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Active Search Filter:</span>
-                    <strong className="text-indigo-300">{searchQuery ? `"${searchQuery}"` : 'None'}</strong>
-                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-1.5 text-[11px] font-mono shrink-0">
-
+          <div className="flex items-center space-x-1">
             <button
               type="button"
               onClick={() => toggleMaximizePane('tree')}
-              className={`p-1 rounded-lg border transition-all mr-1 ${
+              className={`p-1 rounded-lg border transition-all ${
                 maximizedPane === 'tree'
                   ? 'border-amber-500 bg-amber-950/60 text-amber-300 shadow-md shadow-amber-500/20'
                   : 'border-slate-800 bg-slate-900 text-slate-400 hover:text-white hover:border-slate-700'
@@ -512,7 +604,12 @@ export const TreeView: React.FC = () => {
             >
               {maximizedPane === 'tree' ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
             </button>
+          </div>
+        </div>
 
+        {/* Row 2: Action Controls Bar (No Text Overflow in 3-Pane View) */}
+        <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] font-mono">
+          <div className="flex flex-wrap items-center gap-1.5">
             {/* 1-Click Collapse All */}
             <button
               type="button"
@@ -543,7 +640,7 @@ export const TreeView: React.FC = () => {
               type="button"
               onClick={handleSelectAll}
               className="text-indigo-400 hover:text-indigo-300 font-bold hover:underline"
-              title={searchQuery.trim() ? 'Select all matching search endpoints' : 'Select all endpoints'}
+              title="Select all endpoints"
             >
               All
             </button>
@@ -552,76 +649,197 @@ export const TreeView: React.FC = () => {
               type="button"
               onClick={handleDeselectAll}
               className="text-slate-400 hover:text-slate-200 font-bold hover:underline"
-              title={searchQuery.trim() ? 'Deselect all matching search endpoints' : 'Deselect all endpoints'}
+              title="Deselect all endpoints"
             >
               None
             </button>
           </div>
+
+          {/* Collection Export & Add Buttons */}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => exportCollection(false)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800 text-indigo-300 hover:bg-indigo-900 text-[10px] font-bold"
+              title="Export Full Collection as Postman JSON"
+            >
+              <Download className="h-3 w-3 text-indigo-400" />
+              <span>Export</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowAddEpModal(true)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-800 text-emerald-300 hover:bg-emerald-900 text-[10px] font-bold"
+              title="Add new Endpoint"
+            >
+              <Plus className="h-3 w-3 text-emerald-400" />
+              <span>+ EP</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowAddFolderModal(true)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-950/80 border border-amber-800 text-amber-300 hover:bg-amber-900 text-[10px] font-bold"
+              title="Add new Folder"
+            >
+              <FolderPlus className="h-3 w-3 text-amber-400" />
+              <span>+ Folder</span>
+            </button>
+          </div>
         </div>
 
-        {/* Row 2: Dynamic Status / Search Badge */}
-        <div>
-          {searchQuery.trim() ? (
-            <div className="inline-flex items-center px-2.5 py-1 rounded-xl bg-amber-950/80 text-amber-300 border border-amber-800/80 font-mono text-[11px] font-bold shadow-sm animate-in fade-in">
-              🔍 {matchedEndpointsCount} search matches ({selectedMatchedEndpointsCount} selected)
-            </div>
-          ) : (
-            <div className="inline-flex items-center px-2.5 py-1 rounded-xl bg-indigo-950/80 text-indigo-300 border border-indigo-800/80 font-mono text-[11px] font-bold shadow-sm">
-              ☑️ {selectedEndpointsInTreeCount} / {totalEndpointsCount} endpoints selected for run
-            </div>
-          )}
+        {/* Selected Count Indicator Badge */}
+        <div className="flex items-center justify-between px-2.5 py-1 rounded-xl bg-slate-950 border border-slate-800 text-xs">
+          <div className="flex items-center space-x-1.5 text-slate-300 font-mono text-[11px]">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+            <span>
+              <strong className="text-emerald-400">{selectedEndpointsInTreeCount}</strong> / {infoTotalEndpointsCount} endpoints selected for run
+            </span>
+          </div>
         </div>
+
+        {/* Search Input Box */}
+        <div className="relative">
+          <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Filter endpoints or methods..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-xl border border-slate-800 bg-slate-950 pl-9 pr-3 py-1.5 text-xs font-mono text-slate-200 placeholder-slate-600 focus:border-indigo-500 focus:outline-none"
+          />
+        </div>
+
       </div>
 
-      {/* Filter Input */}
-      <div className="relative my-3">
-        <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
-        <input
-          type="text"
-          placeholder="Filter endpoints or methods..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-xl border border-slate-800 bg-slate-950 pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
-        />
-      </div>
-
-      {/* Tree Content Area with Horizontal & Vertical Scrolling */}
+      {/* ── TREE NODES VIEWPORT ──────────────────────────────────────────────── */}
       <div 
-        ref={treeScrollRef} 
+        ref={treeScrollRef}
         onScroll={handleTreeScroll}
-        className="flex-1 overflow-y-auto overflow-x-auto pr-1 space-y-0.5 custom-scrollbar min-w-0 relative"
+        className="flex-1 overflow-y-auto custom-scrollbar pt-3 space-y-1 relative"
       >
-        {activeNodes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500 space-y-2">
-            <Send className="h-8 w-8 text-slate-700 stroke-1" />
-            <p className="text-xs">No collection loaded yet.</p>
-            <p className="text-[11px] text-slate-600 max-w-xs">
-              Upload a Postman Collection JSON above.
-            </p>
-          </div>
-        ) : displayNodes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center text-slate-500 space-y-1">
-            <p className="text-xs font-bold text-amber-400">No matching endpoints found</p>
-            <p className="text-[11px] text-slate-600">No endpoints or folders match "{searchQuery}"</p>
-          </div>
+        {displayNodes.length > 0 ? (
+          displayNodes.map((node) => renderNode(node))
         ) : (
-          <div className="min-w-max">
-            {displayNodes.map((node) => renderNode(node, 0))}
+          <div className="p-8 text-center text-slate-500 font-mono text-xs space-y-2">
+            <p>No endpoints found matching &quot;{searchQuery}&quot;</p>
+            <button
+              onClick={() => setSearchQuery('')}
+              className="text-indigo-400 hover:underline font-bold"
+            >
+              Clear Filter
+            </button>
           </div>
         )}
       </div>
 
-      {/* Floating Scroll-to-Top FAB Button */}
+      {/* Floating Top FAB */}
       {showTreeTopFab && (
         <button
           type="button"
           onClick={handleScrollToTop}
-          className="absolute bottom-5 right-5 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white shadow-2xl shadow-indigo-600/40 hover:bg-indigo-500 transition-all border border-indigo-400/60 animate-in fade-in zoom-in duration-200"
-          title="Back to top"
+          className="absolute bottom-5 right-5 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white shadow-2xl shadow-indigo-600/40 hover:bg-indigo-500 transition-all border border-indigo-400/60 animate-in fade-in zoom-in duration-200"
+          title="Scroll tree to top"
         >
           <ArrowUp className="h-4 w-4" />
         </button>
       )}
+
+      {/* ── ADD FOLDER MODAL ────────────────────────────────────────────────── */}
+      {showAddFolderModal && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm rounded-2xl p-4">
+          <div className="w-full max-w-xs rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl space-y-3">
+            <h4 className="font-bold text-sm text-white flex items-center gap-2">
+              <FolderPlus className="h-4 w-4 text-amber-400" /> Create New Folder
+            </h4>
+            <input
+              type="text"
+              placeholder="Folder Name..."
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+              autoFocus
+            />
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (newFolderName.trim()) addFolderNode(null, newFolderName.trim());
+                  setNewFolderName('');
+                  setShowAddFolderModal(false);
+                }}
+                className="flex-1 rounded-xl bg-amber-600 py-1.5 text-xs font-bold text-white hover:bg-amber-500"
+              >
+                Create
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddFolderModal(false)}
+                className="flex-1 rounded-xl bg-slate-800 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ADD ENDPOINT MODAL ──────────────────────────────────────────────── */}
+      {showAddEpModal && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm rounded-2xl p-4">
+          <div className="w-full max-w-xs rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl space-y-3">
+            <h4 className="font-bold text-sm text-white flex items-center gap-2">
+              <Plus className="h-4 w-4 text-emerald-400" /> Create New Endpoint
+            </h4>
+            <input
+              type="text"
+              placeholder="Endpoint Name..."
+              value={newEpName}
+              onChange={(e) => setNewEpName(e.target.value)}
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <select
+                value={newEpMethod}
+                onChange={(e) => setNewEpMethod(e.target.value as HttpMethod)}
+                className="rounded-xl border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-white font-mono"
+              >
+                {['GET','POST','PUT','DELETE','PATCH'].map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <input
+                type="text"
+                placeholder="https://..."
+                value={newEpUrl}
+                onChange={(e) => setNewEpUrl(e.target.value)}
+                className="flex-1 rounded-xl border border-slate-700 bg-slate-950 p-2 text-xs font-mono text-white focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (newEpName.trim()) addEndpointNode(null, newEpName.trim(), newEpMethod, newEpUrl);
+                  setNewEpName('');
+                  setShowAddEpModal(false);
+                }}
+                className="flex-1 rounded-xl bg-emerald-600 py-1.5 text-xs font-bold text-white hover:bg-emerald-500"
+              >
+                Create
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddEpModal(false)}
+                className="flex-1 rounded-xl bg-slate-800 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -300,17 +300,25 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
     );
   };
 
+  const [telemetrySectionCollapsed, setTelemetrySectionCollapsed] = useState(false);
+
   return (
     <div className="space-y-5 flex flex-col h-full">
-      {/* Execution Telemetry & Live Controls Header */}
+      {/* Execution Telemetry & Live Controls Header (Collapsible) */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 backdrop-blur-md shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <ActivityIcon className="h-5 w-5 text-indigo-400" /> Execution Telemetry & Live Controls
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Run selected API endpoints, inspect live SLA telemetry, and refresh execution results.
-          </p>
+        <div 
+          className="flex items-center gap-2 cursor-pointer group"
+          onClick={() => setTelemetrySectionCollapsed(!telemetrySectionCollapsed)}
+        >
+          <ChevronDown className={`h-5 w-5 text-slate-400 group-hover:text-indigo-300 transition-transform ${telemetrySectionCollapsed ? '-rotate-90' : ''}`} />
+          <div>
+            <h2 className="text-base font-bold text-white flex items-center gap-2 group-hover:text-indigo-300 transition-colors">
+              <ActivityIcon className="h-5 w-5 text-indigo-400" /> Execution Telemetry & Live Controls
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Run selected API endpoints, inspect live SLA telemetry, and refresh execution results.
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap lg:flex-nowrap items-center gap-2 shrink-0">
@@ -363,64 +371,69 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
         </div>
       </div>
 
-      {/* KPI METRIC TILES */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Pass Rate */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-1 backdrop-blur-md">
-          <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
-            <span>Pass Rate</span>
-            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-xl font-extrabold text-white font-mono">{passPercentage}%</span>
-            <span className="text-[11px] text-slate-400 font-mono">
-              {runSummary.passed} / {runSummary.total} Passed
-            </span>
-          </div>
-        </div>
+      {/* KPI METRIC TILES & TELEMETRY PANELS (Collapsible) */}
+      {!telemetrySectionCollapsed && (
+        <>
+          {/* KPI METRIC TILES */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {/* Pass Rate */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-1 backdrop-blur-md">
+              <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
+                <span>Pass Rate</span>
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              </div>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-xl font-extrabold text-white font-mono">{passPercentage}%</span>
+                <span className="text-[11px] text-slate-400 font-mono">
+                  {runSummary.passed} / {runSummary.total} Passed
+                </span>
+              </div>
+            </div>
 
-        {/* Failed Tests */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-1 backdrop-blur-md">
-          <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
-            <span>Failed Tests</span>
-            <XCircle className="h-4 w-4 text-red-400" />
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-xl font-extrabold text-white font-mono">{runSummary.failed}</span>
-            <span className="text-[11px] text-slate-400">
-              {runSummary.failed > 0 ? 'Action Required' : 'Clean Run'}
-            </span>
-          </div>
-        </div>
+            {/* Failed Tests */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-1 backdrop-blur-md">
+              <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
+                <span>Failed Tests</span>
+                <XCircle className="h-4 w-4 text-red-400" />
+              </div>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-xl font-extrabold text-white font-mono">{runSummary.failed}</span>
+                <span className="text-[11px] text-slate-400">
+                  {runSummary.failed > 0 ? 'Action Required' : 'Clean Run'}
+                </span>
+              </div>
+            </div>
 
-        {/* Avg Latency */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-1 backdrop-blur-md">
-          <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
-            <span>Avg Response Time</span>
-            <Clock className="h-4 w-4 text-indigo-400" />
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-xl font-extrabold text-white font-mono">{runSummary.avgLatencyMs}ms</span>
-            <span className="text-[11px] text-slate-400 font-mono">
-              Min: {runSummary.minLatencyMs}ms
-            </span>
-          </div>
-        </div>
+            {/* Avg Latency */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-1 backdrop-blur-md">
+              <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
+                <span>Avg Response Time</span>
+                <Clock className="h-4 w-4 text-indigo-400" />
+              </div>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-xl font-extrabold text-white font-mono">{runSummary.avgLatencyMs}ms</span>
+                <span className="text-[11px] text-slate-400 font-mono">
+                  Min: {runSummary.minLatencyMs}ms
+                </span>
+              </div>
+            </div>
 
-        {/* Total Endpoints */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-1 backdrop-blur-md">
-          <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
-            <span>Total Endpoints</span>
-            <Layers className="h-4 w-4 text-purple-400" />
+            {/* Total Endpoints */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-1 backdrop-blur-md">
+              <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
+                <span>Total Endpoints</span>
+                <Layers className="h-4 w-4 text-purple-400" />
+              </div>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-xl font-extrabold text-white font-mono">{selectedEndpointCount}</span>
+                <span className="text-[11px] text-slate-400 font-semibold">
+                  Selected for Run
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-xl font-extrabold text-white font-mono">{selectedEndpointCount}</span>
-            <span className="text-[11px] text-slate-400 font-semibold">
-              Selected for Run
-            </span>
-          </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {/* Progress Bar */}
       {runSummary.status === 'running' && (

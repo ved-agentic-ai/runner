@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { 
   TreeNode, 
+  HttpMethod,
   PostmanCollection, 
   PostmanEnvironment, 
   EndpointTestSuite, 
@@ -17,6 +18,7 @@ import {
 } from './postman-parser';
 import { 
   generateEndpointTests, 
+  generateSmartHeuristicTests,
   evaluateTestCases 
 } from './ai-test-generator';
 
@@ -67,6 +69,13 @@ interface RunnerState {
   setFilterStatus: (status: 'all' | 'passed' | 'failed' | 'running') => void;
   setSelectedEndpointIdForDetail: (id: string | null) => void;
   setInspectorEndpointId: (id: string | null) => void;
+  updateEndpointName: (id: string, newName: string) => void;
+  duplicateNode: (nodeId: string) => void;
+  moveNode: (nodeId: string, direction: 'up' | 'down') => void;
+  addFolderNode: (parentId: string | null, name: string) => void;
+  addEndpointNode: (parentId: string | null, name: string, method: HttpMethod, url: string) => void;
+  deleteNode: (nodeId: string) => void;
+  exportCollection: (selectedOnly?: boolean) => void;
   generateAiTestsForSelected: () => Promise<void>;
   runSelectedEndpoints: () => Promise<void>;
   clearResults: () => void;
@@ -131,6 +140,11 @@ export const useRunnerStore = create<RunnerState>()(
         }
         collectAllNodeIds(rootNodes);
 
+        const defaultSuites: Record<string, EndpointTestSuite> = {};
+        flatEndpointMap.forEach((node, id) => {
+          defaultSuites[id] = generateSmartHeuristicTests(node, node.url || '');
+        });
+
         set({
           collectionName: collectionJson.info?.name || 'Uploaded Collection',
           collectionDescription: collectionJson.info?.description || '',
@@ -139,7 +153,7 @@ export const useRunnerStore = create<RunnerState>()(
           envVariables: envVars,
           selectedNodeIds: allNodeIds,
           executionResults: {},
-          generatedTestSuites: {},
+          generatedTestSuites: defaultSuites,
           runSummary: {
             total: allEndpointIds.length,
             passed: 0,
@@ -169,6 +183,11 @@ export const useRunnerStore = create<RunnerState>()(
         }
         collectAllNodeIds(rootNodes);
 
+        const defaultSuites: Record<string, EndpointTestSuite> = {};
+        flatEndpointMap.forEach((node, id) => {
+          defaultSuites[id] = generateSmartHeuristicTests(node, node.url || '');
+        });
+
         set({
           collectionName: DEMO_COLLECTION_JSON.info.name,
           collectionDescription: DEMO_COLLECTION_JSON.info.description || '',
@@ -177,7 +196,7 @@ export const useRunnerStore = create<RunnerState>()(
           envVariables: envVars,
           selectedNodeIds: allNodeIds,
           executionResults: {},
-          generatedTestSuites: {},
+          generatedTestSuites: defaultSuites,
           runSummary: {
             total: flatEndpointMap.size,
             passed: 0,
@@ -269,6 +288,266 @@ export const useRunnerStore = create<RunnerState>()(
       setFilterStatus: (status) => set({ filterStatus: status }),
       setSelectedEndpointIdForDetail: (id) => set({ selectedEndpointIdForDetail: id }),
       setInspectorEndpointId: (id) => set({ inspectorEndpointId: id }),
+
+      updateEndpointName: (id: string, newName: string) => {
+        const { rootNodes, flatEndpointMap, serverRootNodes, serverFlatEndpointMap, generatedTestSuites } = get();
+
+        function updateInTree(nodes: TreeNode[]): boolean {
+          for (const node of nodes) {
+            if (node.id === id) {
+              node.name = newName;
+              return true;
+            }
+            if (node.children && updateInTree(node.children)) {
+              return true;
+            }
+          }
+          return false;
+        }
+
+        const updatedRoots = [...rootNodes];
+        updateInTree(updatedRoots);
+
+        const newFlatMap = new Map(flatEndpointMap);
+        const targetNode = newFlatMap.get(id);
+        if (targetNode) {
+          newFlatMap.set(id, { ...targetNode, name: newName });
+        }
+
+        const updatedServerRoots = [...serverRootNodes];
+        updateInTree(updatedServerRoots);
+
+        const newServerFlatMap = new Map(serverFlatEndpointMap);
+        const targetServerNode = newServerFlatMap.get(id);
+        if (targetServerNode) {
+          newServerFlatMap.set(id, { ...targetServerNode, name: newName });
+        }
+
+        const updatedSuites = { ...generatedTestSuites };
+        if (updatedSuites[id]) {
+          updatedSuites[id] = { ...updatedSuites[id], endpointName: newName };
+        }
+
+        set({
+          rootNodes: updatedRoots,
+          flatEndpointMap: newFlatMap,
+          serverRootNodes: updatedServerRoots,
+          serverFlatEndpointMap: newServerFlatMap,
+          generatedTestSuites: updatedSuites,
+        });
+      },
+
+      duplicateNode: (nodeId: string) => {
+        const { rootNodes, flatEndpointMap } = get();
+
+        function cloneTree(n: TreeNode): TreeNode {
+          const newId = `ep_copy_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+          return {
+            ...n,
+            id: newId,
+            name: `${n.name} (Copy)`,
+            children: n.children ? n.children.map(cloneTree) : undefined,
+          };
+        }
+
+        function insertInTree(list: TreeNode[]): TreeNode[] {
+          const res: TreeNode[] = [];
+          for (const item of list) {
+            res.push(item);
+            if (item.id === nodeId) {
+              res.push(cloneTree(item));
+            } else if (item.children) {
+              item.children = insertInTree(item.children);
+            }
+          }
+          return res;
+        }
+
+        const newRoots = insertInTree([...rootNodes]);
+        const newFlatMap = new Map<string, TreeNode>();
+        function rebuildMap(nodes: TreeNode[]) {
+          nodes.forEach((n) => {
+            if (n.type === 'endpoint') newFlatMap.set(n.id, n);
+            if (n.children) rebuildMap(n.children);
+          });
+        }
+        rebuildMap(newRoots);
+
+        set({ rootNodes: newRoots, flatEndpointMap: newFlatMap });
+      },
+
+      moveNode: (nodeId: string, direction: 'up' | 'down') => {
+        const { rootNodes } = get();
+
+        function moveInList(list: TreeNode[]): boolean {
+          const idx = list.findIndex((n) => n.id === nodeId);
+          if (idx !== -1) {
+            const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+            if (targetIdx >= 0 && targetIdx < list.length) {
+              const [moved] = list.splice(idx, 1);
+              list.splice(targetIdx, 0, moved);
+              return true;
+            }
+          }
+          for (const item of list) {
+            if (item.children && moveInList(item.children)) return true;
+          }
+          return false;
+        }
+
+        const newRoots = [...rootNodes];
+        moveInList(newRoots);
+        set({ rootNodes: newRoots });
+      },
+
+      addFolderNode: (parentId: string | null, name: string) => {
+        const { rootNodes } = get();
+        const newFolder: TreeNode = {
+          id: `folder_${Date.now()}`,
+          name: name || 'New Folder',
+          type: 'folder',
+          path: name || 'New Folder',
+          children: [],
+        };
+
+        const newRoots = [...rootNodes];
+        if (!parentId) {
+          newRoots.push(newFolder);
+        } else {
+          function addToParent(list: TreeNode[]) {
+            for (const item of list) {
+              if (item.id === parentId) {
+                if (!item.children) item.children = [];
+                item.children.push(newFolder);
+                return true;
+              }
+              if (item.children && addToParent(item.children)) return true;
+            }
+            return false;
+          }
+          addToParent(newRoots);
+        }
+        set({ rootNodes: newRoots });
+      },
+
+      addEndpointNode: (parentId: string | null, name: string, method: HttpMethod, url: string) => {
+        const { rootNodes, flatEndpointMap } = get();
+        const id = `ep_new_${Date.now()}`;
+        const newEp: TreeNode = {
+          id,
+          name: name || 'New Endpoint',
+          type: 'endpoint',
+          method: method || 'GET',
+          url: url || 'https://api.example.com/v1/resource',
+          path: url || 'https://api.example.com/v1/resource',
+          request: {
+            method: method || 'GET',
+            header: [{ key: 'Content-Type', value: 'application/json' }],
+            body: { mode: 'raw', raw: '{\n  "key": "value"\n}' },
+            url: { raw: url || 'https://api.example.com/v1/resource' }
+          }
+        };
+
+        const newRoots = [...rootNodes];
+        if (!parentId) {
+          newRoots.push(newEp);
+        } else {
+          function addToParent(list: TreeNode[]) {
+            for (const item of list) {
+              if (item.id === parentId) {
+                if (!item.children) item.children = [];
+                item.children.push(newEp);
+                return true;
+              }
+              if (item.children && addToParent(item.children)) return true;
+            }
+            return false;
+          }
+          addToParent(newRoots);
+        }
+
+        const newFlatMap = new Map(flatEndpointMap);
+        newFlatMap.set(id, newEp);
+        set({ rootNodes: newRoots, flatEndpointMap: newFlatMap, selectedEndpointIdForDetail: id });
+      },
+
+      deleteNode: (nodeId: string) => {
+        const { rootNodes, serverRootNodes, flatEndpointMap, serverFlatEndpointMap, selectedNodeIds, selectedEndpointIdForDetail } = get();
+
+        function removeSubTree(nodes: TreeNode[]): TreeNode[] {
+          return nodes.filter(n => n.id !== nodeId).map(n => ({
+            ...n,
+            children: n.children ? removeSubTree(n.children) : undefined
+          }));
+        }
+
+        const newRoots = removeSubTree([...rootNodes]);
+        const newServerRoots = removeSubTree([...serverRootNodes]);
+
+        const newFlatMap = new Map(flatEndpointMap);
+        newFlatMap.delete(nodeId);
+
+        const newServerFlatMap = new Map(serverFlatEndpointMap);
+        newServerFlatMap.delete(nodeId);
+
+        const nextSelectedNodeIds = selectedNodeIds.filter(id => id !== nodeId);
+        const nextDetailId = selectedEndpointIdForDetail === nodeId ? null : selectedEndpointIdForDetail;
+
+        set({
+          rootNodes: newRoots,
+          serverRootNodes: newServerRoots,
+          flatEndpointMap: newFlatMap,
+          serverFlatEndpointMap: newServerFlatMap,
+          selectedNodeIds: nextSelectedNodeIds,
+          selectedEndpointIdForDetail: nextDetailId
+        });
+      },
+
+      exportCollection: (selectedOnly = false) => {
+        const { rootNodes, collectionName, selectedNodeIds } = get();
+        const selSet = new Set(selectedNodeIds);
+
+        function convertNodeToPostman(n: TreeNode): any {
+          if (selectedOnly && !selSet.has(n.id)) return null;
+
+          if (n.type === 'folder') {
+            const items = (n.children || [])
+              .map(convertNodeToPostman)
+              .filter(Boolean);
+            if (selectedOnly && items.length === 0) return null;
+            return {
+              name: n.name,
+              item: items,
+            };
+          }
+
+          return {
+            name: n.name,
+            request: n.request || {
+              method: n.method || 'GET',
+              url: n.url || '',
+              header: [{ key: 'Content-Type', value: 'application/json' }],
+            },
+          };
+        }
+
+        const items = rootNodes.map(convertNodeToPostman).filter(Boolean);
+        const postmanCollection = {
+          info: {
+            name: selectedOnly ? `${collectionName || 'Collection'} (Selected)` : (collectionName || 'Collection'),
+            schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+          },
+          item: items,
+        };
+
+        const blob = new Blob([JSON.stringify(postmanCollection, null, 2)], { type: 'application/json' });
+        const downloadUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `${(selectedOnly ? `${collectionName || 'collection'}_selected` : (collectionName || 'collection')).toLowerCase().replace(/\s+/g, '_')}_postman_collection.json`;
+        a.click();
+        URL.revokeObjectURL(downloadUrl);
+      },
 
       generateAiTestsForSelected: async () => {
         const { flatEndpointMap, geminiApiKey } = get();
