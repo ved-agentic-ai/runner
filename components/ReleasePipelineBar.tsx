@@ -21,10 +21,13 @@ export const ReleasePipelineBar: React.FC = () => {
     promoteEnvironment, 
     rollbackEnvironment,
     previewSnapshotAt,
-    liveSnapshotAt
+    liveSnapshotAt,
+    anonymousMode
   } = useAdminStore();
 
   const [notification, setNotification] = useState<string | null>(null);
+
+  if (anonymousMode) return null;
 
   const triggerNotification = (msg: string) => {
     setNotification(msg);

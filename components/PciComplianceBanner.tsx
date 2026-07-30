@@ -5,9 +5,9 @@ import { ShieldCheck, Lock, CheckCircle2, Award } from 'lucide-react';
 import { useAdminStore } from '@/lib/admin-store';
 
 export const PciComplianceBanner: React.FC = () => {
-  const { showPciCompliance } = useAdminStore();
+  const { showPciCompliance, anonymousMode } = useAdminStore();
 
-  if (!showPciCompliance) return null;
+  if (!showPciCompliance || anonymousMode) return null;
 
   return (
     <div className="w-full max-w-7xl mx-auto rounded-2xl border border-emerald-500/30 bg-emerald-950/30 p-4 text-slate-300 shadow-xl my-6 animate-in fade-in">

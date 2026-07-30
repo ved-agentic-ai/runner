@@ -82,6 +82,7 @@ export default function Home() {
     showFooter,
     showPciCompliance,
     showPrivacyBanner,
+    anonymousMode,
     mfaForEnvComparison,
     isMfaAuthenticated,
     recordPageView
@@ -330,6 +331,15 @@ export default function Home() {
 
   useEffect(() => {
     recordPageView();
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const modeParam = params.get('mode') || params.get('anonymous');
+      if (modeParam === 'anonymous' || modeParam === 'true') {
+        useAdminStore.getState().setAnonymousMode(true);
+      } else if (modeParam === 'normal' || modeParam === 'false' || modeParam === 'dev' || modeParam === 'developer') {
+        useAdminStore.getState().setAnonymousMode(false);
+      }
+    }
   }, [recordPageView]);
 
   // Step 1 Collection or Environment Upload Handler
@@ -467,8 +477,8 @@ export default function Home() {
       {/* MAIN APPLICATION CONTAINER */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 space-y-6">
         
-        {/* RELEASE ENVIRONMENT STATUS BANNER */}
-        {releaseEnvironment === 'dev' && (
+        {/* RELEASE ENVIRONMENT STATUS BANNER (Hidden in Anonymous Mode) */}
+        {!anonymousMode && releaseEnvironment === 'dev' && (
           <div className="rounded-2xl border border-amber-500/40 bg-amber-950/30 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs backdrop-blur-md animate-in fade-in">
             <div className="flex items-center space-x-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">🛠️</span>
@@ -491,7 +501,7 @@ export default function Home() {
           </div>
         )}
 
-        {releaseEnvironment === 'preview' && (
+        {!anonymousMode && releaseEnvironment === 'preview' && (
           <div className="rounded-2xl border border-purple-500/40 bg-purple-950/30 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs backdrop-blur-md animate-in fade-in">
             <div className="flex items-center space-x-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40">👁️</span>
@@ -522,7 +532,7 @@ export default function Home() {
           </div>
         )}
 
-        {releaseEnvironment === 'live' && (
+        {!anonymousMode && releaseEnvironment === 'live' && (
           <div className="rounded-2xl border border-emerald-500/40 bg-emerald-950/30 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs backdrop-blur-md animate-in fade-in">
             <div className="flex items-center space-x-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40">🌟</span>

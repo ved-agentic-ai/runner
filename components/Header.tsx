@@ -44,7 +44,9 @@ export const Header: React.FC = () => {
     showQuotaTelemetry,
     showPresetButton,
     showAiKeyButton,
-    workspaceMode
+    workspaceMode,
+    anonymousMode,
+    setAnonymousMode
   } = useAdminStore();
 
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -133,14 +135,21 @@ export const Header: React.FC = () => {
               <h1 className="text-base font-extrabold tracking-tight text-white whitespace-nowrap">
                 Vkratim <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">APIRunner</span>
               </h1>
-              <span className={`inline-flex items-center space-x-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border whitespace-nowrap ${
-                workspaceMode === 'light' 
-                  ? 'bg-purple-950/60 text-purple-300 border-purple-800/60' 
-                  : 'bg-indigo-950/60 text-indigo-300 border-indigo-800/60'
-              }`}>
-                <Sparkles className="h-3 w-3 shrink-0" />
-                <span>{workspaceMode === 'light' ? 'Light Team Mode' : 'Full Enterprise'}</span>
-              </span>
+              
+              {/* Interactive Anonymous vs Developer Mode Switcher Pill */}
+              <button
+                type="button"
+                onClick={() => setAnonymousMode(!anonymousMode)}
+                className={`inline-flex items-center space-x-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border transition-all cursor-pointer shadow-sm ${
+                  anonymousMode 
+                    ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800/80 hover:bg-emerald-900/90' 
+                    : 'bg-indigo-950/80 text-indigo-300 border-indigo-800/80 hover:bg-indigo-900/90'
+                }`}
+                title={anonymousMode ? "Click to switch to Developer Mode (Shows pricing/developer options)" : "Click to switch to Anonymous Mode (Hides all plans/pricing/developer info)"}
+              >
+                <span className={`h-2 w-2 rounded-full animate-pulse ${anonymousMode ? 'bg-emerald-400' : 'bg-indigo-400'}`} />
+                <span>{anonymousMode ? '👤 Anonymous Mode' : '🛠️ Developer Mode'}</span>
+              </button>
             </div>
             <p className="text-[11px] text-slate-400 truncate max-w-xs sm:max-w-md">
               {collectionName ? (
@@ -163,20 +172,20 @@ export const Header: React.FC = () => {
             {/* User Account Sign In / Sign Up Modal */}
             <UserAuthModal />
 
-            {/* Owner & Admin Control Panel */}
-            <AdminControlPanelModal />
+            {/* Owner & Admin Control Panel (Hidden in Anonymous Mode) */}
+            {!anonymousMode && <AdminControlPanelModal />}
 
-            {/* Quota & Token Monitor Widget (Configurable) */}
-            {showQuotaTelemetry && <QuotaTelemetryWidget />}
+            {/* Quota & Token Monitor Widget (Hidden in Anonymous Mode) */}
+            {!anonymousMode && showQuotaTelemetry && <QuotaTelemetryWidget />}
 
             {/* Postman-Style Environment Manager Button */}
             <EnvironmentManagerModal />
 
-            {/* SaaS Upgrade & Subscription Button (ALWAYS visible for all public visitors) */}
-            {showSaaSUpgrades && <PricingCheckoutModal />}
+            {/* SaaS Upgrade & Subscription Button (Hidden in Anonymous Mode) */}
+            {!anonymousMode && showSaaSUpgrades && <PricingCheckoutModal />}
 
-            {/* Stakeholder Presentation Deck Modal */}
-            <PresentationDeckModal />
+            {/* Stakeholder Presentation Deck Modal (Hidden in Anonymous Mode) */}
+            {!anonymousMode && <PresentationDeckModal />}
           </div>
         )}
       </div>
