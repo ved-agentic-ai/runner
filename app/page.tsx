@@ -747,190 +747,207 @@ export default function Home() {
                 {workspaceMode === 'full' && showTrafficSimulator && <LiveTrafficSimulator />}
               </div>
             ) : (
-              /* MODE 4: STANDARD 3-PANE LAYOUT (STRICT GRID BASED, ZERO OVERLAPS) */
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full">
-                
-                {/* Left Sidebar: Server Explorer (3 of 12 cols) */}
-                {isAuthenticated && (
-                  <div className="lg:col-span-3 w-full shrink-0">
-                    <UserWorkspaceSidebar
-                      onLoadFileToWorkspace={handleLoadServerFile}
-                      refreshTrigger={sidebarRefresh}
-                      loadedFileId={loadedFileId}
-                      loadedEnvFileId={loadedEnvFileId}
-                      onResetLoadedFileId={() => setLoadedFileId(null)}
-                      onResetLoadedEnvFileId={() => setLoadedEnvFileId(null)}
-                      onRegisterReopenRef={(fn) => { reopenLoadConfirmRef.current = fn; }}
-                    />
+              /* MODE 4: STANDARD 3-PANE LAYOUT (FULL 12-COLUMN BALANCED DOCK, ZERO GAPS) */
+              activeMainTab === 'runner' ? (
+                <div className="space-y-6 w-full animate-in fade-in duration-200">
+                  {/* TOP ROW: 3-PANE SIDE-BY-SIDE SPLIT ACROSS FULL 12 COLUMNS */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full">
+                    {/* Pane 1: Server Explorer (3 of 12 cols) */}
+                    {isAuthenticated && (
+                      <div className="lg:col-span-3 w-full shrink-0">
+                        <UserWorkspaceSidebar
+                          onLoadFileToWorkspace={handleLoadServerFile}
+                          refreshTrigger={sidebarRefresh}
+                          loadedFileId={loadedFileId}
+                          loadedEnvFileId={loadedEnvFileId}
+                          onResetLoadedFileId={() => setLoadedFileId(null)}
+                          onResetLoadedEnvFileId={() => setLoadedEnvFileId(null)}
+                          onRegisterReopenRef={(fn) => { reopenLoadConfirmRef.current = fn; }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Pane 2: Collection Hierarchy Tree (4 of 12 cols if sidebar present, 4 of 12 if not) */}
+                    <div className={`${isAuthenticated ? 'lg:col-span-4' : 'lg:col-span-4'} h-[750px]`}>
+                      <TreeView />
+                    </div>
+
+                    {/* Pane 3: Endpoint Workbench (5 of 12 cols if sidebar present, 8 of 12 if not) */}
+                    <div className={`${isAuthenticated ? 'lg:col-span-5' : 'lg:col-span-8'}`}>
+                      <EndpointWorkbench />
+                    </div>
                   </div>
-                )}
 
-                {/* Main Workspace Area (9 of 12 cols if sidebar present, 12 of 12 if logged out) */}
-                <div className={`${isAuthenticated ? 'lg:col-span-9' : 'lg:col-span-12'} w-full space-y-6`}>
+                  {/* BOTTOM ROW: FULL 12-COLUMN TELEMETRY & LIVE TRAFFIC SIMULATOR (SPANS 100% WIDTH BELOW ALL 3 PANES) */}
+                  <div className="w-full space-y-6">
+                    <RunnerDashboard onSaveToServer={handleSaveWorkspaceTrigger} />
+                    {workspaceMode === 'full' && showTrafficSimulator && <LiveTrafficSimulator />}
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full">
                   
-                  {/* MAIN TAB 1: SEQUENTIAL UPLOAD FLOW */}
-                  {activeMainTab === 'upload' && (
-                    <div className="space-y-6 animate-in fade-in duration-200">
-                      {uploadStep === 'collection' ? (
-                        <div className="relative rounded-3xl border-2 border-dashed border-indigo-500/40 bg-gradient-to-br from-indigo-950/30 via-slate-950 to-slate-950 p-8 sm:p-12 text-center shadow-2xl space-y-4">
-                          <input
-                            type="file"
-                            accept=".json"
-                            onChange={handleCollectionUpload}
-                            className="absolute inset-0 z-10 h-full w-full opacity-0 cursor-pointer"
-                          />
-                          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 mb-2 shadow-lg">
-                            <FileCode className="h-8 w-8" />
-                          </div>
-                          <h2 className="text-lg font-bold text-white">📂 Step 1: Upload Postman Collection (.json)</h2>
-                          <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-                            Upload or drag-and-drop your Postman Collection JSON file (v2.0 / v2.1). After parsing, you will have the option to attach an environment file.
-                          </p>
+                  {/* Left Sidebar: Server Explorer (3 of 12 cols) */}
+                  {isAuthenticated && (
+                    <div className="lg:col-span-3 w-full shrink-0">
+                      <UserWorkspaceSidebar
+                        onLoadFileToWorkspace={handleLoadServerFile}
+                        refreshTrigger={sidebarRefresh}
+                        loadedFileId={loadedFileId}
+                        loadedEnvFileId={loadedEnvFileId}
+                        onResetLoadedFileId={() => setLoadedFileId(null)}
+                        onResetLoadedEnvFileId={() => setLoadedEnvFileId(null)}
+                        onRegisterReopenRef={(fn) => { reopenLoadConfirmRef.current = fn; }}
+                      />
+                    </div>
+                  )}
 
-                          <div className="pt-4 flex flex-wrap justify-center gap-3 z-20">
-                            <button className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 transition-all pointer-events-none">
-                              Select Collection JSON
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleTriggerLoadDemo}
-                              className="rounded-xl border border-slate-800 bg-slate-900 px-5 py-2.5 text-xs font-bold text-indigo-300 hover:bg-slate-800 transition-all pointer-events-auto"
-                            >
-                              ⚡ Load Demo Suite (138 Endpoints)
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4 animate-in fade-in duration-200">
-                          <div className="flex items-center justify-between rounded-2xl border border-emerald-500/40 bg-emerald-950/30 p-4 shadow-lg">
-                            <div className="flex items-center space-x-3">
-                              <CheckCircle2 className="h-6 w-6 text-emerald-400 shrink-0" />
-                              <div>
-                                <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                                  Collection Loaded into Memory
-                                </h3>
-                                <p className="text-xs text-slate-300">
-                                  Active Suite: <strong className="text-emerald-300 font-mono">{collectionName}</strong> ({flatEndpointMap.size || 138} endpoints parsed)
-                                </p>
-                              </div>
-                            </div>
-
-                            <button
-                              onClick={() => setUploadStep('collection')}
-                              className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-800"
-                            >
-                              Change Collection
-                            </button>
-                          </div>
-
-                          <div className="relative rounded-3xl border-2 border-dashed border-amber-500/40 bg-gradient-to-br from-amber-950/20 via-slate-950 to-slate-950 p-8 sm:p-10 text-center shadow-2xl space-y-4">
+                  {/* Main Workspace Area (9 of 12 cols if sidebar present, 12 of 12 if logged out) */}
+                  <div className={`${isAuthenticated ? 'lg:col-span-9' : 'lg:col-span-12'} w-full space-y-6`}>
+                    
+                    {/* MAIN TAB 1: SEQUENTIAL UPLOAD FLOW */}
+                    {activeMainTab === 'upload' && (
+                      <div className="space-y-6 animate-in fade-in duration-200">
+                        {uploadStep === 'collection' ? (
+                          <div className="relative rounded-3xl border-2 border-dashed border-indigo-500/40 bg-gradient-to-br from-indigo-950/30 via-slate-950 to-slate-950 p-8 sm:p-12 text-center shadow-2xl space-y-4">
                             <input
                               type="file"
-                              accept=".json,.env"
-                              onChange={handleEnvUpload}
+                              accept=".json"
+                              onChange={handleCollectionUpload}
                               className="absolute inset-0 z-10 h-full w-full opacity-0 cursor-pointer"
                             />
-                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30 mb-1 shadow-lg">
-                              <Key className="h-7 w-7" />
+                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 mb-2 shadow-lg">
+                              <FileCode className="h-8 w-8" />
                             </div>
-                            <h2 className="text-base font-bold text-white">🔑 Step 2: Upload Environment Variables (Optional)</h2>
+                            <h2 className="text-lg font-bold text-white">📂 Step 1: Upload Postman Collection (.json)</h2>
                             <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-                              Attach a Postman Environment JSON or raw `.env` file to resolve template variables (`{"{{baseUrl}}"}`). Or skip this step to execute with default parameters.
+                              Upload or drag-and-drop your Postman Collection JSON file (v2.0 / v2.1). After parsing, you will have the option to attach an environment file.
                             </p>
 
                             <div className="pt-4 flex flex-wrap justify-center gap-3 z-20">
-                              <button className="rounded-xl bg-amber-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-amber-600/30 hover:bg-amber-500 transition-all pointer-events-none">
-                                Upload Environment File (.json / .env)
+                              <button className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 transition-all pointer-events-none">
+                                Select Collection JSON
                               </button>
-                              
                               <button
                                 type="button"
-                                onClick={() => setActiveMainTab('runner')}
-                                className="rounded-xl border border-indigo-500/50 bg-indigo-950 px-5 py-2.5 text-xs font-extrabold text-indigo-200 hover:bg-indigo-900 transition-all pointer-events-auto flex items-center gap-2 shadow-lg"
+                                onClick={handleTriggerLoadDemo}
+                                className="rounded-xl border border-slate-800 bg-slate-900 px-5 py-2.5 text-xs font-bold text-indigo-300 hover:bg-slate-800 transition-all pointer-events-auto"
                               >
-                                <span>⏭️ Skip & Proceed to Runner</span>
-                                <ArrowRight className="h-4 w-4 text-indigo-400" />
+                                ⚡ Load Demo Suite (138 Endpoints)
                               </button>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="space-y-4 animate-in fade-in duration-200">
+                            <div className="flex items-center justify-between rounded-2xl border border-emerald-500/40 bg-emerald-950/30 p-4 shadow-lg">
+                              <div className="flex items-center space-x-3">
+                                <CheckCircle2 className="h-6 w-6 text-emerald-400 shrink-0" />
+                                <div>
+                                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                                    Collection Loaded into Memory
+                                  </h3>
+                                  <p className="text-xs text-slate-300">
+                                    Active Suite: <strong className="text-emerald-300 font-mono">{collectionName}</strong> ({flatEndpointMap.size || 138} endpoints parsed)
+                                  </p>
+                                </div>
+                              </div>
 
-                      {showCapabilitiesGrid && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
-                          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-2 backdrop-blur-md">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                              <Zap className="h-5 w-5" />
+                              <button
+                                onClick={() => setUploadStep('collection')}
+                                className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-800"
+                              >
+                                Change Collection
+                              </button>
                             </div>
-                            <h3 className="font-bold text-sm text-white">High Performance Execution</h3>
-                            <p className="text-xs text-slate-400 leading-relaxed">
-                              Execute hundreds of API requests in parallel with live SLA latency tracking, status validation, and automated retries.
-                            </p>
-                          </div>
 
-                          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-2 backdrop-blur-md">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                              <Sparkles className="h-5 w-5" />
+                            <div className="relative rounded-3xl border-2 border-dashed border-amber-500/40 bg-gradient-to-br from-amber-950/20 via-slate-950 to-slate-950 p-8 sm:p-10 text-center shadow-2xl space-y-4">
+                              <input
+                                type="file"
+                                accept=".json,.env"
+                                onChange={handleEnvUpload}
+                                className="absolute inset-0 z-10 h-full w-full opacity-0 cursor-pointer"
+                              />
+                              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30 mb-1 shadow-lg">
+                                <Key className="h-7 w-7" />
+                              </div>
+                              <h2 className="text-base font-bold text-white">🔑 Step 2: Upload Environment Variables (Optional)</h2>
+                              <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                                Attach a Postman Environment JSON or raw `.env` file to resolve template variables (`{"{{baseUrl}}"}`). Or skip this step to execute with default parameters.
+                              </p>
+
+                              <div className="pt-4 flex flex-wrap justify-center gap-3 z-20">
+                                <button className="rounded-xl bg-amber-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-amber-600/30 hover:bg-amber-500 transition-all pointer-events-none">
+                                  Upload Environment File (.json / .env)
+                                </button>
+                                
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveMainTab('runner')}
+                                  className="rounded-xl border border-indigo-500/50 bg-indigo-950 px-5 py-2.5 text-xs font-extrabold text-indigo-200 hover:bg-indigo-900 transition-all pointer-events-auto flex items-center gap-2 shadow-lg"
+                                >
+                                  <span>⏭️ Skip & Proceed to Runner</span>
+                                  <ArrowRight className="h-4 w-4 text-indigo-400" />
+                                </button>
+                              </div>
                             </div>
-                            <h3 className="font-bold text-sm text-white">AI Test Assertion Suite</h3>
-                            <p className="text-xs text-slate-400 leading-relaxed">
-                              Automatically analyze request parameters and response schemas to generate custom test assertion suites in real-time.
-                            </p>
                           </div>
+                        )}
 
-                          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-2 backdrop-blur-md">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                              <ShieldAlert className="h-5 w-5" />
+                        {showCapabilitiesGrid && (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
+                            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-2 backdrop-blur-md">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                <Zap className="h-5 w-5" />
+                              </div>
+                              <h3 className="font-bold text-sm text-white">High Performance Execution</h3>
+                              <p className="text-xs text-slate-400 leading-relaxed">
+                                Execute hundreds of API requests in parallel with live SLA latency tracking, status validation, and automated retries.
+                              </p>
                             </div>
-                            <h3 className="font-bold text-sm text-white">Cloud Workspace Storage</h3>
-                            <p className="text-xs text-slate-400 leading-relaxed">
-                              Save API collections and environment files to your server account with smart secret redaction (`[REDACTED_SECRET]`).
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
-                  {/* MAIN TAB 2: RUNNER & LIVE TELEMETRY WORKSPACE */}
-                  {activeMainTab === 'runner' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full">
-                      
-                      {/* Left: Collection Hierarchy Tree (4 of 12 cols) */}
-                      <div className="lg:col-span-4 h-[780px]">
-                        <TreeView />
+                            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-2 backdrop-blur-md">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                <Sparkles className="h-5 w-5" />
+                              </div>
+                              <h3 className="font-bold text-sm text-white">AI Test Assertion Suite</h3>
+                              <p className="text-xs text-slate-400 leading-relaxed">
+                                Automatically analyze request parameters and response schemas to generate custom test assertion suites in real-time.
+                              </p>
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-2 backdrop-blur-md">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                <ShieldAlert className="h-5 w-5" />
+                              </div>
+                              <h3 className="font-bold text-sm text-white">Cloud Workspace Storage</h3>
+                              <p className="text-xs text-slate-400 leading-relaxed">
+                                Save API collections and environment files to your server account with smart secret redaction (`[REDACTED_SECRET]`).
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </div>
+                    )}
 
-                      {/* Right: Endpoint Workbench & Telemetry Dashboard (8 of 12 cols) */}
-                      <div className="lg:col-span-8 space-y-6">
-                        {/* Interactive Postman-Grade Endpoint Workbench — always visible */}
-                        <EndpointWorkbench />
-                        
-                        <RunnerDashboard onSaveToServer={handleSaveWorkspaceTrigger} />
-                        {workspaceMode === 'full' && showTrafficSimulator && <LiveTrafficSimulator />}
-                      </div>
+                    {/* MAIN TAB 3: LIVE TRAFFIC SIMULATOR */}
+                    {activeMainTab === 'simulator' && workspaceMode === 'full' && (
+                      <LiveTrafficSimulator />
+                    )}
 
-                    </div>
-                  )}
+                    {/* MAIN TAB 4: CUSTOM RULES VAULT */}
+                    {activeMainTab === 'vault' && workspaceMode === 'full' && (
+                      <CustomUseCasesVault />
+                    )}
 
-                  {/* MAIN TAB 3: LIVE TRAFFIC SIMULATOR */}
-                  {activeMainTab === 'simulator' && workspaceMode === 'full' && (
-                    <LiveTrafficSimulator />
-                  )}
+                    {/* MAIN TAB 5: AWS ENTERPRISE SYSTEM ARCHITECTURE */}
+                    {activeMainTab === 'architecture' && workspaceMode === 'full' && (
+                      <AppDocumentationSection initialTab="aws_architecture" />
+                    )}
 
-                  {/* MAIN TAB 4: CUSTOM RULES VAULT */}
-                  {activeMainTab === 'vault' && workspaceMode === 'full' && (
-                    <CustomUseCasesVault />
-                  )}
-
-                  {/* MAIN TAB 5: AWS ENTERPRISE SYSTEM ARCHITECTURE */}
-                  {activeMainTab === 'architecture' && workspaceMode === 'full' && (
-                    <AppDocumentationSection initialTab="aws_architecture" />
-                  )}
+                  </div>
 
                 </div>
-
-              </div>
+              )
             )}
 
           </div>

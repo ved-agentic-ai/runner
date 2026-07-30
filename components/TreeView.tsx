@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Folder, 
   FolderOpen, 
+  MoreVertical, 
   ChevronRight, 
   ChevronDown, 
   Check, 
+  X,
   Square, 
   MinusSquare,
   Search,
@@ -65,7 +68,8 @@ export const TreeView: React.FC = () => {
     restoreFromTrash,
     emptyTrash,
     trashItems,
-    exportCollection
+    exportCollection,
+    openWorkbenchTab
   } = useRunnerStore();
 
   const treeScrollRef = React.useRef<HTMLDivElement>(null);
@@ -121,8 +125,14 @@ export const TreeView: React.FC = () => {
   }
   countTreeNodes(activeNodes);
 
+  const isInitialMount = React.useRef(true);
+
   // Auto-expand all parent ancestor folders leading to selectedEndpointIdForDetail
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return; // Keep all collection hierarchy folders collapsed by default on initial page load
+    }
     if (!selectedEndpointIdForDetail || activeNodes.length === 0) return;
 
     const ancestorsToExpand: Record<string, boolean> = {};
@@ -150,6 +160,58 @@ export const TreeView: React.FC = () => {
       setExpandedFolders((prev) => ({ ...prev, ...ancestorsToExpand }));
     }
   }, [selectedEndpointIdForDetail, activeNodes]);
+
+  // Tree Node Context Menu State
+  const [treeContextMenu, setTreeContextMenu] = useState<{
+    isOpen: boolean;
+    x: number;
+    y: number;
+    node: TreeNode | null;
+  }>({ isOpen: false, x: 0, y: 0, node: null });
+
+  const handleTreeNodeContextMenu = (e: React.MouseEvent, node: TreeNode) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setTreeContextMenu({
+      isOpen: true,
+      x: e.clientX,
+      y: e.clientY,
+      node
+    });
+  };
+
+  const handleOpenEndpointInWorkbench = (node: TreeNode) => {
+    const storeState = useRunnerStore.getState();
+
+    if (storeState.flatEndpointMap instanceof Map) {
+      storeState.flatEndpointMap.set(node.id, node);
+    } else if (storeState.flatEndpointMap) {
+      (storeState.flatEndpointMap as any)[node.id] = node;
+    }
+
+    if (storeState.serverFlatEndpointMap instanceof Map) {
+      storeState.serverFlatEndpointMap.set(node.id, node);
+    } else if (storeState.serverFlatEndpointMap) {
+      (storeState.serverFlatEndpointMap as any)[node.id] = node;
+    }
+
+    setSelectedEndpointIdForDetail(node.id);
+    openWorkbenchTab(node.id);
+
+    // Animated smooth scroll redirection to workbench section panel
+    setTimeout(() => {
+      const workbenchEl = document.getElementById('endpoint-workbench-panel');
+      if (workbenchEl) {
+        const rect = workbenchEl.getBoundingClientRect();
+        const headerOffset = 20;
+        const targetY = window.scrollY + rect.top - headerOffset;
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
+
+        workbenchEl.classList.add('ring-4', 'ring-indigo-500/80', 'transition-all', 'duration-500');
+        setTimeout(() => workbenchEl.classList.remove('ring-4', 'ring-indigo-500/80'), 1500);
+      }
+    }, 50);
+  };
 
   const toggleExpand = (id: string) => {
     setExpandedFolders((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }));
@@ -307,187 +369,140 @@ export const TreeView: React.FC = () => {
 
   const renderNode = (node: TreeNode, depth = 0) => {
     const isFolder = node.type === 'folder';
-    const isExpanded = expandedFolders[node.id] ?? true;
+    const isExpanded = expandedFolders[node.id] ?? (searchQuery.trim().length > 0);
     const checkState = getNodeCheckState(node);
     const result = executionResults[node.id];
     const isSelectedDetail = selectedEndpointIdForDetail === node.id;
     const isEditing = editingNodeId === node.id;
 
     return (
-      <div key={node.id} id={`tree-node-${node.id}`} className="select-none font-mono text-xs transition-all duration-200 group/tree-item">
+      <div key={node.id} id={`tree-node-${node.id}`} className="select-none font-mono text-xs transition-all duration-150 group/tree-item my-0.5 min-w-full w-max">
         <div 
-          className={`flex items-center space-x-1.5 rounded-xl px-2 py-1.5 transition-all ${
+          className={`flex items-center justify-between rounded-xl py-1.5 transition-all min-w-full w-max ${
             isSelectedDetail 
-              ? 'bg-amber-950/80 border-2 border-amber-400 text-white shadow-lg ring-2 ring-amber-400/50' 
-              : 'hover:bg-slate-800/50 text-slate-300'
+              ? 'bg-gradient-to-r from-amber-950/90 via-amber-900/60 to-amber-950/90 border border-amber-500/80 text-white shadow-md shadow-amber-500/15 font-bold ring-1 ring-amber-500/40' 
+              : 'hover:bg-slate-800/60 text-slate-300'
           }`}
-          style={{ paddingLeft: `${Math.max(0.3, depth * 0.9)}rem` }}
+          style={{ 
+            paddingLeft: `${Math.max(0.5, depth * 1.1 + 0.5)}rem`,
+            paddingRight: '0.75rem'
+          }}
         >
-          {/* Collapse Chevron / Folder Toggle */}
-          {isFolder ? (
+          {/* LEFT CONTAINER: Chevron, Checkbox, Method & Endpoint Name */}
+          <div className="flex items-center space-x-2 min-w-0 flex-1">
+            {/* Collapse Chevron / Folder Toggle */}
+            {isFolder ? (
+              <button
+                onClick={() => toggleExpand(node.id)}
+                className="p-0.5 text-slate-400 hover:text-amber-400 transition-colors shrink-0"
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-3.5 w-3.5 text-amber-400" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                )}
+              </button>
+            ) : (
+              <span className="w-3.5 shrink-0" />
+            )}
+
+            {/* Selection Checkbox */}
             <button
-              onClick={() => toggleExpand(node.id)}
-              className="p-0.5 text-slate-400 hover:text-amber-400 transition-colors"
+              onClick={() => toggleNodeSelection(node.id)}
+              className="p-0.5 text-slate-400 hover:text-emerald-400 transition-colors shrink-0"
             >
-              {isExpanded ? (
-                <ChevronDown className="h-3.5 w-3.5 text-amber-400" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+              {checkState === 'checked' && (
+                <div className="flex h-3.5 w-3.5 items-center justify-center rounded bg-emerald-500 text-slate-950 font-bold">
+                  <Check className="h-2.5 w-2.5 stroke-[3]" />
+                </div>
+              )}
+              {checkState === 'indeterminate' && (
+                <MinusSquare className="h-3.5 w-3.5 text-emerald-400" />
+              )}
+              {checkState === 'unchecked' && (
+                <Square className="h-3.5 w-3.5 text-slate-600" />
               )}
             </button>
-          ) : (
-            <span className="w-3.5 shrink-0" />
-          )}
 
-          {/* Selection Checkbox */}
-          <button
-            onClick={() => toggleNodeSelection(node.id)}
-            className="p-0.5 text-slate-400 hover:text-emerald-400 transition-colors shrink-0"
-          >
-            {checkState === 'checked' && (
-              <div className="flex h-3.5 w-3.5 items-center justify-center rounded bg-emerald-500 text-slate-950 font-bold">
-                <Check className="h-2.5 w-2.5 stroke-[3]" />
+            {/* Node Icon & Method Badge */}
+            {isEditing ? (
+              <div className="flex items-center gap-1 flex-1 min-w-max">
+                <input
+                  type="text"
+                  value={editingNodeName}
+                  onChange={(e) => setEditingNodeName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveRename(node.id); if (e.key === 'Escape') setEditingNodeId(null); }}
+                  className="flex-1 rounded border border-indigo-500 bg-slate-900 px-2 py-0.5 text-xs text-white focus:outline-none"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSaveRename(node.id)}
+                  className="px-2 py-0.5 rounded bg-indigo-600 text-[10px] font-bold text-white hover:bg-indigo-500"
+                >
+                  Save
+                </button>
+              </div>
+            ) : isFolder ? (
+              <div 
+                onClick={() => toggleExpand(node.id)}
+                className="flex items-center space-x-1.5 cursor-pointer flex-1 min-w-0"
+              >
+                {isExpanded ? (
+                  <FolderOpen className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                ) : (
+                  <Folder className="h-3.5 w-3.5 text-amber-500/80 shrink-0" />
+                )}
+                <span className="font-semibold text-slate-200 truncate">{node.name}</span>
+              </div>
+            ) : (
+              <div 
+                onClick={() => handleOpenEndpointInWorkbench(node)}
+                onContextMenu={(e) => handleTreeNodeContextMenu(e, node)}
+                className="flex items-center space-x-2 cursor-pointer flex-1 min-w-max"
+              >
+                <span className={`rounded border px-1 py-0.5 text-[9px] font-extrabold uppercase shrink-0 ${getMethodBadgeClass(node.method)}`}>
+                  {node.method || 'GET'}
+                </span>
+                <span className="text-slate-300 whitespace-nowrap hover:text-white transition-colors font-semibold">{node.name}</span>
+
+                {/* Detailed Execution Result Badge - Aligned Directly Next to Endpoint Name */}
+                {result && (
+                  <div className="shrink-0 ml-1.5">
+                    {result.status === 'passed' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-mono font-extrabold text-emerald-300 bg-emerald-950/90 px-2 py-0.5 rounded-full border border-emerald-700/80 shadow-sm">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                        <span>PASS</span>
+                        {result.statusCode && <span className="opacity-80">({result.statusCode})</span>}
+                        {result.responseTimeMs !== undefined && <span className="opacity-75">{result.responseTimeMs}ms</span>}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-mono font-extrabold text-rose-300 bg-rose-950/90 px-2 py-0.5 rounded-full border border-rose-700/80 shadow-sm">
+                        <XCircle className="h-3 w-3 text-rose-400" />
+                        <span>FAIL</span>
+                        {result.statusCode && <span className="opacity-80">({result.statusCode})</span>}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
-            {checkState === 'indeterminate' && (
-              <MinusSquare className="h-3.5 w-3.5 text-emerald-400" />
+          </div>
+
+          {/* RIGHT CONTAINER: 3-Dots Menu Button */}
+          <div className="flex items-center space-x-1 shrink-0 ml-auto pl-1">
+            {/* Single 3-Dots Action Button on Hover */}
+            {!isEditing && (
+              <button
+                type="button"
+                onClick={(e) => handleTreeNodeContextMenu(e, node)}
+                className="p-1 rounded-lg opacity-0 group-hover/tree-item:opacity-100 hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+                title="More Actions"
+              >
+                <MoreVertical className="h-3.5 w-3.5" />
+              </button>
             )}
-            {checkState === 'unchecked' && (
-              <Square className="h-3.5 w-3.5 text-slate-600" />
-            )}
-          </button>
-
-          {/* Node Icon & Method Badge */}
-          {isEditing ? (
-            <div className="flex items-center gap-1 flex-1 min-w-0">
-              <input
-                type="text"
-                value={editingNodeName}
-                onChange={(e) => setEditingNodeName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveRename(node.id); if (e.key === 'Escape') setEditingNodeId(null); }}
-                className="flex-1 rounded border border-indigo-500 bg-slate-900 px-2 py-0.5 text-xs text-white focus:outline-none"
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => handleSaveRename(node.id)}
-                className="px-2 py-0.5 rounded bg-indigo-600 text-[10px] font-bold text-white hover:bg-indigo-500"
-              >
-                Save
-              </button>
-            </div>
-          ) : isFolder ? (
-            <div 
-              onClick={() => toggleExpand(node.id)}
-              className="flex items-center space-x-1.5 cursor-pointer flex-1 min-w-0"
-            >
-              {isExpanded ? (
-                <FolderOpen className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-              ) : (
-                <Folder className="h-3.5 w-3.5 text-amber-500/80 shrink-0" />
-              )}
-              <span className="font-semibold text-slate-200 truncate">{node.name}</span>
-            </div>
-          ) : (
-            <div 
-              onClick={() => {
-                const storeState = useRunnerStore.getState();
-
-                if (storeState.flatEndpointMap instanceof Map) {
-                  storeState.flatEndpointMap.set(node.id, node);
-                } else if (storeState.flatEndpointMap) {
-                  (storeState.flatEndpointMap as any)[node.id] = node;
-                }
-
-                if (storeState.serverFlatEndpointMap instanceof Map) {
-                  storeState.serverFlatEndpointMap.set(node.id, node);
-                } else if (storeState.serverFlatEndpointMap) {
-                  (storeState.serverFlatEndpointMap as any)[node.id] = node;
-                }
-
-                if (storeState.selectedEndpointIdForDetail === node.id) {
-                  useRunnerStore.setState({ selectedEndpointIdForDetail: null });
-                  setTimeout(() => {
-                    useRunnerStore.setState({ selectedEndpointIdForDetail: node.id });
-                  }, 20);
-                } else {
-                  setSelectedEndpointIdForDetail(node.id);
-                }
-              }}
-              className="flex items-center space-x-1.5 cursor-pointer flex-1 min-w-0"
-              title="Click to open in Workbench"
-            >
-              <span className={`rounded border px-1 py-0.5 text-[9px] font-extrabold uppercase shrink-0 ${getMethodBadgeClass(node.method)}`}>
-                {node.method || 'GET'}
-              </span>
-              <span className="text-slate-300 truncate hover:text-white transition-colors">{node.name}</span>
-            </div>
-          )}
-
-          {/* Action Buttons on Hover (Rename, Clone, Move Up/Down, Custom Delete) */}
-          {!isEditing && (
-            <div className="opacity-0 group-hover/tree-item:opacity-100 flex items-center space-x-1 shrink-0 transition-opacity">
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); handleStartRename(node); }}
-                className="p-0.5 text-slate-400 hover:text-indigo-300 transition-colors"
-                title="Rename endpoint"
-              >
-                <Edit3 className="h-3 w-3" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); duplicateNode(node.id); }}
-                className="p-0.5 text-slate-400 hover:text-emerald-300 transition-colors"
-                title="Duplicate / Clone endpoint"
-              >
-                <Copy className="h-3 w-3" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); moveNode(node.id, 'up'); }}
-                className="p-0.5 text-slate-400 hover:text-amber-300 transition-colors"
-                title="Move up"
-              >
-                <ArrowUp className="h-3 w-3" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); moveNode(node.id, 'down'); }}
-                className="p-0.5 text-slate-400 hover:text-amber-300 transition-colors"
-                title="Move down"
-              >
-                <ArrowDown className="h-3 w-3" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { 
-                  e.stopPropagation(); 
-                  setTargetNodeToDelete(node); // OPEN CUSTOM STYLED DIALOG (NO BROWSER POPUP)
-                }}
-                className="p-0.5 text-slate-400 hover:text-red-400 transition-colors"
-                title="Move to Trash Bin"
-              >
-                <Trash2 className="h-3 w-3 text-red-400/80 hover:text-red-400" />
-              </button>
-            </div>
-          )}
-
-          {/* Execution Result Status Badge */}
-          {result && (
-            <div className="shrink-0 ml-auto pl-1">
-              {result.status === 'passed' && (
-                <span className="inline-flex items-center gap-1 text-[9px] text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded-full border border-emerald-800/60">
-                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-400" /> Pass
-                </span>
-              )}
-              {result.status === 'failed' && (
-                <span className="inline-flex items-center gap-1 text-[9px] text-red-400 font-semibold bg-red-950/60 px-1.5 py-0.5 rounded-full border border-red-800/60">
-                  <XCircle className="h-2.5 w-2.5 text-red-400" /> Fail
-                </span>
-              )}
-            </div>
-          )}
+          </div>
         </div>
 
         {isFolder && isExpanded && node.children && (
@@ -950,6 +965,107 @@ export const TreeView: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── FLOATING TREE NODE CONTEXT MENU (PORTAL AT BODY LEVEL) ── */}
+      {treeContextMenu.isOpen && treeContextMenu.node && typeof document !== 'undefined' && createPortal(
+        <>
+          {/* Backdrop overlay to close context menu on outside click */}
+          <div 
+            className="fixed inset-0 z-[999998]" 
+            onClick={() => setTreeContextMenu(prev => ({ ...prev, isOpen: false }))} 
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setTreeContextMenu(prev => ({ ...prev, isOpen: false }));
+            }}
+          />
+
+          <div 
+            style={{
+              left: `${Math.min(treeContextMenu.x, window.innerWidth - 220)}px`,
+              top: `${Math.min(treeContextMenu.y, window.innerHeight - 280)}px`
+            }}
+            className="fixed z-[999999] flex flex-col bg-[#090d16] border border-slate-700/90 rounded-2xl shadow-2xl p-1.5 w-52 text-xs font-mono animate-in fade-in duration-150 text-slate-200 backdrop-blur-md"
+          >
+            <div className="px-3 py-1.5 border-b border-slate-800 text-[11px] font-bold text-slate-400 truncate flex items-center justify-between">
+              <span className="truncate max-w-[140px]">{treeContextMenu.node.name}</span>
+              <span className="text-[10px] text-indigo-400 font-semibold uppercase">{treeContextMenu.node.type}</span>
+            </div>
+
+            {treeContextMenu.node.type === 'endpoint' && (
+              <button
+                type="button"
+                onClick={() => {
+                  const node = treeContextMenu.node!;
+                  setTreeContextMenu(prev => ({ ...prev, isOpen: false }));
+                  handleOpenEndpointInWorkbench(node);
+                }}
+                className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-indigo-950/80 text-indigo-300 hover:text-white flex items-center gap-2 font-bold cursor-pointer mt-1"
+              >
+                <Send className="h-3.5 w-3.5 text-indigo-400" /> Open in Workbench
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                handleStartRename(treeContextMenu.node!);
+                setTreeContextMenu(prev => ({ ...prev, isOpen: false }));
+              }}
+              className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white flex items-center gap-2 cursor-pointer mt-1"
+            >
+              <Edit3 className="h-3.5 w-3.5 text-amber-400" /> Rename Node
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                duplicateNode(treeContextMenu.node!.id);
+                setTreeContextMenu(prev => ({ ...prev, isOpen: false }));
+              }}
+              className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white flex items-center gap-2 cursor-pointer"
+            >
+              <Copy className="h-3.5 w-3.5 text-emerald-400" /> Duplicate / Clone
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                moveNode(treeContextMenu.node!.id, 'up');
+                setTreeContextMenu(prev => ({ ...prev, isOpen: false }));
+              }}
+              className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white flex items-center gap-2 cursor-pointer"
+            >
+              <ArrowUp className="h-3.5 w-3.5 text-indigo-400" /> Move Up
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                moveNode(treeContextMenu.node!.id, 'down');
+                setTreeContextMenu(prev => ({ ...prev, isOpen: false }));
+              }}
+              className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white flex items-center gap-2 cursor-pointer"
+            >
+              <ArrowDown className="h-3.5 w-3.5 text-indigo-400" /> Move Down
+            </button>
+
+            <div className="h-px bg-slate-800 my-1" />
+
+            <button
+              type="button"
+              onClick={() => {
+                const nodeToDelete = treeContextMenu.node;
+                setTreeContextMenu(prev => ({ ...prev, isOpen: false }));
+                if (nodeToDelete) setTargetNodeToDelete(nodeToDelete);
+              }}
+              className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-rose-950/80 text-rose-400 hover:text-rose-300 flex items-center gap-2 font-bold cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-rose-400" /> Move to Trash
+            </button>
+          </div>
+        </>,
+        document.body
       )}
 
     </div>

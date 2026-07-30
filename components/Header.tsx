@@ -9,7 +9,8 @@ import {
   Zap,
   Sparkles,
   RotateCcw,
-  Bot
+  Bot,
+  History
 } from 'lucide-react';
 import { useRunnerStore } from '@/lib/store';
 import { EnvironmentManagerModal } from './EnvironmentManagerModal';
@@ -21,6 +22,7 @@ import { AdminControlPanelModal } from './AdminControlPanelModal';
 import { PricingCheckoutModal } from './PricingCheckoutModal';
 import { UserAuthModal } from './UserAuthModal';
 import { AiWorkspaceCopilotModal } from './AiWorkspaceCopilotModal';
+import { HistoryModal } from './HistoryModal';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { useAdminStore } from '@/lib/admin-store';
 import { useUserAuthStore } from '@/lib/user-auth-store';
@@ -32,7 +34,8 @@ export const Header: React.FC = () => {
     geminiApiKey, 
     setGeminiApiKey, 
     generateAiTestsForSelected,
-    resetFullWorkspace
+    resetFullWorkspace,
+    tabHistory
   } = useRunnerStore();
 
   const { 
@@ -47,6 +50,7 @@ export const Header: React.FC = () => {
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
   const [showAiCopilotModal, setShowAiCopilotModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [keyInput, setKeyInput] = useState(geminiApiKey);
 
@@ -112,7 +116,7 @@ export const Header: React.FC = () => {
   );
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/95 backdrop-blur-md">
+    <header className="relative z-30 w-full border-b border-slate-800/80 bg-slate-950/95 backdrop-blur-md">
       {/* ROW 1: BRAND TITLE & PRIMARY SYSTEM CONTROLS */}
       <div className="mx-auto flex max-w-[1600px] flex-col lg:flex-row lg:items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
         
@@ -203,6 +207,16 @@ export const Header: React.FC = () => {
 
             {/* Right Side Workspace Shortcuts */}
             <div className="flex flex-wrap items-center gap-2">
+              {/* Tab Usage History & Calendar Button */}
+              <button
+                onClick={() => setShowHistoryModal(true)}
+                className="inline-flex items-center space-x-1.5 rounded-xl bg-indigo-950/80 text-indigo-300 border border-indigo-800 px-3 py-1.5 text-xs font-bold hover:bg-indigo-900 transition-all shadow-sm whitespace-nowrap cursor-pointer"
+                title="Open Tab Usage History & Interactive Calendar"
+              >
+                <History className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                <span>Tab History ({tabHistory.length})</span>
+              </button>
+
               {/* Load Sample Preset Button (Configurable) */}
               {showPresetButton && (
                 <button
@@ -244,6 +258,12 @@ export const Header: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* HISTORY & CALENDAR MODAL */}
+      <HistoryModal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+      />
 
       {showKeyModal && mounted && createPortal(keyModalContent, document.body)}
 

@@ -1,5 +1,24 @@
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 
+export interface HistoryItem {
+  id: string;
+  endpointId: string;
+  endpointName: string;
+  method: HttpMethod;
+  timestamp: string; // ISO string e.g. "2026-07-30T00:07:24.000Z"
+  dateStr: string;   // YYYY-MM-DD e.g. "2026-07-30"
+  status?: 'passed' | 'failed' | 'opened';
+  statusCode?: number;
+  responseTimeMs?: number;
+}
+
+export const getLocalDateString = (d: Date = new Date()): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export interface TrashItem {
   id: string;
   node: TreeNode;

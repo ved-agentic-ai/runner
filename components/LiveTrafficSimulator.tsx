@@ -55,12 +55,12 @@ export const LiveTrafficSimulator: React.FC = () => {
   useEffect(() => {
     const list = Object.values(executionResults);
     if (list.length > 0) {
-      const realLogs: LogItem[] = list.map((res) => ({
-        id: `real-${res.endpointId}-${Date.now()}`,
-        timestamp: new Date().toLocaleTimeString(),
+      const realLogs: LogItem[] = list.map((res: any, idx: number) => ({
+        id: `real-${res.endpointId || 'ep'}-${idx}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        timestamp: res.executedAt ? new Date(res.executedAt).toLocaleTimeString() : new Date().toLocaleTimeString(),
         type: 'target_api',
-        method: res.method,
-        destination: res.resolvedUrl || res.url,
+        method: res.method || 'GET',
+        destination: res.resolvedUrl || res.url || 'Target API',
         payloadSummary: res.requestBody ? 'Body Payload Transmitted' : 'Headers & Params Transmitted',
         status: res.status === 'passed' ? `${res.statusCode || 200} OK` : 'Failed / Pending',
         isSecretMasked: false,
@@ -68,14 +68,14 @@ export const LiveTrafficSimulator: React.FC = () => {
       }));
 
       // Add a corresponding LLM test generation event showing local secret masking
-      const firstRes = list[0];
+      const firstRes: any = list[0];
       if (firstRes) {
         realLogs.unshift({
-          id: `llm-${Date.now()}`,
+          id: `llm-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           timestamp: new Date().toLocaleTimeString(),
           type: 'llm_generation',
           destination: 'Google Gemini LLM API (Sanitized Rules Only)',
-          payloadSummary: '{"url": "' + (firstRes.url || '') + '", "headers": {"Authorization": "{{REDACTED_SECRET}}"}}',
+          payloadSummary: '{"url": "' + (firstRes.resolvedUrl || firstRes.url || '') + '", "headers": {"Authorization": "{{REDACTED_SECRET}}"}}',
           status: '200 Test Script Generated',
           isSecretMasked: true,
           latencyMs: 140,

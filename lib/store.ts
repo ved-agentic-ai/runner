@@ -8,7 +8,9 @@ import {
   PostmanEnvironment, 
   EndpointTestSuite, 
   EndpointExecutionResult, 
-  RunSummary 
+  RunSummary,
+  HistoryItem,
+  getLocalDateString 
 } from './types';
 import { 
   parsePostmanCollection, 
@@ -59,6 +61,18 @@ interface RunnerState {
   theme: 'dark' | 'midnight' | 'emerald' | 'light';
   setTheme: (theme: 'dark' | 'midnight' | 'emerald' | 'light') => void;
 
+  workbenchOpenTabIds: string[];
+  workbenchActiveTabId: string | null;
+  tabHistory: HistoryItem[];
+  openWorkbenchTab: (id: string) => void;
+  closeWorkbenchTab: (id: string) => void;
+  closeAllWorkbenchTabs: () => void;
+  closeOtherWorkbenchTabs: (id: string) => void;
+  closeWorkbenchTabsToLeft: (id: string) => void;
+  closeWorkbenchTabsToRight: (id: string) => void;
+  addTabHistory: (item: Omit<HistoryItem, 'id' | 'timestamp' | 'dateStr'>) => void;
+  clearTabHistory: () => void;
+
   // Actions
   loadCollection: (collectionJson: PostmanCollection, envJson?: PostmanEnvironment) => void;
   loadDemoCollection: () => void;
@@ -83,6 +97,7 @@ interface RunnerState {
   exportCollection: (selectedOnly?: boolean) => void;
   generateAiTestsForSelected: () => Promise<void>;
   runSelectedEndpoints: () => Promise<void>;
+  setSingleExecutionResult: (id: string, result: any) => void;
   clearResults: () => void;
   resetFullWorkspace: () => void;
 }
@@ -124,7 +139,127 @@ export const useRunnerStore = create<RunnerState>()(
         maxLatencyMs: 0,
         status: 'idle',
       },
+      workbenchOpenTabIds: [],
+      workbenchActiveTabId: null,
+      tabHistory: [],
       selectedEndpointIdForDetail: null,
+
+      openWorkbenchTab: (id: string) => {
+        const { workbenchOpenTabIds, flatEndpointMap, serverFlatEndpointMap, tabHistory } = get();
+        const activeMap = flatEndpointMap.size > 0 ? flatEndpointMap : serverFlatEndpointMap;
+        const node = activeMap.get(id);
+        const nextTabs = [id, ...workbenchOpenTabIds.filter((t) => t !== id)];
+
+        const now = new Date();
+        const dateStr = getLocalDateString(now);
+        const newHistItem: HistoryItem = {
+          id: `hist_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          endpointId: id,
+          endpointName: node?.name || 'Endpoint',
+          method: node?.method || 'GET',
+          timestamp: now.toISOString(),
+          dateStr,
+          status: 'opened'
+        };
+
+        const filteredHist = tabHistory.filter(h => !(h.endpointId === id && h.dateStr === dateStr));
+
+        set({
+          workbenchOpenTabIds: nextTabs,
+          workbenchActiveTabId: id,
+          selectedEndpointIdForDetail: id,
+          tabHistory: [newHistItem, ...filteredHist].slice(0, 300)
+        });
+      },
+
+      addTabHistory: (item) => {
+        const { tabHistory } = get();
+        const now = new Date();
+        const dateStr = getLocalDateString(now);
+        const newHistItem: HistoryItem = {
+          ...item,
+          id: `hist_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          timestamp: now.toISOString(),
+          dateStr
+        };
+        const filteredHist = tabHistory.filter(h => !(h.endpointId === item.endpointId && h.dateStr === dateStr));
+        set({
+          tabHistory: [newHistItem, ...filteredHist].slice(0, 300)
+        });
+      },
+
+      clearTabHistory: () => {
+        set({ tabHistory: [] });
+      },
+
+      closeWorkbenchTab: (id: string) => {
+        const { workbenchOpenTabIds, workbenchActiveTabId } = get();
+        const nextTabs = workbenchOpenTabIds.filter((t) => t !== id);
+        let nextActive = workbenchActiveTabId;
+        if (workbenchActiveTabId === id) {
+          const closedIdx = workbenchOpenTabIds.indexOf(id);
+          if (nextTabs.length > 0) {
+            nextActive = nextTabs[Math.min(closedIdx, nextTabs.length - 1)];
+          } else {
+            nextActive = null;
+          }
+        }
+        set({
+          workbenchOpenTabIds: nextTabs,
+          workbenchActiveTabId: nextActive,
+          selectedEndpointIdForDetail: nextActive,
+        });
+      },
+
+      closeAllWorkbenchTabs: () => {
+        set({
+          workbenchOpenTabIds: [],
+          workbenchActiveTabId: null,
+          selectedEndpointIdForDetail: null,
+        });
+      },
+
+      closeOtherWorkbenchTabs: (id: string) => {
+        set({
+          workbenchOpenTabIds: [id],
+          workbenchActiveTabId: id,
+          selectedEndpointIdForDetail: id,
+        });
+      },
+
+      closeWorkbenchTabsToLeft: (id: string) => {
+        const { workbenchOpenTabIds, workbenchActiveTabId } = get();
+        const idx = workbenchOpenTabIds.indexOf(id);
+        if (idx <= 0) return;
+        const nextTabs = workbenchOpenTabIds.slice(idx);
+        const nextActive = nextTabs.includes(workbenchActiveTabId || '') ? workbenchActiveTabId : id;
+        set({
+          workbenchOpenTabIds: nextTabs,
+          workbenchActiveTabId: nextActive,
+          selectedEndpointIdForDetail: nextActive,
+        });
+      },
+
+      closeWorkbenchTabsToRight: (id: string) => {
+        const { workbenchOpenTabIds, workbenchActiveTabId } = get();
+        const idx = workbenchOpenTabIds.indexOf(id);
+        if (idx === -1 || idx === workbenchOpenTabIds.length - 1) return;
+        const nextTabs = workbenchOpenTabIds.slice(0, idx + 1);
+        const nextActive = nextTabs.includes(workbenchActiveTabId || '') ? workbenchActiveTabId : id;
+        set({
+          workbenchOpenTabIds: nextTabs,
+          workbenchActiveTabId: nextActive,
+          selectedEndpointIdForDetail: nextActive,
+        });
+      },
+
+      setSelectedEndpointIdForDetail: (id: string | null) => {
+        if (id) {
+          get().openWorkbenchTab(id);
+        } else {
+          set({ selectedEndpointIdForDetail: null, workbenchActiveTabId: null });
+        }
+      },
       inspectorEndpointId: null,
       geminiApiKey: '',
       isGeneratingAiTests: false,
@@ -292,8 +427,15 @@ export const useRunnerStore = create<RunnerState>()(
 
       setSearchQuery: (query: string) => set({ searchQuery: query }),
       setFilterStatus: (status) => set({ filterStatus: status }),
-      setSelectedEndpointIdForDetail: (id) => set({ selectedEndpointIdForDetail: id }),
       setInspectorEndpointId: (id) => set({ inspectorEndpointId: id }),
+      setSingleExecutionResult: (id: string, result: any) => {
+        set((state) => ({
+          executionResults: {
+            ...state.executionResults,
+            [id]: result,
+          },
+        }));
+      },
 
       updateEndpointName: (id: string, newName: string) => {
         const { rootNodes, flatEndpointMap, serverRootNodes, serverFlatEndpointMap, generatedTestSuites } = get();
@@ -662,14 +804,46 @@ export const useRunnerStore = create<RunnerState>()(
       runSelectedEndpoints: async () => {
         const { 
           flatEndpointMap, 
+          serverFlatEndpointMap,
+          rootNodes,
+          serverRootNodes,
           selectedNodeIds, 
           envVariables, 
           generatedTestSuites 
         } = get();
 
-        const selectedEndpoints = Array.from(flatEndpointMap.values()).filter(
-          (ep) => selectedNodeIds.includes(ep.id)
+        // Combine local and server maps to find all selected endpoints
+        const combinedMap = new Map<string, TreeNode>();
+        if (flatEndpointMap && flatEndpointMap.size > 0) {
+          flatEndpointMap.forEach((v, k) => combinedMap.set(k, v));
+        }
+        if (serverFlatEndpointMap && serverFlatEndpointMap.size > 0) {
+          serverFlatEndpointMap.forEach((v, k) => combinedMap.set(k, v));
+        }
+
+        // Fallback helper to traverse tree if map missed an endpoint
+        function findEndpointsInTree(nodes: TreeNode[], targetIds: Set<string>): TreeNode[] {
+          let found: TreeNode[] = [];
+          nodes.forEach((n) => {
+            if (targetIds.has(n.id) && (n.type === 'endpoint' || !n.children)) {
+              found.push(n);
+            }
+            if (n.children) {
+              found.push(...findEndpointsInTree(n.children, targetIds));
+            }
+          });
+          return found;
+        }
+
+        const selectedSet = new Set(selectedNodeIds);
+        let selectedEndpoints = Array.from(combinedMap.values()).filter(
+          (ep) => selectedSet.has(ep.id) && (ep.type === 'endpoint' || !ep.children)
         );
+
+        if (selectedEndpoints.length === 0) {
+          const allRoots = [...rootNodes, ...serverRootNodes];
+          selectedEndpoints = findEndpointsInTree(allRoots, selectedSet);
+        }
 
         if (selectedEndpoints.length === 0) return;
 

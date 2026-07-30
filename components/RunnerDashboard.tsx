@@ -288,9 +288,33 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setInspectorEndpointId(res.endpointId);
+              const epId = res.endpointId;
+              const storeState = useRunnerStore.getState();
+
+              let targetNode = storeState.flatEndpointMap.get(epId) || storeState.serverFlatEndpointMap.get(epId);
+              if (targetNode) {
+                if (storeState.flatEndpointMap instanceof Map) storeState.flatEndpointMap.set(epId, targetNode);
+                if (storeState.serverFlatEndpointMap instanceof Map) storeState.serverFlatEndpointMap.set(epId, targetNode);
+              }
+
+              storeState.setSelectedEndpointIdForDetail(epId);
+              storeState.openWorkbenchTab(epId);
+              storeState.setInspectorEndpointId(epId);
+
+              setTimeout(() => {
+                const workbenchEl = document.getElementById('endpoint-workbench-panel');
+                if (workbenchEl) {
+                  const rect = workbenchEl.getBoundingClientRect();
+                  const headerOffset = 20;
+                  const targetY = window.scrollY + rect.top - headerOffset;
+                  window.scrollTo({ top: targetY, behavior: 'smooth' });
+
+                  workbenchEl.classList.add('ring-4', 'ring-indigo-500/80', 'transition-all', 'duration-500');
+                  setTimeout(() => workbenchEl.classList.remove('ring-4', 'ring-indigo-500/80'), 1500);
+                }
+              }, 50);
             }}
-            className="rounded-lg bg-slate-800 p-1.5 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all"
+            className="rounded-lg bg-slate-800 p-1.5 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer"
             title="Inspect Response & Assertions"
           >
             <Eye className="h-3.5 w-3.5" />
@@ -723,269 +747,6 @@ export const RunnerDashboard: React.FC<RunnerDashboardProps> = ({ onSaveToServer
           </div>
         </div>
       )}
-
-      {/* Execution Results Section */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 backdrop-blur-md flex-1 flex flex-col min-h-0">
-        
-        {/* Controls Bar with Symmetrical Tab Alignment */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between pb-3.5 border-b border-slate-800 gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            
-            {/* Filter Status Tabs */}
-            <div className="inline-flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800 text-xs shadow-inner">
-              {[
-                { id: 'all', label: 'All Results' },
-                { id: 'passed', label: `Passed (${runSummary.passed})` },
-                { id: 'failed', label: `Failed (${runSummary.failed})` },
-                { id: 'running', label: `Pending/Running (${runSummary.pending + runSummary.running})` },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setFilterStatus(tab.id as any)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
-                    filterStatus === tab.id
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="hidden sm:block h-6 w-px bg-slate-800" />
-
-            {/* View Mode Grouping Toggles */}
-            <div className="inline-flex items-center gap-1 bg-slate-950/90 p-1 rounded-xl border border-slate-800 text-xs shadow-inner">
-              <button
-                onClick={() => setViewMode('flat')}
-                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                  viewMode === 'flat' ? 'bg-slate-800 text-white shadow-sm border border-slate-700' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Flat List
-              </button>
-
-              <button
-                onClick={() => setViewMode('status')}
-                className={`inline-flex items-center space-x-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                  viewMode === 'status' ? 'bg-purple-950 text-purple-200 border border-purple-700 shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <ListFilter className="h-3.5 w-3.5 text-purple-400" />
-                <span>By Status</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode('reason')}
-                className={`inline-flex items-center space-x-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                  viewMode === 'reason' ? 'bg-red-950 text-red-200 border border-red-700 shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Group failed requests by their specific root cause / error reason"
-              >
-                <Flame className="h-3.5 w-3.5 text-red-400" />
-                <span>By Failure Reason</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3 shrink-0 self-end xl:self-center">
-            <span className="text-xs text-slate-400 font-mono">
-              Showing {sortedResults.length} endpoint executions
-            </span>
-
-            {/* Collapse Results Panel Button */}
-            <button
-              onClick={() => setResultsPanelCollapsed(!resultsPanelCollapsed)}
-              className="text-slate-400 hover:text-white p-1.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 transition-all cursor-pointer"
-              title={resultsPanelCollapsed ? 'Expand Results' : 'Collapse Results'}
-            >
-              {resultsPanelCollapsed ? <Maximize2 className="h-4 w-4 text-indigo-400" /> : <Minimize2 className="h-4 w-4 text-indigo-400" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Execution Results Data Table */}
-        {!resultsPanelCollapsed && (
-          <div className="relative mt-3">
-            <div 
-              ref={resultsScrollRef}
-              onScroll={handleResultsScroll}
-              className="max-h-[500px] overflow-x-auto overflow-y-auto custom-scrollbar border border-slate-800/60 rounded-xl"
-            >
-            <table className="w-full text-left text-xs text-slate-300 border-collapse">
-              <thead className="border-b border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-slate-950/90 sticky top-0 z-10 select-none">
-                <tr>
-                  <th 
-                    onClick={() => handleSort('method')} 
-                    className="py-2.5 px-3 cursor-pointer hover:text-white transition-colors"
-                  >
-                    Method {renderSortIndicator('method')}
-                  </th>
-                  <th 
-                    onClick={() => handleSort('name')} 
-                    className="py-2.5 px-3 cursor-pointer hover:text-white transition-colors"
-                  >
-                    Endpoint Name & URL {renderSortIndicator('name')}
-                  </th>
-                  <th 
-                    onClick={() => handleSort('status')} 
-                    className="py-2.5 px-3 cursor-pointer hover:text-white transition-colors"
-                  >
-                    Status {renderSortIndicator('status')}
-                  </th>
-                  <th 
-                    onClick={() => handleSort('latency')} 
-                    className="py-2.5 px-3 cursor-pointer hover:text-white transition-colors"
-                  >
-                    Latency {renderSortIndicator('latency')}
-                  </th>
-                  <th 
-                    onClick={() => handleSort('assertions')} 
-                    className="py-2.5 px-3 cursor-pointer hover:text-white transition-colors"
-                  >
-                    AI Assertions {renderSortIndicator('assertions')}
-                  </th>
-                  <th className="py-2.5 px-3 text-right">Inspect</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 font-mono">
-                {sortedResults.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-slate-500 font-sans">
-                      No endpoint runs to display yet. Click &quot;Run Selected Endpoints&quot; above to execute.
-                    </td>
-                  </tr>
-                ) : viewMode === 'reason' ? (
-                  /* GROUP BY FAILURE REASON / ROOT CAUSE BUCKETS */
-                  failureReasonBuckets.map(([reasonKey, items], bIdx) => {
-                    const isCollapsed = collapsedGroups[`reason-${bIdx}`] ?? false;
-                    const isPassedBucket = reasonKey.includes('PASSED');
-
-                    return (
-                      <React.Fragment key={bIdx}>
-                        <tr 
-                          onClick={() => toggleGroupCollapse(`reason-${bIdx}`)}
-                          className={`border-y font-sans font-bold cursor-pointer transition-colors select-none ${
-                            isPassedBucket 
-                              ? 'bg-emerald-950/50 border-emerald-800/80 text-emerald-300 hover:bg-emerald-900/60'
-                              : 'bg-red-950/60 border-red-800/90 text-red-200 hover:bg-red-900/70'
-                          }`}
-                        >
-                          <td colSpan={6} className="py-2.5 px-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-2 text-xs">
-                                <span>{isCollapsed ? '▶' : '▼'}</span>
-                                {isPassedBucket ? (
-                                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                                ) : (
-                                  <AlertTriangle className="h-4 w-4 text-red-400" />
-                                )}
-                                <span className="font-extrabold uppercase">{reasonKey} ({items.length} Endpoints)</span>
-                              </div>
-                              <span className="text-[10px] font-mono font-normal opacity-80">
-                                {isCollapsed ? 'Click to Expand Reason' : 'Click to Collapse'}
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                        {!isCollapsed && items.map(renderRow)}
-                      </React.Fragment>
-                    );
-                  })
-                ) : viewMode === 'status' ? (
-                  <>
-                    {/* GROUP 1: PASSED (COLLAPSIBLE) */}
-                    {passedGroup.length > 0 && (
-                      <>
-                        <tr 
-                          onClick={() => toggleGroupCollapse('passed')}
-                          className="bg-emerald-950/50 border-y border-emerald-800/80 font-sans font-bold text-emerald-300 cursor-pointer hover:bg-emerald-900/60 select-none transition-colors"
-                        >
-                          <td colSpan={6} className="py-2.5 px-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-2 text-xs">
-                                <span className="text-emerald-400 font-bold">{collapsedGroups['passed'] ? '▶' : '▼'}</span>
-                                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                                <span>✅ PASSED ENDPOINTS ({passedGroup.length})</span>
-                              </div>
-                              <span className="text-[10px] text-emerald-400 font-mono font-normal">
-                                {collapsedGroups['passed'] ? 'Click to Expand Group' : 'Click to Collapse Group'}
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                        {!collapsedGroups['passed'] && passedGroup.map(renderRow)}
-                      </>
-                    )}
-
-                    {/* GROUP 2: FAILED (COLLAPSIBLE) */}
-                    {failedGroup.length > 0 && (
-                      <>
-                        <tr 
-                          onClick={() => toggleGroupCollapse('failed')}
-                          className="bg-red-950/50 border-y border-red-800/80 font-sans font-bold text-red-300 cursor-pointer hover:bg-red-900/60 select-none transition-colors"
-                        >
-                          <td colSpan={6} className="py-2.5 px-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-2 text-xs">
-                                <span className="text-red-400 font-bold">{collapsedGroups['failed'] ? '▶' : '▼'}</span>
-                                <XCircle className="h-4 w-4 text-red-400" />
-                                <span>❌ FAILED ENDPOINTS ({failedGroup.length})</span>
-                              </div>
-                              <span className="text-[10px] text-red-400 font-mono font-normal">
-                                {collapsedGroups['failed'] ? 'Click to Expand Group' : 'Click to Collapse Group'}
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                        {!collapsedGroups['failed'] && failedGroup.map(renderRow)}
-                      </>
-                    )}
-
-                    {/* GROUP 3: PENDING/RUNNING (COLLAPSIBLE) */}
-                    {pendingGroup.length > 0 && (
-                      <>
-                        <tr 
-                          onClick={() => toggleGroupCollapse('pending')}
-                          className="bg-slate-900 border-y border-slate-800 font-sans font-bold text-indigo-300 cursor-pointer hover:bg-slate-800 select-none transition-colors"
-                        >
-                          <td colSpan={6} className="py-2.5 px-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-2 text-xs">
-                                <span className="text-indigo-400 font-bold">{collapsedGroups['pending'] ? '▶' : '▼'}</span>
-                                <Clock className="h-4 w-4 text-indigo-400" />
-                                <span>⏳ PENDING / RUNNING ({pendingGroup.length})</span>
-                              </div>
-                              <span className="text-[10px] text-indigo-400 font-mono font-normal">
-                                {collapsedGroups['pending'] ? 'Click to Expand Group' : 'Click to Collapse Group'}
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                        {!collapsedGroups['pending'] && pendingGroup.map(renderRow)}
-                      </>
-                    )}
-                  </>
-                ) : (
-                  sortedResults.map(renderRow)
-                )}
-              </tbody>
-            </table>
-            </div>
-            {/* Floating FAB scroll-to-top for results pane */}
-            {showResultsFAB && (
-              <button
-                onClick={scrollResultsToTop}
-                className="absolute bottom-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 shadow-lg shadow-indigo-600/40 hover:bg-indigo-500 transition-all"
-                title="Back to top"
-              >
-                <ArrowUp className="h-4 w-4 text-white" />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
 
     </div>
   );

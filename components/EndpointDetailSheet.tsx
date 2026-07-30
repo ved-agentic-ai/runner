@@ -33,6 +33,7 @@ export const EndpointDetailSheet: React.FC = () => {
     setInspectorEndpointId, 
     executionResults, 
     flatEndpointMap,
+    serverFlatEndpointMap,
     generatedTestSuites,
     envVariables
   } = useRunnerStore();
@@ -50,7 +51,7 @@ export const EndpointDetailSheet: React.FC = () => {
     setMounted(true);
   }, []);
 
-  const endpointNode = inspectorEndpointId ? flatEndpointMap.get(inspectorEndpointId) : undefined;
+  const endpointNode = inspectorEndpointId ? (flatEndpointMap.get(inspectorEndpointId) || serverFlatEndpointMap.get(inspectorEndpointId)) : undefined;
   const result = inspectorEndpointId ? executionResults[inspectorEndpointId] : undefined;
   const testSuite = inspectorEndpointId ? generatedTestSuites[inspectorEndpointId] : undefined;
 
