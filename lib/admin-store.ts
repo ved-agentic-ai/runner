@@ -121,8 +121,8 @@ export const useAdminStore = create<AdminSettings>()(
         }
       },
 
-      // Default to 'light' (clean public visitor view with architecture/vault tabs hidden)
-      workspaceMode: 'light',
+      // Default to 'full' mode in Anonymous View
+      workspaceMode: 'full',
       disclaimerMode: 'modal',
       
       // Anonymous & White-Label Privacy Default State
@@ -132,12 +132,12 @@ export const useAdminStore = create<AdminSettings>()(
       setHidePlanDetails: (enabled) => set({ hidePlanDetails: enabled }),
       
       showStepByStepGuide: true,
-      showFooter: false,
-      showPlatformOverviewBanner: false,
+      showFooter: true,
+      showPlatformOverviewBanner: true,
       showCapabilitiesGrid: true,
-      showTrafficSimulator: false,
-      showCustomRulesVault: false,
-      showDocumentation: false,
+      showTrafficSimulator: true,
+      showCustomRulesVault: true,
+      showDocumentation: true,
       showHeaderControls: true,
       showSaaSUpgrades: true,
       showPciCompliance: false,

@@ -27,8 +27,6 @@ export const ReleasePipelineBar: React.FC = () => {
 
   const [notification, setNotification] = useState<string | null>(null);
 
-  if (anonymousMode) return null;
-
   const triggerNotification = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 4000);
